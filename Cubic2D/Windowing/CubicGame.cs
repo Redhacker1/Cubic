@@ -1,15 +1,19 @@
 using System;
 using Cubic2D.Render;
+using Cubic2D.Scenes;
 
 namespace Cubic2D.Windowing;
 
 public sealed class CubicGame : IDisposable
 {
+    private GameSettings _settings;
+    
     public readonly GameWindow Window;
     public Graphics Graphics { get; private set; }
 
     public CubicGame(GameSettings settings)
     {
+        _settings = settings;
         Window = new GameWindow(settings);
         Current = this;
     }
@@ -18,19 +22,18 @@ public sealed class CubicGame : IDisposable
     {
         Window.Prepare();
 
-        Graphics = new Graphics(Window.SdlWindow);
+        Graphics = new Graphics(Window.SdlWindow, _settings);
         
-        // TODO: Initialise scenes etc etc etc
-
-        Window.CenterWindow();
+        SceneManager.Initialize();
+        
         Window.SdlWindow.Visible = true;
         
         while (Window.SdlWindow.Exists)
         {
-            Window.SdlWindow.PumpEvents();
-            // todo Update
+            Input.Update(Window.SdlWindow.PumpEvents());
+            SceneManager.Update();
             Graphics.PrepareFrame();
-            // todo Draw
+            SceneManager.Draw();
             Graphics.PresentFrame();
         }
     }

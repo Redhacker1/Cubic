@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cubic2D", "Cubic2D\Cubic2D.csproj", "{EE5EBB43-D4B3-416C-A4AE-509EC9C5B470}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestGame", "TestGame\TestGame.csproj", "{C6744D05-9E8D-450D-82EC-A1F2B0DDAE56}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cubic2D.TestGame", "Cubic2D.TestGame\Cubic2D.TestGame.csproj", "{C6744D05-9E8D-450D-82EC-A1F2B0DDAE56}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,27 +1,52 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Cubic2D.Scenes;
 
 public static class SceneManager
 {
-    private static Dictionary<string, Type> _scenes;
+    private static readonly Dictionary<string, Type> _scenes = new Dictionary<string, Type>();
 
     internal static Scene Active;
-    private static Scene _switchScene;
+    private static Type _switchScene;
 
+    internal static void Initialize()
+    {
+        if (_scenes.Count < 1)
+            throw new CubicException("There must be at least one scene registered before the application can launch.");
+
+        Type scene = _scenes.ElementAt(0).Value;
+        Active = (Scene) Activator.CreateInstance(scene);
+        if (Active == null)
+            throw new CubicException("Scene could not be instantiated.");
+        Active.Initialize();
+    }
+    
     internal static void Update()
     {
         if (_switchScene != null)
         {
-            
+            Active.Dispose();
+            Active = null;
+            // Force the GC to collect our now null scene, as we don't need it.
+            GC.Collect();
+            Active = (Scene) Activator.CreateInstance(_switchScene);
+            _switchScene = null;
+            if (Active == null)
+                throw new CubicException("Scene could not be instantiated.");
+            Active.Initialize();
         }
         
         Active.Update();
     }
 
-    public static void RegisterScene<T>(string name) where T : Scene
+    internal static void Draw()
     {
-        _scenes.Add(name, typeof(T));
+        Active.Draw();
     }
+
+    public static void RegisterScene<T>(string name) where T : Scene => _scenes.Add(name, typeof(T));
+
+    public static void SetScene(string name) => _switchScene = _scenes[name];
 }
