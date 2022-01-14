@@ -22,7 +22,7 @@ public class Texture2D : UnmanagedResource
             
             GraphicsDevice device = CubicGame.Current.Graphics.GraphicsDevice;
             Texture = device.ResourceFactory.CreateTexture(TextureDescription.Texture2D((uint) result.Width,
-                (uint) result.Height, 1, 1, PixelFormat.R8_G8_B8_A8_SNorm, TextureUsage.Sampled));
+                (uint) result.Height, 1, 1, PixelFormat.R8_G8_B8_A8_UNorm, TextureUsage.Sampled));
             device.UpdateTexture(Texture, result.Data, 0, 0, 0, (uint) result.Width, (uint) result.Height, 1, 0, 0);
             Size = new Size(result.Width, result.Height);
         }

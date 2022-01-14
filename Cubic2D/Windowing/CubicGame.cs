@@ -1,6 +1,7 @@
 using System;
 using Cubic2D.Render;
 using Cubic2D.Scenes;
+using Veldrid;
 
 namespace Cubic2D.Windowing;
 
@@ -27,9 +28,19 @@ public sealed class CubicGame : IDisposable
         SceneManager.Initialize();
         
         Window.SdlWindow.Visible = true;
+        Window.SdlWindow.WindowState = _settings.WindowMode switch
+        {
+            WindowMode.Windowed => WindowState.Normal,
+            WindowMode.Fullscreen => WindowState.FullScreen,
+            WindowMode.BorderlessFullscreen => WindowState.BorderlessFullScreen,
+            _ => throw new ArgumentOutOfRangeException()
+        };
+        
+        Time.Start();
         
         while (Window.SdlWindow.Exists)
         {
+            Time.Update();
             Input.Update(Window.SdlWindow.PumpEvents());
             SceneManager.Update();
             Graphics.PrepareFrame();
@@ -40,7 +51,13 @@ public sealed class CubicGame : IDisposable
 
     public void Dispose()
     {
+        SceneManager.Active.Dispose();
         Graphics.Dispose();
+    }
+
+    public void Close()
+    {
+        Window.SdlWindow.Close();
     }
     
     public static CubicGame Current { get; private set; }

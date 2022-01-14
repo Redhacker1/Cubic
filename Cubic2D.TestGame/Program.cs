@@ -1,5 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-
+﻿using System.Drawing;
 using Cubic2D.Scenes;
 using Cubic2D.Windowing;
 using Cubic2D.TestGame;

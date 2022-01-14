@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cubic2D.Windowing;
 
 namespace Cubic2D.Scenes;
 
@@ -20,6 +21,7 @@ public static class SceneManager
         Active = (Scene) Activator.CreateInstance(scene);
         if (Active == null)
             throw new CubicException("Scene could not be instantiated.");
+        Active.Graphics = CubicGame.Current.Graphics;
         Active.Initialize();
     }
     
@@ -35,6 +37,7 @@ public static class SceneManager
             _switchScene = null;
             if (Active == null)
                 throw new CubicException("Scene could not be instantiated.");
+            Active.Graphics = CubicGame.Current.Graphics;
             Active.Initialize();
         }
         

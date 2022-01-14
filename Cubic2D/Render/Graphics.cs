@@ -15,6 +15,8 @@ public class Graphics : UnmanagedResource
     // ReSharper disable once InconsistentNaming
     internal readonly CommandList CL;
 
+    public readonly SpriteRenderer SpriteRenderer;
+
     public bool VSync
     {
         get => GraphicsDevice.SyncToVerticalBlank;
@@ -28,7 +30,8 @@ public class Graphics : UnmanagedResource
         {
             PreferDepthRangeZeroToOne = true,
             PreferStandardClipSpaceYDirection = true,
-            SyncToVerticalBlank = settings.VSync
+            SyncToVerticalBlank = settings.VSync,
+            SwapchainDepthFormat = PixelFormat.R16_UNorm
         };
 
         // TODO: Add option in GameSettings to allow backend choice.
@@ -38,6 +41,8 @@ public class Graphics : UnmanagedResource
         CL = ResourceFactory.CreateCommandList();
         
         window.Resized += WindowResized;
+
+        SpriteRenderer = new SpriteRenderer(this);
     }
     
 
@@ -47,6 +52,7 @@ public class Graphics : UnmanagedResource
         CL.Begin();
         CL.SetFramebuffer(GraphicsDevice.SwapchainFramebuffer);
         CL.ClearColorTarget(0, RgbaFloat.CornflowerBlue);
+        CL.ClearDepthStencil(0);
     }
 
     internal void PresentFrame()

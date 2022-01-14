@@ -11,4 +11,10 @@
       <ProjectReference Include="..\Cubic2D\Cubic2D.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="Content\awesomeface.png">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>
