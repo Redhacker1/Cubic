@@ -43,7 +43,7 @@ public sealed class CubicGame : IDisposable
             Time.Update();
             Input.Update(Window.SdlWindow.PumpEvents());
             SceneManager.Update();
-            Graphics.PrepareFrame();
+            Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
             SceneManager.Draw();
             Graphics.PresentFrame();
         }

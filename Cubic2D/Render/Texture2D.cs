@@ -30,6 +30,15 @@ public class Texture2D : UnmanagedResource
         // Add this to the list of created resources the scene has so it can be disposed later.
         SceneManager.Active.CreatedResources.Add(this);
     }
+
+    public Texture2D(int width, int height, byte[] data)
+    {
+        GraphicsDevice device = CubicGame.Current.Graphics.GraphicsDevice;
+        Texture = device.ResourceFactory.CreateTexture(TextureDescription.Texture2D((uint) width,
+            (uint) height, 1, 1, PixelFormat.R8_G8_B8_A8_UNorm, TextureUsage.Sampled));
+        device.UpdateTexture(Texture, data, 0, 0, 0, (uint) width, (uint) height, 1, 0, 0);
+        Size = new Size(width, height);
+    }
     
     internal override void Dispose()
     {
@@ -38,4 +47,6 @@ public class Texture2D : UnmanagedResource
         Console.WriteLine("Texture disposed");
 #endif
     }
+
+    public static readonly Texture2D Blank = new Texture2D(1, 1, new byte[] {255, 255, 255, 255});
 }

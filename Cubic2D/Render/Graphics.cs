@@ -46,12 +46,12 @@ public class Graphics : UnmanagedResource
     }
     
 
-    internal void PrepareFrame()
+    internal void PrepareFrame(RgbaFloat clearColor)
     {
         // Prepare the command list so calls can be issued.
         CL.Begin();
         CL.SetFramebuffer(GraphicsDevice.SwapchainFramebuffer);
-        CL.ClearColorTarget(0, RgbaFloat.CornflowerBlue);
+        CL.ClearColorTarget(0, clearColor);
         CL.ClearDepthStencil(0);
     }
 

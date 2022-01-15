@@ -166,7 +166,7 @@ void main()
         _begun = true;
         
         Matrix4x4 tMatrix = transform ?? Matrix4x4.Identity;
-        _graphics.GraphicsDevice.UpdateBuffer(_projectionViewBuffer, 0, _projectionMatrix * tMatrix);
+        _graphics.CL.UpdateBuffer(_projectionViewBuffer, 0, tMatrix * _projectionMatrix);
     }
 
     /// <summary>

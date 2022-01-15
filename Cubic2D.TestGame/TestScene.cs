@@ -24,6 +24,8 @@ public class TestScene : Scene
     {
         base.Initialize();
         
+        World.ClearColor = Color.CornflowerBlue;
+        
         Console.WriteLine("Initialized!");
 
         _texture = new Texture2D("Content/awesomeface.png");
@@ -52,15 +54,19 @@ public class TestScene : Scene
         if (Input.KeyPressed(Keys.Escape))
             CubicGame.Current.Close();
 
-        _rot += 1 * Time.DeltaTime;
+        //_rot += 1 * Time.DeltaTime;
+
+        Camera.Main.Transform.Position.Y = 500;
+        
+        Console.WriteLine(Input.KeysPressed(Keys.A, Keys.B));
     }
 
     protected override void Draw()
     {
         base.Draw();
         
-        Graphics.SpriteRenderer.Begin();
-        Graphics.SpriteRenderer.Draw(_texture, _pos, null, Color.CornflowerBlue, _rot, _texture.Size.ToVector2() / 2f, Vector2.One, _mode);
+        Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix);
+        Graphics.SpriteRenderer.Draw(_texture, _pos, null, Color.White, _rot, _texture.Size.ToVector2() / 2f, Vector2.One, _mode);
         Graphics.SpriteRenderer.Draw(_texture, new Vector2(100), null, Color.White, _rot, Vector2.Zero, Vector2.One, _mode);
         Graphics.SpriteRenderer.End();
     }

@@ -51,13 +51,13 @@ public class Entity
         throw new CubicException("Requested component was not found.");
     }
 
-    internal void Update()
+    protected internal virtual void Update()
     {
         foreach (Component component in _components)
             component?.Update();
     }
 
-    internal void Draw(Graphics graphics)
+    protected internal virtual void Draw(Graphics graphics)
     {
         foreach (Component component in _components)
             component?.Draw(graphics);
