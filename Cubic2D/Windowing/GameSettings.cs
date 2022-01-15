@@ -18,6 +18,11 @@ public struct GameSettings
     /// The initial <see cref="WindowMode"/> of the window. (Default: Windowed)
     /// </summary>
     public WindowMode WindowMode;
+    
+    /// <summary>
+    /// If true, the window will be resizable. (Default: false)
+    /// </summary>
+    public bool Resizable;
 
     /// <summary>
     /// If true, the graphics device will attempt to sync to vertical refresh. (Default: true)
@@ -35,6 +40,7 @@ public struct GameSettings
         Size = new Size(1280, 720);
         Title = "Cubic2D Window";
         WindowMode = WindowMode.Windowed;
+        Resizable = false;
         VSync = true;
         Location = new Point(-1, -1);
     }

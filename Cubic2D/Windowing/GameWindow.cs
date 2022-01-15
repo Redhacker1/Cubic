@@ -73,7 +73,7 @@ public sealed unsafe class GameWindow
     {
         SdlWindow = VeldridStartup.CreateWindow(new WindowCreateInfo(0, 0, _settings.Size.Width, _settings.Size.Height,
             WindowState.Hidden, _settings.Title));
-        SdlWindow.Resizable = false;
+        SdlWindow.Resizable = _settings.Resizable;
 
         if (_settings.Location != new Point(-1, -1))
             Location = _settings.Location;

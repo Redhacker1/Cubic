@@ -1,3 +1,4 @@
+using System.Drawing;
 using Cubic2D.Windowing;
 using Veldrid;
 using Veldrid.Sdl2;
@@ -7,6 +8,8 @@ namespace Cubic2D.Render;
 
 public class Graphics : UnmanagedResource
 {
+    public event OnResize ViewportResized;
+    
     private Sdl2Window _window;
     
     internal readonly GraphicsDevice GraphicsDevice;
@@ -68,6 +71,7 @@ public class Graphics : UnmanagedResource
     {
         // Resize viewport.
         GraphicsDevice.ResizeMainWindow((uint) _window.Width, (uint) _window.Height);
+        ViewportResized?.Invoke(new Size(_window.Width, _window.Height));
     }
 
     internal override void Dispose()
@@ -77,4 +81,6 @@ public class Graphics : UnmanagedResource
         GraphicsDevice.Dispose();
         _window.Resized -= WindowResized;
     }
+
+    public delegate void OnResize(Size size);
 }

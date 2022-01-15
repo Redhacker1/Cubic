@@ -155,8 +155,16 @@ void main()
         _projectionViewSet =
             graphics.ResourceFactory.CreateResourceSet(new ResourceSetDescription(projectionViewLayout,
                 _projectionViewBuffer));
+        
+        _graphics.ViewportResized += GraphicsOnViewportResized;
     }
-    
+
+    private void GraphicsOnViewportResized(Size size)
+    {
+        _projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, _graphics.GraphicsDevice.SwapchainFramebuffer.Width,
+            _graphics.GraphicsDevice.SwapchainFramebuffer.Height, 0, -1, 1);
+    }
+
     /// <summary>
     /// Initialise the SpriteRenderer so it can start accepting draw calls, and begin a batch session.
     /// </summary>
@@ -297,6 +305,7 @@ void main()
         _projectionViewSet.Dispose();
         _textureSet.Dispose();
         _projectionViewBuffer.Dispose();
+        _graphics.ViewportResized -= GraphicsOnViewportResized;
         // TODO: Add more stuff to dispose, there is more of it.
     }
 
