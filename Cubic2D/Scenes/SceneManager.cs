@@ -12,8 +12,6 @@ public static class SceneManager
     internal static Scene Active;
     private static Type _switchScene;
 
-    private static bool _skipDraw;
-
     internal static void Initialize()
     {
         if (_scenes.Count < 1)
@@ -41,7 +39,6 @@ public static class SceneManager
                 throw new CubicException("Scene could not be instantiated.");
             Active.Graphics = CubicGame.Current.Graphics;
             Active.Initialize();
-            _skipDraw = true;
         }
         
         Active.Update();
@@ -49,11 +46,6 @@ public static class SceneManager
 
     internal static void Draw()
     {
-        if (_skipDraw)
-        {
-            _skipDraw = false;
-            return;
-        }
         Active.Draw();
     }
 
