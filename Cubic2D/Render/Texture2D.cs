@@ -20,10 +20,28 @@ public class Texture2D : UnmanagedResource
         {
             ImageResult result = ImageResult.FromStream(stream);
             
+            // Convert to RGBA format image if required, as Veldrid doesn't support RGB format images for some reason.
+            byte[] data;
+            if (result.Comp == ColorComponents.RedGreenBlue)
+            {
+                data = new byte[result.Width * result.Height * 4];
+                int dataI = 0;
+                byte[] rData = result.Data;
+                for (int i = 0; i < rData.Length; i += 3)
+                {
+                    data[dataI++] = rData[i];
+                    data[dataI++] = rData[i + 1];
+                    data[dataI++] = rData[i + 2];
+                    data[dataI++] = 255;
+                }
+            }
+            else
+                data = result.Data;
+            
             GraphicsDevice device = CubicGame.Current.Graphics.GraphicsDevice;
             Texture = device.ResourceFactory.CreateTexture(TextureDescription.Texture2D((uint) result.Width,
                 (uint) result.Height, 1, 1, PixelFormat.R8_G8_B8_A8_UNorm, TextureUsage.Sampled));
-            device.UpdateTexture(Texture, result.Data, 0, 0, 0, (uint) result.Width, (uint) result.Height, 1, 0, 0);
+            device.UpdateTexture(Texture, data, 0, 0, 0, (uint) result.Width, (uint) result.Height, 1, 0, 0);
             Size = new Size(result.Width, result.Height);
         }
         
