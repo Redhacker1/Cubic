@@ -35,6 +35,7 @@ layout (location = 1) in vec2 aTexCoords;
 layout (location = 2) in vec4 aTint;
 layout (location = 3) in float aRotation;
 layout (location = 4) in vec2 aOrigin;
+layout (location = 5) in vec2 aScale;
 
 layout (location = 0) out vec2 frag_texCoords;
 layout (location = 1) out vec4 frag_tint;
@@ -51,6 +52,7 @@ void main()
     mat2 rot = mat2(vec2(cosRot, sinRot), vec2(-sinRot, cosRot));
 
     vec2 vertexPos = aPosition.xy - aOrigin;
+    vertexPos *= aScale;
     vertexPos = rot * vertexPos;
     vertexPos += aOrigin;
     vec3 vPos = vec3(vertexPos, aPosition.z);
@@ -120,6 +122,8 @@ void main()
                     new VertexElementDescription("aRotation", VertexElementFormat.Float1,
                         VertexElementSemantic.TextureCoordinate),
                     new VertexElementDescription("aOrigin", VertexElementFormat.Float2,
+                        VertexElementSemantic.TextureCoordinate),
+                    new VertexElementDescription("aScale", VertexElementFormat.Float2,
                         VertexElementSemantic.TextureCoordinate))
             },
             graphics.ResourceFactory.CreateFromSpirv(
@@ -229,14 +233,15 @@ void main()
 
         Vector4 normalizedTint = tint.Normalize();
 
+        position -= origin;
         origin += position;
 
         SpriteVertex[] vertices = new SpriteVertex[]
         {
-            new SpriteVertex(new Vector3(position.X + src.Width * scale.X, position.Y + src.Height * scale.Y, depth), new Vector2(texOffsetW, texOffsetY), normalizedTint, rotation, origin),
-            new SpriteVertex(new Vector3(position.X + src.Width * scale.X, position.Y, depth), new Vector2(texOffsetW, texOffsetH), normalizedTint, rotation, origin),
-            new SpriteVertex(new Vector3(position.X, position.Y, depth), new Vector2(texOffsetX, texOffsetH), normalizedTint, rotation, origin),
-            new SpriteVertex(new Vector3(position.X, position.Y + src.Height * scale.Y, depth), new Vector2(texOffsetX, texOffsetY), normalizedTint, rotation, origin)
+            new SpriteVertex(new Vector3(position.X + src.Width, position.Y + src.Height, depth), new Vector2(texOffsetW, texOffsetY), normalizedTint, rotation, origin, scale),
+            new SpriteVertex(new Vector3(position.X + src.Width, position.Y, depth), new Vector2(texOffsetW, texOffsetH), normalizedTint, rotation, origin, scale),
+            new SpriteVertex(new Vector3(position.X, position.Y, depth), new Vector2(texOffsetX, texOffsetH), normalizedTint, rotation, origin, scale),
+            new SpriteVertex(new Vector3(position.X, position.Y + src.Height, depth), new Vector2(texOffsetX, texOffsetY), normalizedTint, rotation, origin, scale)
         };
 
         uint[] indices =
@@ -302,17 +307,19 @@ void main()
         public Vector4 Tint;
         public float Rotation;
         public Vector2 Origin;
+        public Vector2 Scale;
 
-        public SpriteVertex(Vector3 position, Vector2 texCoords, Vector4 tint, float rotation, Vector2 origin)
+        public SpriteVertex(Vector3 position, Vector2 texCoords, Vector4 tint, float rotation, Vector2 origin, Vector2 scale)
         {
             Position = position;
             TexCoords = texCoords;
             Tint = tint;
             Rotation = rotation;
             Origin = origin;
+            Scale = scale;
         }
 
-        public const uint SizeInBytes = 48;
+        public const uint SizeInBytes = 56;
     }
 }
 
