@@ -6,11 +6,14 @@ namespace Cubic2D.Entities.Components;
 
 public sealed class Sprite : Component
 {
-    private Texture2D _texture;
+    /// <summary>
+    /// The texture of this sprite. 
+    /// </summary>
+    public Texture2D SpriteTexture;
     
-    public Sprite(Texture2D texture)
+    public Sprite(Texture2D spriteTexture)
     {
-        _texture = texture;
+        SpriteTexture = spriteTexture;
     }
 
     protected internal override void Draw(Graphics graphics)
@@ -18,7 +21,7 @@ public sealed class Sprite : Component
         base.Draw(graphics);
 
         Transform transform = Transform;
-        graphics.SpriteRenderer.Draw(_texture, transform.Position, null, Color.White, transform.Rotation,
+        graphics.SpriteRenderer.Draw(SpriteTexture, transform.Position, null, Color.White, transform.Rotation,
             transform.Origin, transform.Scale, SpriteFlipMode.None);
     }
 }

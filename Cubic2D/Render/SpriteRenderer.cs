@@ -328,14 +328,28 @@ void main()
             Scale = scale;
         }
 
+        // Precalculated size in bytes. This is precalculated as it's used in the size constant above and you can't use
+        // sizeof() structs in constant fields.
         public const uint SizeInBytes = 56;
     }
 }
 
 public enum SpriteFlipMode
 {
+    /// <summary>
+    /// The sprite will not be flipped.
+    /// </summary>
     None,
+    /// <summary>
+    /// Flip the sprite in the X-axis.
+    /// </summary>
     FlipX,
+    /// <summary>
+    /// Flip the sprite in the Y-axis.
+    /// </summary>
     FlipY,
+    /// <summary>
+    /// Flip the sprite in both the X and Y axis.
+    /// </summary>
     FlipXY
 }

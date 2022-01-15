@@ -45,6 +45,18 @@ public sealed unsafe class GameWindow
             AutoCenter = false;
         }
     }
+
+    public string Title
+    {
+        get => SdlWindow.Title;
+        set => SdlWindow.Title = value;
+    }
+
+    public bool Resizable
+    {
+        get => SdlWindow.Resizable;
+        set => SdlWindow.Resizable = value;
+    }
     
     #endregion
     

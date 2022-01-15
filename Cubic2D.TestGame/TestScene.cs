@@ -23,7 +23,7 @@ public class TestScene : Scene
     protected override void Initialize()
     {
         base.Initialize();
-        
+
         World.ClearColor = Color.CornflowerBlue;
         
         Console.WriteLine("Initialized!");
@@ -31,7 +31,7 @@ public class TestScene : Scene
         _texture = new Texture2D("Content/awesomeface.png");
 
         Entity entity = new Entity();
-        entity.Transform.Position = new Vector2(500);
+        entity.AddComponent(new TestScript());
         entity.AddComponent(new Sprite(_texture));
         Entities.Add("myEntity", entity);
     }
@@ -65,9 +65,9 @@ public class TestScene : Scene
     {
         base.Draw();
         
-        Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix);
+        /*Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix);
         Graphics.SpriteRenderer.Draw(_texture, _pos, null, Color.White, _rot, _texture.Size.ToVector2() / 2f, new Vector2(5f, 0.5f), _mode);
         Graphics.SpriteRenderer.Draw(_texture, new Vector2(100), null, Color.White, _rot, Vector2.Zero, new Vector2(0.5f), _mode);
-        Graphics.SpriteRenderer.End();
+        Graphics.SpriteRenderer.End();*/
     }
 }
