@@ -9,6 +9,11 @@ public static class SceneManager
 {
     private static readonly Dictionary<string, Type> _scenes = new Dictionary<string, Type>();
 
+    /// <summary>
+    /// Get the currently active scene.
+    /// </summary>
+    public static Scene ActiveScene => Active;
+    
     internal static Scene Active;
     private static Type _switchScene;
 
@@ -49,7 +54,16 @@ public static class SceneManager
         Active.Draw();
     }
 
+    /// <summary>
+    /// Register a scene so it can be used.
+    /// </summary>
+    /// <param name="name">The name of the scene.</param>
+    /// <typeparam name="T">The scene object.</typeparam>
     public static void RegisterScene<T>(string name) where T : Scene => _scenes.Add(name, typeof(T));
 
+    /// <summary>
+    /// Set the 
+    /// </summary>
+    /// <param name="name"></param>
     public static void SetScene(string name) => _switchScene = _scenes[name];
 }

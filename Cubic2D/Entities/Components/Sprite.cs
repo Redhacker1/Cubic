@@ -10,10 +10,29 @@ public sealed class Sprite : Component
     /// The texture of this sprite. 
     /// </summary>
     public Texture2D SpriteTexture;
+
+    /// <summary>
+    /// The tint of this sprite. Changing this will change the sprite's colour. Use a White tint to return the sprite
+    /// back to its original colour.
+    /// </summary>
+    public Color Tint;
     
+    /// <summary>
+    /// Source rectangle for this sprite. Use if the given <see cref="SpriteTexture"/> is a spritesheet.
+    /// </summary>
+    public Rectangle? Source;
+    
+    /// <summary>
+    /// The flip mode of this sprite.
+    /// </summary>
+    public SpriteFlipMode Flip;
+
     public Sprite(Texture2D spriteTexture)
     {
         SpriteTexture = spriteTexture;
+        Tint = Color.White;
+        Source = null;
+        Flip = SpriteFlipMode.None;
     }
 
     protected internal override void Draw(Graphics graphics)
@@ -21,7 +40,7 @@ public sealed class Sprite : Component
         base.Draw(graphics);
 
         Transform transform = Transform;
-        graphics.SpriteRenderer.Draw(SpriteTexture, transform.Position, null, Color.White, transform.Rotation,
-            transform.Origin, transform.Scale, SpriteFlipMode.None);
+        graphics.SpriteRenderer.Draw(SpriteTexture, transform.Position, Source, Tint, transform.Rotation,
+            transform.Origin, transform.Scale, Flip, transform.Depth);
     }
 }

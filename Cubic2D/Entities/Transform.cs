@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using Cubic2D.Entities.Components;
 
 namespace Cubic2D.Entities;
 
@@ -9,6 +10,12 @@ public class Transform
     /// The position of this transform.
     /// </summary>
     public Vector2 Position;
+
+    /// <summary>
+    /// The depth of this transform. With a <see cref="Sprite"/>, a transform with greater depth will be drawn behind
+    /// a sprite with transform of lesser depth.
+    /// </summary>
+    public float Depth;
     
     /// <summary>
     /// The scale of this transform.
@@ -71,6 +78,7 @@ public class Transform
         Scale = Vector2.One;
         Origin = Vector2.Zero;
         Rotation = 0;
+        Depth = 0;
     }
 
     /// <summary>

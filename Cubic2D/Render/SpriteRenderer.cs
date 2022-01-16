@@ -103,6 +103,8 @@ void main()
     private SpriteVertex[] _vertices;
     private uint[] _indices;
 
+    private Sampler _activeSampler;
+
     internal SpriteRenderer(Graphics graphics)
     {
         _graphics = graphics;
@@ -176,7 +178,7 @@ void main()
     /// </summary>
     /// <param name="transform">The optional transformation (camera) matrix to use for this batch session.</param>
     /// <exception cref="CubicException">Thrown if you try to call <see cref="Begin"/> before a batch session has ended.</exception>
-    public void Begin(Matrix4x4? transform = null)
+    public void Begin(Matrix4x4? transform = null, TextureSample sample = TextureSample.Point)
     {
         if (_begun)
             throw new CubicException(
@@ -185,6 +187,10 @@ void main()
         
         Matrix4x4 tMatrix = transform ?? Matrix4x4.Identity;
         _graphics.CL.UpdateBuffer(_projectionViewBuffer, 0, tMatrix * _projectionMatrix);
+
+        _activeSampler = sample == TextureSample.Point
+            ? _graphics.GraphicsDevice.PointSampler
+            : _graphics.GraphicsDevice.LinearSampler;
     }
 
     /// <summary>
@@ -290,7 +296,7 @@ void main()
         
         _textureSet?.Dispose();
         _textureSet = _graphics.ResourceFactory.CreateResourceSet(new ResourceSetDescription(_textureLayout,
-            _currentTexture.Texture, _graphics.GraphicsDevice.PointSampler));
+            _currentTexture.Texture, _activeSampler));
 
         _graphics.CL.SetPipeline(_pipeline);
         _graphics.CL.SetGraphicsResourceSet(0, _projectionViewSet);
