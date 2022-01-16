@@ -1,4 +1,5 @@
 using System.Drawing;
+using Cubic2D.Render;
 
 namespace Cubic2D.Windowing;
 
@@ -43,6 +44,17 @@ public struct GameSettings
     /// </summary>
     public Point Location;
 
+    /// <summary>
+    /// If false, the window will remain closed until GameWindow.Visible is set to true. (Default: true)
+    /// </summary>
+    public bool StartVisible;
+
+    /// <summary>
+    /// Set the graphics API Cubic should use. If you don't know which, leave this value, and Cubic will work out which
+    /// one to use for you. (Default: Default)
+    /// </summary>
+    public GraphicsApi Api;
+
     public GameSettings()
     {
         Size = new Size(1280, 720);
@@ -52,5 +64,7 @@ public struct GameSettings
         VSync = true;
         TargetFps = 0;
         Location = new Point(-1, -1);
+        StartVisible = true;
+        Api = GraphicsApi.Default;
     }
 }

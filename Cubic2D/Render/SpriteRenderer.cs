@@ -100,9 +100,15 @@ void main()
     private uint _currentSprite;
     private Texture2D _currentTexture;
 
+    private SpriteVertex[] _vertices;
+    private uint[] _indices;
+
     internal SpriteRenderer(Graphics graphics)
     {
         _graphics = graphics;
+
+        _vertices = new SpriteVertex[4];
+        _indices = new uint[6];
 
         _vertexBuffer = graphics.ResourceFactory.CreateBuffer(new BufferDescription(MaxSprites * VertexSizeInBytes,
             BufferUsage.VertexBuffer | BufferUsage.Dynamic));
@@ -141,7 +147,7 @@ void main()
 
         _pipeline = graphics.ResourceFactory.CreateGraphicsPipeline(new GraphicsPipelineDescription(
             BlendStateDescription.SingleAlphaBlend, DepthStencilStateDescription.DepthOnlyGreaterEqual,
-            new RasterizerStateDescription(FaceCullMode.Back, PolygonFillMode.Solid, FrontFace.CounterClockwise, false,
+            new RasterizerStateDescription(FaceCullMode.Back, PolygonFillMode.Solid, FrontFace.CounterClockwise, true,
                 false), PrimitiveTopology.TriangleList, shaderDescription, new[] {projectionViewLayout, _textureLayout},
             graphics.GraphicsDevice.SwapchainFramebuffer.OutputDescription));
 
@@ -244,22 +250,22 @@ void main()
         position -= origin;
         origin += position;
 
-        SpriteVertex[] vertices = new SpriteVertex[]
-        {
-            new SpriteVertex(new Vector3(position.X + src.Width, position.Y + src.Height, depth), new Vector2(texOffsetW, texOffsetY), normalizedTint, rotation, origin, scale),
-            new SpriteVertex(new Vector3(position.X + src.Width, position.Y, depth), new Vector2(texOffsetW, texOffsetH), normalizedTint, rotation, origin, scale),
-            new SpriteVertex(new Vector3(position.X, position.Y, depth), new Vector2(texOffsetX, texOffsetH), normalizedTint, rotation, origin, scale),
-            new SpriteVertex(new Vector3(position.X, position.Y + src.Height, depth), new Vector2(texOffsetX, texOffsetY), normalizedTint, rotation, origin, scale)
-        };
-
-        uint[] indices =
-        {
-            0 + 4 * _currentSprite, 1 + 4 * _currentSprite, 3 + 4 * _currentSprite,
-            1 + 4 * _currentSprite, 2 + 4 * _currentSprite, 3 + 4 * _currentSprite
-        };
+        // We overwrite the elements of the arrays to reduce array allocations, making it more memory efficient.
         
-        _graphics.CL.UpdateBuffer(_vertexBuffer, _currentSprite * VertexSizeInBytes, vertices);
-        _graphics.CL.UpdateBuffer(_indexBuffer, _currentSprite * IndexSizeInBytes, indices);
+        _vertices[0] = new SpriteVertex(new Vector3(position.X + src.Width, position.Y + src.Height, depth), new Vector2(texOffsetW, texOffsetY), normalizedTint, rotation, origin, scale);
+        _vertices[1] = new SpriteVertex(new Vector3(position.X + src.Width, position.Y, depth), new Vector2(texOffsetW, texOffsetH), normalizedTint, rotation, origin, scale);
+        _vertices[2] = new SpriteVertex(new Vector3(position.X, position.Y, depth), new Vector2(texOffsetX, texOffsetH), normalizedTint, rotation, origin, scale);
+        _vertices[3] = new SpriteVertex(new Vector3(position.X, position.Y + src.Height, depth), new Vector2(texOffsetX, texOffsetY), normalizedTint, rotation, origin, scale);
+
+        _indices[0] = 4 * _currentSprite;
+        _indices[1] = 1 + 4 * _currentSprite;
+        _indices[2] = 3 + 4 * _currentSprite;
+        _indices[3] = 1 + 4 * _currentSprite;
+        _indices[4] = 2 + 4 * _currentSprite;
+        _indices[5] = 3 + 4 * _currentSprite;
+        
+        _graphics.CL.UpdateBuffer(_vertexBuffer, _currentSprite * VertexSizeInBytes, _vertices);
+        _graphics.CL.UpdateBuffer(_indexBuffer, _currentSprite * IndexSizeInBytes, _indices);
 
         _currentSprite++;
     }

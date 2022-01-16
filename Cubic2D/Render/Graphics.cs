@@ -1,4 +1,6 @@
+using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using Cubic2D.Windowing;
 using Veldrid;
 using Veldrid.Sdl2;
@@ -20,6 +22,22 @@ public class Graphics : UnmanagedResource
 
     public readonly SpriteRenderer SpriteRenderer;
 
+    public GraphicsApi Api
+    {
+        get
+        {
+            return GraphicsDevice.BackendType switch
+            {
+                GraphicsBackend.Direct3D11 => GraphicsApi.Direct3D,
+                GraphicsBackend.Vulkan => GraphicsApi.Vulkan,
+                GraphicsBackend.OpenGL => GraphicsApi.OpenGL,
+                GraphicsBackend.Metal => GraphicsApi.Metal,
+                GraphicsBackend.OpenGLES => GraphicsApi.OpenGLES,
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+    }
+
     public bool VSync
     {
         get => GraphicsDevice.SyncToVerticalBlank;
@@ -37,8 +55,74 @@ public class Graphics : UnmanagedResource
             SwapchainDepthFormat = PixelFormat.R16_UNorm
         };
 
-        // TODO: Add option in GameSettings to allow backend choice.
-        GraphicsDevice = VeldridStartup.CreateGraphicsDevice(window, options, GraphicsBackend.OpenGL);
+        GraphicsBackend backend;
+        if (settings.Api == GraphicsApi.Default)
+        {
+            // Do no checks here cause if windows doesn't support DX11 then what drugs is it on
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                backend = GraphicsBackend.Direct3D11;
+            // Try to support Vulkan in Linux if possible, cause it's better.
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                backend = GraphicsDevice.IsBackendSupported(GraphicsBackend.Vulkan)
+                    ? GraphicsBackend.Vulkan
+                    : GraphicsBackend.OpenGL;
+            }
+            // Newer macs should support Metal so use that where possible.
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                backend = GraphicsDevice.IsBackendSupported(GraphicsBackend.Metal)
+                    ? GraphicsBackend.Metal
+                    : GraphicsBackend.OpenGL;
+            }
+            else
+            {
+                // OpenGL ES is fallback option, it should technically be supported on all platforms (untested)
+                backend = GraphicsDevice.IsBackendSupported(GraphicsBackend.OpenGL)
+                    ? GraphicsBackend.OpenGL
+                    : GraphicsBackend.OpenGLES;
+            }
+        }
+        else
+        {
+            backend = settings.Api switch
+            {
+                GraphicsApi.Direct3D => GraphicsBackend.Direct3D11,
+                GraphicsApi.Vulkan => GraphicsBackend.Vulkan,
+                GraphicsApi.OpenGL => GraphicsBackend.OpenGL,
+                GraphicsApi.OpenGLES => GraphicsBackend.OpenGLES,
+                GraphicsApi.Metal => GraphicsBackend.Metal,
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+
+        try
+        {
+            GraphicsDevice = VeldridStartup.CreateGraphicsDevice(window, options, backend);
+        }
+        catch (VeldridException)
+        {
+            // Multi-gpu linux issue where the GPU chosen may claim to support Vulkan but may not necessarily actually
+            // support Vulkan (I had this issue). In this case, since Veldrid doesn't support manually selecting a 
+            // device (Y E T), we fallback to OpenGL backend as it should work.
+            if (backend == GraphicsBackend.Vulkan)
+            {
+                backend = GraphicsBackend.OpenGL;
+                try
+                {
+                    GraphicsDevice = VeldridStartup.CreateGraphicsDevice(window, options, backend);
+                }
+                catch (VeldridException)
+                {
+                    throw new CubicException(
+                        "Fallback OpenGL graphics device could not be created! Please make sure your drivers are up to date.");
+                }
+            }
+            else
+                throw new CubicException(
+                    "Graphics device with the given API could not be created. Please ensure the given API is supported on this platform, and that your drivers are up to date.");
+        }
+
         ResourceFactory = GraphicsDevice.ResourceFactory;
 
         CL = ResourceFactory.CreateCommandList();

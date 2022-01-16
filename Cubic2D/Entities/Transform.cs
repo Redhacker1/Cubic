@@ -64,7 +64,7 @@ public class Transform
     /// negative Y direction.
     /// </summary>
     public Vector2 Down => new Vector2(-MathF.Sin(Rotation), MathF.Cos(Rotation));
-    
+
     public Transform()
     {
         Position = Vector2.Zero;
@@ -72,4 +72,22 @@ public class Transform
         Origin = Vector2.Zero;
         Rotation = 0;
     }
+
+    /// <summary>
+    /// Point the <see cref="Forward"/> vector of this transform towards the given position.
+    /// </summary>
+    /// <param name="position">The position to look at.</param>
+    /// <returns>The rotation value.</returns>
+    public float LookAt(Vector2 position)
+    {
+        Vector2 diff = Position - position;
+        return MathF.Atan2(-diff.Y, -diff.X);
+    }
+
+    /// <summary>
+    /// Point the <see cref="Forward"/> vector of this transform towards the given transform.
+    /// </summary>
+    /// <param name="transform">The transform to look at.</param>
+    /// <returns>The rotation value.</returns>
+    public float LookAt(Transform transform) => LookAt(transform.Position);
 }

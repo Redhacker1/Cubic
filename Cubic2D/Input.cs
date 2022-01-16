@@ -13,14 +13,42 @@ public static class Input
     private static readonly HashSet<MouseButtons> _buttonsHeld = new HashSet<MouseButtons>();
     private static readonly HashSet<MouseButtons> _frameButtons = new HashSet<MouseButtons>();
 
+    /// <summary>
+    /// Get an array of all keyboard keys currently held down.
+    /// </summary>
     public static Keys[] KeysHeld => _keysHeld.ToArray();
 
+    /// <summary>
+    /// Get an array of all mouse buttons currently held down.
+    /// </summary>
+    public static MouseButtons[] MouseButtonsHeld => _buttonsHeld.ToArray();
+
+    /// <summary>
+    /// Check if the given key is held down.
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns>True if the key is held down.</returns>
     public static bool KeyDown(Keys key) => _keysHeld.Contains(key);
 
+    /// <summary>
+    /// Check if the given key was pressed <b>in this current frame.</b>
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns>True if the key was pressed in this current frame.</returns>
     public static bool KeyPressed(Keys key) => _frameKeys.Contains(key);
 
+    /// <summary>
+    /// Check if the given key is <b>not</b> held down.
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns>True if the key is <b>not</b> held down.</returns>
     public static bool KeyReleased(Keys key) => !_keysHeld.Contains(key);
 
+    /// <summary>
+    /// Check if any of the given keys are held down.
+    /// </summary>
+    /// <param name="keys">The keys to check.</param>
+    /// <returns>True if any of the given keys are held down.</returns>
     public static bool KeysDown(params Keys[] keys)
     {
         foreach (Keys key in keys)
@@ -32,6 +60,11 @@ public static class Input
         return false;
     }
     
+    /// <summary>
+    /// Check if any of the given keys were pressed <b>in this current frame.</b>
+    /// </summary>
+    /// <param name="keys">The keys to check.</param>
+    /// <returns>True if any of the given keys were pressed in this current frame.</returns>
     public static bool KeysPressed(params Keys[] keys)
     {
         foreach (Keys key in keys)
@@ -43,12 +76,32 @@ public static class Input
         return false;
     }
 
+    /// <summary>
+    /// Check if the given mouse button is held down.
+    /// </summary>
+    /// <param name="button">The mouse button to check.</param>
+    /// <returns>True if the mouse button is held down.</returns>
     public static bool MouseButtonDown(MouseButtons button) => _buttonsHeld.Contains(button);
 
+    /// <summary>
+    /// Check if the given mouse button was pressed <b>in this current frame.</b>
+    /// </summary>
+    /// <param name="button">The mouse button to check.</param>
+    /// <returns>True if the mouse button was pressed in this current frame.</returns>
     public static bool MouseButtonPressed(MouseButtons button) => _frameButtons.Contains(button);
 
-    public static bool MouseButtonReleased(MouseButtons buttons) => !_buttonsHeld.Contains(buttons);
+    /// <summary>
+    /// Check if the given mouse button is <b>not</b> held down.
+    /// </summary>
+    /// <param name="button">The mouse button to check.</param>
+    /// <returns>True if the mouse button is <b>not</b> held down.</returns>
+    public static bool MouseButtonReleased(MouseButtons button) => !_buttonsHeld.Contains(button);
     
+    /// <summary>
+    /// Check if any of the given mouse buttons are held down.
+    /// </summary>
+    /// <param name="buttons">The mouse buttons to check.</param>
+    /// <returns>True if any of the given mouse buttons are held down.</returns>
     public static bool MouseButtonsDown(params MouseButtons[] buttons)
     {
         foreach (MouseButtons button in buttons)
@@ -60,6 +113,11 @@ public static class Input
         return false;
     }
     
+    /// <summary>
+    /// Check if any of the given mouse buttons were pressed <b>in this current frame.</b>
+    /// </summary>
+    /// <param name="buttons">The mouse buttons to check.</param>
+    /// <returns>True if any of the given mouse buttons were pressed in this current frame.</returns>
     public static bool MouseButtonsPressed(params MouseButtons[] buttons)
     {
         foreach (MouseButtons button in buttons)
@@ -71,8 +129,14 @@ public static class Input
         return false;
     }
     
+    /// <summary>
+    /// The current position of the mouse cursor on screen, relative to the top-left of the window.
+    /// </summary>
     public static Vector2 MousePosition { get; private set; }
     
+    /// <summary>
+    /// The change in scroll since the last frame.
+    /// </summary>
     public static Vector2 ScrollWheelDelta { get; private set; }
     
     internal static void Update(InputSnapshot snapshot)

@@ -34,6 +34,12 @@ public class TestScene : Scene
         entity.AddComponent(new TestScript());
         entity.AddComponent(new Sprite(_texture));
         Entities.Add("myEntity", entity);
+
+        //CubicGame.Current.Window.Size = Monitors.GetPrimaryMonitor().Resolution;
+        //CubicGame.Current.Window.Visible = true;
+        //CubicGame.Current.Window.WindowMode = WindowMode.BorderlessFullscreen;
+
+        CubicGame.Current.Window.Title += " - " + Graphics.Api;
     }
 
     protected override void Update()
@@ -65,9 +71,9 @@ public class TestScene : Scene
     {
         base.Draw();
         
-        /*Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix);
+        Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix);
         Graphics.SpriteRenderer.Draw(_texture, _pos, null, Color.White, _rot, _texture.Size.ToVector2() / 2f, new Vector2(5f, 0.5f), _mode);
         Graphics.SpriteRenderer.Draw(_texture, new Vector2(100), null, Color.White, _rot, Vector2.Zero, new Vector2(0.5f), _mode);
-        Graphics.SpriteRenderer.End();*/
+        Graphics.SpriteRenderer.End();
     }
 }

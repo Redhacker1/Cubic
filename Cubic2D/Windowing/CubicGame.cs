@@ -24,10 +24,10 @@ public sealed class CubicGame : IDisposable
         Window.Prepare();
 
         Graphics = new Graphics(Window.SdlWindow, _settings);
+        Window.SdlWindow.Visible = _settings.StartVisible;
         
         SceneManager.Initialize();
         
-        Window.SdlWindow.Visible = true;
         Window.SdlWindow.WindowState = _settings.WindowMode switch
         {
             WindowMode.Windowed => WindowState.Normal,

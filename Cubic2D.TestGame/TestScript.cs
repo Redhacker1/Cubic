@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using Cubic2D.Entities.Components;
 
@@ -17,11 +18,13 @@ public class TestScript : Component
     {
         base.Update();
 
-        if (Input.KeyDown(Keys.Down))
-            Transform.Rotation += 1 * Time.DeltaTime;
-        if (Input.KeyDown(Keys.Up))
-            Transform.Rotation -= 1 * Time.DeltaTime;
+        //if (Input.KeyDown(Keys.Down))
+        //    Transform.Rotation += 1 * Time.DeltaTime;
+        //if (Input.KeyDown(Keys.Up))
+        //    Transform.Rotation -= 1 * Time.DeltaTime;
 
-        Transform.Position += Transform.Left * 50 * Time.DeltaTime;
+        //Transform.Position += Transform.Left * 50 * Time.DeltaTime;
+
+        Transform.Rotation = Transform.LookAt(Input.MousePosition) + MathF.PI / 2f;
     }
 }

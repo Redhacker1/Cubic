@@ -57,6 +57,39 @@ public sealed unsafe class GameWindow
         get => SdlWindow.Resizable;
         set => SdlWindow.Resizable = value;
     }
+
+    public bool Visible
+    {
+        get => SdlWindow.Visible;
+        set => SdlWindow.Visible = value;
+    }
+
+    public WindowMode WindowMode
+    {
+        get
+        {
+            return SdlWindow.WindowState switch
+            {
+                WindowState.Normal => WindowMode.Windowed,
+                WindowState.FullScreen => WindowMode.Fullscreen,
+                WindowState.Maximized => WindowMode.Windowed,
+                WindowState.Minimized => WindowMode.Windowed,
+                WindowState.BorderlessFullScreen => WindowMode.BorderlessFullscreen,
+                WindowState.Hidden => WindowMode.Windowed,
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+        set
+        {
+            SdlWindow.WindowState = value switch
+            {
+                WindowMode.Windowed => WindowState.Normal,
+                WindowMode.Fullscreen => WindowState.FullScreen,
+                WindowMode.BorderlessFullscreen => WindowState.BorderlessFullScreen,
+                _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+            };
+        }
+    }
     
     #endregion
     
