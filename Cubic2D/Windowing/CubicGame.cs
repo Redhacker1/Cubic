@@ -68,7 +68,6 @@ public sealed class CubicGame : IDisposable
             if (Time.Stopwatch.Elapsed.TotalSeconds - Time.LastTime < _targetFrameDelta && _lockFps)
                 continue;
             Time.Update();
-            Console.WriteLine(Time.Fps);
             Input.Update(Window.SdlWindow.PumpEvents());
             SceneManager.Update(this);
             Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);

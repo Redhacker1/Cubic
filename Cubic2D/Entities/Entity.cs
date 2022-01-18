@@ -20,7 +20,7 @@ public class Entity
         _components = new Component[5];
     }
 
-    public void AddComponent(Component component)
+    public void AddComponent(CubicGame game, Component component)
     {
         foreach (Component comp in _components)
         {
@@ -37,7 +37,7 @@ public class Entity
         _componentCount++;
 
         component.Entity = this;
-        component.Initialize();
+        component.Initialize(game);
     }
 
     public Component GetComponent<T>() where T : Component

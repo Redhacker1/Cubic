@@ -9,7 +9,7 @@ public abstract class Component
 
     protected Transform Transform => Entity.Transform;
     
-    protected internal virtual void Initialize() { }
+    protected internal virtual void Initialize(CubicGame game) { }
 
     protected internal virtual void Update(CubicGame game) { }
 
@@ -17,5 +17,5 @@ public abstract class Component
 
     protected T GetComponent<T>() where T : Component => (T) Entity.GetComponent<T>();
 
-    protected void AddComponent(Component component) => Entity.AddComponent(component);
+    protected void AddComponent(CubicGame game, Component component) => Entity.AddComponent(game, component);
 }
