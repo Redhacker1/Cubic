@@ -32,7 +32,7 @@ public struct GameSettings
 
     /// <summary>
     /// The FPS (frames per second) the game will attempt to run at. If the value is 0, the game will <b>not</b> limit
-    /// the FPS. (Default: 0 - unlimited)
+    /// the FPS. (Default: 60)
     /// </summary>
     /// <remarks>If <see cref="VSync"/> is enabled, the FPS of the application cannot exceed the refresh rate of the
     /// monitor.</remarks>
@@ -62,7 +62,7 @@ public struct GameSettings
         WindowMode = WindowMode.Windowed;
         Resizable = false;
         VSync = true;
-        TargetFps = 0;
+        TargetFps = 60;
         Location = new Point(-1, -1);
         StartVisible = true;
         Api = GraphicsApi.Default;

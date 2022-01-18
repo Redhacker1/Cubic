@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using Cubic2D.Render;
+using Cubic2D.Windowing;
 
 namespace Cubic2D.Entities.Components;
 
@@ -35,10 +36,8 @@ public sealed class Sprite : Component
         Flip = SpriteFlipMode.None;
     }
 
-    protected internal override void Draw(Graphics graphics)
+    protected internal override void Draw(Graphics graphics, CubicGame game)
     {
-        base.Draw(graphics);
-
         Transform transform = Transform;
         graphics.SpriteRenderer.Draw(SpriteTexture, transform.Position, Source, Tint, transform.Rotation,
             transform.Origin, transform.Scale, Flip, transform.Depth);

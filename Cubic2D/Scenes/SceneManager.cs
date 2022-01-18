@@ -17,7 +17,7 @@ public static class SceneManager
     internal static Scene Active;
     private static Type _switchScene;
 
-    internal static void Initialize()
+    internal static void Initialize(CubicGame game)
     {
         if (_scenes.Count < 1)
             throw new CubicException("There must be at least one scene registered before the application can launch.");
@@ -26,11 +26,12 @@ public static class SceneManager
         Active = (Scene) Activator.CreateInstance(scene);
         if (Active == null)
             throw new CubicException("Scene could not be instantiated.");
-        Active.Graphics = CubicGame.Current.Graphics;
+        Active.Game = game;
+        Active.Graphics = game.Graphics;
         Active.Initialize();
     }
     
-    internal static void Update()
+    internal static void Update(CubicGame game)
     {
         if (_switchScene != null)
         {
@@ -42,7 +43,8 @@ public static class SceneManager
             _switchScene = null;
             if (Active == null)
                 throw new CubicException("Scene could not be instantiated.");
-            Active.Graphics = CubicGame.Current.Graphics;
+            Active.Game = game;
+            Active.Graphics = game.Graphics;
             Active.Initialize();
         }
         
@@ -57,9 +59,14 @@ public static class SceneManager
     /// <summary>
     /// Register a scene so it can be used.
     /// </summary>
+    /// <param name="sceneType">The scene's type. It <b>must</b> derive off <see cref="Scene"/>.</param>
     /// <param name="name">The name of the scene.</param>
-    /// <typeparam name="T">The scene object.</typeparam>
-    public static void RegisterScene<T>(string name) where T : Scene => _scenes.Add(name, typeof(T));
+    public static void RegisterScene(Type sceneType, string name)
+    {
+        if (sceneType.BaseType == null || sceneType.BaseType != typeof(Scene))
+            throw new CubicException($"Given scene must derive off {typeof(Scene)}");
+        _scenes.Add(name, sceneType);
+    }
 
     /// <summary>
     /// Set the 

@@ -14,7 +14,7 @@ public class Texture2D : UnmanagedResource
 
     public readonly Size Size;
 
-    public Texture2D(string path)
+    public Texture2D(CubicGame game, string path)
     {
         using (Stream stream = File.OpenRead(path))
         {
@@ -38,7 +38,7 @@ public class Texture2D : UnmanagedResource
             else
                 data = result.Data;
             
-            GraphicsDevice device = CubicGame.Current.Graphics.GraphicsDevice;
+            GraphicsDevice device = game.Graphics.GraphicsDevice;
             Texture = device.ResourceFactory.CreateTexture(TextureDescription.Texture2D((uint) result.Width,
                 (uint) result.Height, 1, 1, PixelFormat.R8_G8_B8_A8_UNorm, TextureUsage.Sampled));
             device.UpdateTexture(Texture, data, 0, 0, 0, (uint) result.Width, (uint) result.Height, 1, 0, 0);
@@ -49,9 +49,9 @@ public class Texture2D : UnmanagedResource
         SceneManager.Active.CreatedResources.Add(this);
     }
 
-    public Texture2D(int width, int height, byte[] data)
+    public Texture2D(CubicGame game, int width, int height, byte[] data)
     {
-        GraphicsDevice device = CubicGame.Current.Graphics.GraphicsDevice;
+        GraphicsDevice device = game.Graphics.GraphicsDevice;
         Texture = device.ResourceFactory.CreateTexture(TextureDescription.Texture2D((uint) width,
             (uint) height, 1, 1, PixelFormat.R8_G8_B8_A8_UNorm, TextureUsage.Sampled));
         device.UpdateTexture(Texture, data, 0, 0, 0, (uint) width, (uint) height, 1, 0, 0);
@@ -66,5 +66,5 @@ public class Texture2D : UnmanagedResource
 #endif
     }
 
-    public static readonly Texture2D Blank = new Texture2D(1, 1, new byte[] {255, 255, 255, 255});
+    public static Texture2D Blank { get; internal set; }
 }

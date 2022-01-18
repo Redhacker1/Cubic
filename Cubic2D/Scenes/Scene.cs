@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Cubic2D.Entities;
 using Cubic2D.Render;
 using Cubic2D.Utilities;
+using Cubic2D.Windowing;
 
 namespace Cubic2D.Scenes;
 
@@ -14,6 +15,8 @@ public abstract class Scene : UnmanagedResource
 
     protected readonly Dictionary<string, Entity> Entities;
     private int _entityCount;
+    
+    protected internal CubicGame Game { get; internal set; }
 
     protected Scene()
     {
@@ -30,7 +33,7 @@ public abstract class Scene : UnmanagedResource
     protected internal virtual void Update()
     {
         foreach (KeyValuePair<string, Entity> entity in Entities)
-            entity.Value.Update();
+            entity.Value.Update(Game);
     }
 
     protected virtual void Unload() { }
@@ -54,7 +57,7 @@ public abstract class Scene : UnmanagedResource
         Camera.Main.GenerateTransformMatrix();
         Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix);
         foreach (KeyValuePair<string, Entity> entity in Entities)
-            entity.Value.Draw(Graphics);
+            entity.Value.Draw(Graphics, Game);
         Graphics.SpriteRenderer.End();
     }
 }
