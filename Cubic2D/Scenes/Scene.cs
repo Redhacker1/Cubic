@@ -13,7 +13,7 @@ public abstract class Scene : UnmanagedResource
     protected internal Graphics Graphics { get; internal set; }
     protected internal readonly World World;
 
-    protected readonly Dictionary<string, Entity> Entities;
+    private readonly Dictionary<string, Entity> _entities;
     private int _entityCount;
     
     protected internal CubicGame Game { get; internal set; }
@@ -21,19 +21,19 @@ public abstract class Scene : UnmanagedResource
     protected Scene()
     {
         CreatedResources = new List<UnmanagedResource>();
-        Entities = new Dictionary<string, Entity>();
+        _entities = new Dictionary<string, Entity>();
         World = new World();
         Camera main = new Camera();
         Camera.Main = main;
-        Entities.Add("Main Camera", main);
+        _entities.Add("Main Camera", main);
     }
 
     protected internal virtual void Initialize() { }
 
     protected internal virtual void Update()
     {
-        foreach (KeyValuePair<string, Entity> entity in Entities)
-            entity.Value.Update(Game);
+        foreach (KeyValuePair<string, Entity> entity in _entities)
+            entity.Value.Update();
     }
 
     protected virtual void Unload() { }
@@ -56,8 +56,18 @@ public abstract class Scene : UnmanagedResource
     {
         Camera.Main.GenerateTransformMatrix();
         Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix);
-        foreach (KeyValuePair<string, Entity> entity in Entities)
-            entity.Value.Draw(Graphics, Game);
+        foreach (KeyValuePair<string, Entity> entity in _entities)
+            entity.Value.Draw(Graphics);
         Graphics.SpriteRenderer.End();
     }
+
+    public void AddEntity(string name, Entity entity)
+    {
+        entity.Initialize(Game);
+        _entities.Add(name, entity);
+    }
+
+    public Entity GetEntity(string name) => _entities[name];
+
+    public T GetEntity<T>(string name) where T : Entity => (T) _entities[name];
 }
