@@ -1,4 +1,5 @@
 using System;
+using Cubic2D.Audio;
 using Cubic2D.Render;
 using Cubic2D.Scenes;
 using Veldrid;
@@ -11,6 +12,7 @@ public sealed class CubicGame : IDisposable
     
     public readonly GameWindow Window;
     internal Graphics Graphics;
+    public AudioDevice AudioDevice { get; private set; }
 
     private bool _running;
     private bool _lockFps;
@@ -48,6 +50,8 @@ public sealed class CubicGame : IDisposable
         Graphics = new Graphics(Window.SdlWindow, _settings);
         Window.SdlWindow.Visible = _settings.StartVisible;
         TargetFps = _settings.TargetFps;
+
+        AudioDevice = new AudioDevice(_settings.AudioChannels);
         
         SetDefaults();
         
@@ -80,6 +84,7 @@ public sealed class CubicGame : IDisposable
     {
         SceneManager.Active.Dispose();
         Graphics.Dispose();
+        AudioDevice.Dispose();
     }
 
     public void Close()

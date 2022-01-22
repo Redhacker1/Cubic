@@ -9,6 +9,7 @@
 
     <ItemGroup>
       <PackageReference Include="FreeTypeSharp" Version="1.1.3" />
+      <PackageReference Include="OpenTK.OpenAL" Version="4.6.7" />
       <PackageReference Include="StbImageSharp" Version="2.27.7" />
       <PackageReference Include="Veldrid" Version="4.9.0-g3839ab315a" />
       <PackageReference Include="Veldrid.SPIRV" Version="1.0.14" />

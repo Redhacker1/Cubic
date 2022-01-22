@@ -1,5 +1,6 @@
 using System.Drawing;
 using Cubic2D.Render;
+using Cubic2D.Audio;
 
 namespace Cubic2D.Windowing;
 
@@ -55,6 +56,11 @@ public struct GameSettings
     /// </summary>
     public GraphicsApi Api;
 
+    /// <summary>
+    /// The number of channels the <see cref="AudioDevice"/> will have. (Default: 32)
+    /// </summary>
+    public int AudioChannels;
+
     public GameSettings()
     {
         Size = new Size(1280, 720);
@@ -66,5 +72,6 @@ public struct GameSettings
         Location = new Point(-1, -1);
         StartVisible = true;
         Api = GraphicsApi.Default;
+        AudioChannels = 32;
     }
 }
