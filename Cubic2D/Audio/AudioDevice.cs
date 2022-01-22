@@ -4,12 +4,11 @@ using OpenTK.Audio.OpenAL;
 
 namespace Cubic2D.Audio;
 
-public sealed class AudioDevice : UnmanagedResource
+public sealed class AudioDevice : IDisposable
 {
     private readonly ALDevice _device;
     private readonly ALContext _context;
-
-    private readonly int[] _buffers;
+    
     private readonly int[] _sources;
     private readonly bool[] _persistentSources;
 
@@ -39,10 +38,8 @@ public sealed class AudioDevice : UnmanagedResource
         _context = ALC.CreateContext(_device, (int*) null);
         ALC.MakeContextCurrent(_context);
         _sources = new int[numChannels];
-        _buffers = new int[numChannels];
         _persistentSources = new bool[numChannels];
         AL.GenSources(numChannels, _sources);
-        AL.GenBuffers(numChannels, _buffers);
         MasterVolume = 1;
         NumChannels = numChannels;
         _channelCount = -1;
@@ -56,22 +53,21 @@ public sealed class AudioDevice : UnmanagedResource
     /// <param name="sound">The sound to play.</param>
     /// <param name="pitch">The pitch the sound should play at.</param>
     /// <param name="volume">The volume the sound should play at.</param>
-    /// <param name="loop">Should the sound loop?</param>
-    /// <param name="persistent">If persistent is enabled, the sound cannot be overriden by <see cref="PlaySound(Cubic2D.Audio.Sound,float,float,bool,bool)"/> even if it runs out of channels.</param>
-    public void PlaySound(int channel, Sound sound, float pitch = 1, float volume = 1, bool loop = false,
-        bool persistent = false)
+    /// <param name="persistent">If persistent is enabled, the sound cannot be overriden by <see cref="PlaySound(Cubic2D.Audio.Sound,float,float,bool)"/> even if it runs out of channels.</param>
+    public void PlaySound(int channel, Sound sound, float pitch = 1, float volume = 1, bool persistent = false)
     {
         _persistentSources[channel] = persistent;
         int source = _sources[channel];
-        int buffer = _buffers[channel];
         AL.SourceStop(source);
         AL.Source(source, ALSourcei.Buffer, 0);
-        AL.BufferData(buffer, sound.Format, sound.Data, sound.SampleRate);
-        AL.Source(source, ALSourcei.Buffer, buffer);
+        AL.SourceQueueBuffer(source, sound.Buffer);
+        if (sound.Loop && sound.BeginLoopPoint > 0)
+            AL.SourceQueueBuffer(source, sound.LoopBuffer);
         AL.Source(source, ALSourcef.Pitch, pitch);
         AL.Source(source, ALSourcef.Gain, volume);
-        AL.Source(source, ALSourceb.Looping, loop);
+        AL.Source(source, ALSourceb.Looping, sound.Loop && sound.BeginLoopPoint == 0);
         AL.SourcePlay(source);
+        
     }
 
     /// <summary>
@@ -80,14 +76,28 @@ public sealed class AudioDevice : UnmanagedResource
     /// <param name="sound">The sound to play.</param>
     /// <param name="pitch">The pitch the sound should play at.</param>
     /// <param name="volume">The volume the sound should play at.</param>
-    /// <param name="loop">Should the sound loop?</param>
     /// <param name="persistent">If persistent is enabled, the sound will not be overriden even if the number of available channels runs out.</param>
     /// <returns>The channel this sound is playing on.</returns>
-    public int PlaySound(Sound sound, float pitch = 1, float volume = 1, bool loop = false, bool persistent = false)
+    public int PlaySound(Sound sound, float pitch = 1, float volume = 1, bool persistent = false)
     {
         IncrementChannelCount();
-        PlaySound(_channelCount, sound, pitch, volume, loop, persistent);
+        PlaySound(_channelCount, sound, pitch, volume, persistent);
         return _channelCount;
+    }
+
+    /// <summary>
+    /// Queue the sound onto the given channel. It will play once the first sound has finished.
+    /// Useful for creating tracks with an intro and a loop. (Alternatively, you can set the sound's loop points.)<br />
+    /// Must be queued onto a playing channel, otherwise it will not play.
+    /// </summary>
+    /// <param name="channel">The channel to queue the sound.</param>
+    /// <param name="sound">The sound itself.</param>
+    public void QueueSound(int channel, Sound sound)
+    {
+        int source = _sources[channel];
+        AL.SourceQueueBuffer(source, sound.Buffer);
+        if (sound.Loop && sound.BeginLoopPoint > 0)
+            AL.SourceQueueBuffer(source, sound.LoopBuffer);
     }
 
     private void IncrementChannelCount()
@@ -153,7 +163,7 @@ public sealed class AudioDevice : UnmanagedResource
     /// <param name="pitch">The pitch the sound should play at.</param>
     /// <param name="volume">The volume the sound should play at.</param>
     /// <param name="loop">Should the sound loop?</param>
-    /// <param name="persistent">If persistent is enabled, the sound cannot be overriden by <see cref="PlaySound(Cubic2D.Audio.Sound,float,float,bool,bool)"/> even if it runs out of channels.</param>
+    /// <param name="persistent">If persistent is enabled, the sound cannot be overriden by <see cref="PlaySound(Cubic2D.Audio.Sound,float,float,bool)"/> even if it runs out of channels.</param>
     public void SetSoundProperties(int channel, float pitch = 1, float volume = 1, bool loop = false,
         bool persistent = false)
     {
@@ -193,11 +203,70 @@ public sealed class AudioDevice : UnmanagedResource
         AL.SourcePlay(_sources[channel]);
     }
 
-    internal override void Dispose()
+    /// <summary>
+    /// Set the pitch of the sound in the given channel, without affecting the other parameters.
+    /// </summary>
+    /// <param name="channel">The channel that should be affected.</param>
+    /// <param name="pitch">The pitch.</param>
+    public void SetPitch(int channel, float pitch)
+    {
+        AL.Source(_sources[channel], ALSourcef.Pitch, pitch);
+    }
+    
+    /// <summary>
+    /// Set the volume of the sound in the given channel, without affecting the other parameters.
+    /// </summary>
+    /// <param name="channel">The channel that should be affected.</param>
+    /// <param name="volume">The volume.</param>
+    public void SetVolume(int channel, float volume)
+    {
+        AL.Source(_sources[channel], ALSourcef.Gain, volume);
+    }
+    
+    /// <summary>
+    /// Set whether the sound in the given channel should loop, without affecting the other parameters.
+    /// </summary>
+    /// <param name="channel">The channel that should be affected.</param>
+    /// <param name="loop">Loop?</param>
+    public void SetLooping(int channel, bool loop)
+    {
+        AL.Source(_sources[channel], ALSourceb.Looping, loop);
+    }
+
+    /// <summary>
+    /// Set whether the sound in the given channel is persistent, without affecting the other parameters.
+    /// </summary>
+    /// <param name="channel">The channel that should be affected.</param>
+    /// <param name="persistent">Persistent?</param>
+    public void SetPersistent(int channel, bool persistent)
+    {
+        _persistentSources[channel] = persistent;
+    }
+
+    internal void Update()
+    {
+        // I hate the fact that I have to do this cause in theory if the frame rate is slow enough it could screw
+        // up this whole thing, but in practice it shouldn't be a massive deal, it just needs to run at some point
+        // for the queue to be cleared, before it loops
+        for (int i = 0; i < NumChannels; i++)
+        {
+            int source = _sources[i];
+            AL.GetSource(source, ALGetSourcei.BuffersProcessed, out int buffProcessed);
+
+            if (buffProcessed > 0)
+            {
+                AL.SourceUnqueueBuffers(_sources[i], buffProcessed);
+                AL.GetSource(source, ALGetSourcei.BuffersQueued, out int buffQueued);
+                if (buffQueued <= 1)
+                    AL.Source(_sources[i], ALSourceb.Looping, true);
+            }
+        }
+    }
+
+    public void Dispose()
     {
         AL.SourceStop(NumChannels, _sources);
         AL.DeleteSources(NumChannels, ref _sources[0]);
-        AL.DeleteBuffers(NumChannels, _buffers);
 
         ALC.MakeContextCurrent(ALContext.Null);
         ALC.DestroyContext(_context);

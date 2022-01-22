@@ -8,7 +8,7 @@ using Veldrid;
 
 namespace Cubic2D.Render;
 
-public class Texture2D : UnmanagedResource
+public class Texture2D : IDisposable
 {
     internal Texture Texture;
 
@@ -58,7 +58,7 @@ public class Texture2D : UnmanagedResource
         Size = new Size(width, height);
     }
     
-    internal override void Dispose()
+    public void Dispose()
     {
         Texture.Dispose();
 #if DEBUG

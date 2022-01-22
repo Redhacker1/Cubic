@@ -9,7 +9,7 @@ using Rectangle = System.Drawing.Rectangle;
 
 namespace Cubic2D.Render;
 
-public class SpriteRenderer : UnmanagedResource
+public class SpriteRenderer : IDisposable
 {
     #region Constants
     
@@ -309,7 +309,7 @@ void main()
         _currentSprite = 0;
     }
     
-    internal override void Dispose()
+    public void Dispose()
     {
         _pipeline.Dispose();
         _vertexBuffer.Dispose();

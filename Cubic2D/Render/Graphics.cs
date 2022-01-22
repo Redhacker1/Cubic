@@ -8,7 +8,7 @@ using Veldrid.StartupUtilities;
 
 namespace Cubic2D.Render;
 
-public class Graphics : UnmanagedResource
+public class Graphics : IDisposable
 {
     public event OnResize ViewportResized;
     
@@ -158,7 +158,7 @@ public class Graphics : UnmanagedResource
         ViewportResized?.Invoke(new Size(_window.Width, _window.Height));
     }
 
-    internal override void Dispose()
+    public void Dispose()
     {
         // Dispose of the command list and graphics device, remove delegate for window resizing.
         CL.Dispose();

@@ -73,6 +73,7 @@ public sealed class CubicGame : IDisposable
                 continue;
             Time.Update();
             Input.Update(Window.SdlWindow.PumpEvents());
+            AudioDevice.Update();
             SceneManager.Update(this);
             Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
             SceneManager.Draw();

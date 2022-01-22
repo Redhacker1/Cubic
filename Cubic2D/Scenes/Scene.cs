@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Cubic2D.Entities;
 using Cubic2D.Render;
@@ -6,9 +7,9 @@ using Cubic2D.Windowing;
 
 namespace Cubic2D.Scenes;
 
-public abstract class Scene : UnmanagedResource
+public abstract class Scene : IDisposable
 {
-    internal readonly List<UnmanagedResource> CreatedResources;
+    internal readonly List<IDisposable> CreatedResources;
 
     protected internal Graphics Graphics { get; internal set; }
     protected internal readonly World World;
@@ -20,7 +21,7 @@ public abstract class Scene : UnmanagedResource
 
     protected Scene()
     {
-        CreatedResources = new List<UnmanagedResource>();
+        CreatedResources = new List<IDisposable>();
         _entities = new Dictionary<string, Entity>();
         World = new World();
         Camera main = new Camera();
@@ -38,11 +39,11 @@ public abstract class Scene : UnmanagedResource
 
     protected virtual void Unload() { }
 
-    internal override void Dispose()
+    public void Dispose()
     {
         Unload();
         
-        foreach (UnmanagedResource resource in CreatedResources)
+        foreach (IDisposable resource in CreatedResources)
             resource.Dispose();
     }
 

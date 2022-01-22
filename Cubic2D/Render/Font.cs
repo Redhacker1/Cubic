@@ -1,11 +1,13 @@
+using System;
+
 namespace Cubic2D.Render;
 
 // TODO: FONTS
-public class Font : UnmanagedResource
+public class Font : IDisposable
 {
     
     
-    internal override void Dispose()
+    public void Dispose()
     {
         throw new System.NotImplementedException();
     }
