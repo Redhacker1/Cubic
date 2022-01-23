@@ -3,6 +3,9 @@ using Point = Veldrid.Point;
 
 namespace Cubic2D.Windowing;
 
+/// <summary>
+/// Represents a physical monitor attached to the device.
+/// </summary>
 public struct Monitor
 {
     /// <summary>

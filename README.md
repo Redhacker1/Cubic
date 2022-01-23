@@ -5,8 +5,8 @@ A fast, cross-platform 2D game engine.
 In Cubic2D, it's easy to add components and custom scripts to your entities.
 ```c#
 Entity entity = new Entity();
-entity.AddComponent(new Sprite(new Texture2D("Content/MyTexture.png")));
-entity.AddComponent(new MyScript());
+entity.AddComponent(typeof(Sprite), new Texture2D("Content/MyTexture.png"));
+entity.AddComponent(typeof(MyScript));
 ```
 
 ### Unity-like scripting system

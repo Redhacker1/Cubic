@@ -4,6 +4,9 @@ using Cubic2D.Audio;
 
 namespace Cubic2D.Windowing;
 
+/// <summary>
+/// Initial settings for the <see cref="CubicGame"/> on startup.
+/// </summary>
 public struct GameSettings
 {
     /// <summary>
