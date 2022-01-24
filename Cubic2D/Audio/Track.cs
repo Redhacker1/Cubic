@@ -32,6 +32,11 @@ public struct Track : IDisposable
     /// The speed of this track, in ticks per row.
     /// </summary>
     public readonly int Speed;
+
+    /// <summary>
+    /// The maximum number of channels this track will use at any one point in time.
+    /// </summary>
+    public readonly int MaxChannels;
     
     private float _trackVolume;
 
@@ -66,6 +71,14 @@ public struct Track : IDisposable
         Tempo = tempo;
         Speed = speed;
         _trackVolume = trackVolume;
+        int maxChannels = 0;
+        foreach (Pattern p in patterns)
+        {
+            if (p.NumChannels > maxChannels)
+                maxChannels = p.NumChannels;
+        }
+
+        MaxChannels = maxChannels;
         _timer.Elapsed += TimerOnElapsed;
         SceneManager.Active.CreatedResources.Add(this);
     }
@@ -75,6 +88,7 @@ public struct Track : IDisposable
     /// </summary>
     public void Play()
     {
+        _device.TrackChannels = MaxChannels;
         _timer.Start();
     }
 
@@ -84,17 +98,11 @@ public struct Track : IDisposable
     /// </summary>
     public void Stop()
     {
+        _device.TrackChannels = 0;
         _timer.Stop();
         _currentPattern = 0;
         _currentRow = 0;
-        int maxChannels = 0;
-        foreach (Pattern pattern in _patterns)
-        {
-            if (pattern.NumChannels > maxChannels)
-                maxChannels = pattern.NumChannels;
-        }
-        
-        for (int i = 0; i < maxChannels; i++)
+        for (int i = 0; i < MaxChannels; i++)
             _device.Stop(i);
     }
 
@@ -105,14 +113,7 @@ public struct Track : IDisposable
     public void Pause()
     {
         _timer.Stop();
-        int maxChannels = 0;
-        foreach (Pattern pattern in _patterns)
-        {
-            if (pattern.NumChannels > maxChannels)
-                maxChannels = pattern.NumChannels;
-        }
-        
-        for (int i = 0; i < maxChannels; i++)
+        for (int i = 0; i < MaxChannels; i++)
             _device.Stop(i);
     }
     
@@ -237,6 +238,7 @@ public struct Track : IDisposable
     public void Dispose()
     {
         _timer.Elapsed -= TimerOnElapsed;
+        _timer.Dispose();
         foreach (Sound sound in _samples)
             sound.Dispose();
     }

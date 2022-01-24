@@ -14,6 +14,10 @@ public sealed class AudioDevice : IDisposable
 
     private float _masterVolume;
 
+    // When a tracker track is playing, sounds will not be able to automatically play on the channels it allocates,
+    // unless manually told to play on those channels
+    internal int TrackChannels;
+
     /// <summary>
     /// The master volume for this <see cref="AudioDevice"/>. A value of 1.0 is "full volume".
     /// </summary>
@@ -50,7 +54,7 @@ public sealed class AudioDevice : IDisposable
 
     /// <summary>
     /// Play the given sound on the given channel. If any sound is playing on this channel, it will be overriden by the
-    /// new sound.
+    /// new sound. <b>This includes tracker songs.</b>
     /// </summary>
     /// <param name="channel">The channel the sound will play on.</param>
     /// <param name="sound">The sound to play.</param>
@@ -70,7 +74,6 @@ public sealed class AudioDevice : IDisposable
         AL.Source(source, ALSourcef.Gain, volume);
         AL.Source(source, ALSourceb.Looping, sound.Loop && sound.BeginLoopPoint == 0);
         AL.SourcePlay(source);
-        
     }
 
     /// <summary>
@@ -83,7 +86,27 @@ public sealed class AudioDevice : IDisposable
     /// <returns>The channel this sound is playing on.</returns>
     public int PlaySound(Sound sound, float pitch = 1, float volume = 1, bool persistent = false)
     {
-        IncrementChannelCount();
+        IncrementChannelCount(TrackChannels, NumChannels);
+        PlaySound(_channelCount, sound, pitch, volume, persistent);
+        return _channelCount;
+    }
+
+    /// <summary>
+    /// Play the given sound on the next available channel, within the bounds of the <paramref name="minChannel"/> and
+    /// <paramref name="maxChannel"/>. The channel the sound is played on will not be outside of this boundary.
+    /// <paramref name="minChannel"/> <b>is</b> inclusive, however <paramref name="maxChannel"/> is <b>not</b> inclusive.
+    /// </summary>
+    /// <param name="minChannel">The minimum channel this sound can play on.</param>
+    /// <param name="maxChannel">The maximum channel this sound can play on.</param>
+    /// <param name="sound">The sound to play.</param>
+    /// <param name="pitch">The pitch the sound should play at.</param>
+    /// <param name="volume">The volume the sound should play at.</param>
+    /// <param name="persistent">If persistent is enabled, the sound will not be overriden even if the number of available channels runs out.</param>
+    /// <returns>The channel this sound is playing on.</returns>
+    public int PlaySound(int minChannel, int maxChannel, Sound sound, float pitch = 1, float volume = 1,
+        bool persistent = false)
+    {
+        IncrementChannelCount(minChannel, maxChannel);
         PlaySound(_channelCount, sound, pitch, volume, persistent);
         return _channelCount;
     }
@@ -103,7 +126,7 @@ public sealed class AudioDevice : IDisposable
             AL.SourceQueueBuffer(source, sound.LoopBuffer);
     }
 
-    private void IncrementChannelCount()
+    private void IncrementChannelCount(int minChannel, int maxChannel)
     {
         int numIterations = 0;
         do
@@ -112,8 +135,8 @@ public sealed class AudioDevice : IDisposable
             // This approach will look for a free channel without any sound effects playing in it, which is what will
             // happen 99% of the time.
             _channelCount++;
-            if (_channelCount >= NumChannels)
-                _channelCount = 0;
+            if (_channelCount >= maxChannel)
+                _channelCount = minChannel;
             numIterations++;
             
             // If no free slot can be found, however, we take a more forceful approach.
@@ -122,16 +145,16 @@ public sealed class AudioDevice : IDisposable
             // should not be overwritten regardless. Therefore, if there are too many persistent sounds, an exception
             // will be thrown as the sounds cannot be overwritten. In 99% of situation there will be only 1 or 2
             // persistent sounds so this shouldn't be a problem.
-            if (numIterations >= NumChannels)
+            if (numIterations >= maxChannel - minChannel)
             {
                 numIterations = 0;
                 do
                 {
                     _channelCount++;
                     numIterations++;
-                    if (_channelCount >= NumChannels)
-                        _channelCount = 0;
-                    if (numIterations >= NumChannels)
+                    if (_channelCount >= maxChannel)
+                        _channelCount = minChannel;
+                    if (numIterations >= maxChannel - minChannel)
                         throw new Exception("Too many persistent sounds, new sound effect cannot be created.");
                 } while (_persistentSources[_channelCount]);
 
