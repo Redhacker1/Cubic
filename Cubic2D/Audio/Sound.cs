@@ -35,7 +35,7 @@ public struct Sound : IDisposable
         Buffer = 0;
         LoopBuffer = -1;
         Format = ALFormat.Mono8;
-        GetFormat(channels, bitsPerSample);
+        Format = GetFormat(channels, bitsPerSample);
         CreateBuffers(out Buffer, out LoopBuffer);
         SceneManager.Active.CreatedResources.Add(this);
     }
