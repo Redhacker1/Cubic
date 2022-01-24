@@ -13,30 +13,27 @@ public struct Track : IDisposable
     private string _title;
     private string _author;
 
-    public string Title
-    {
-        get => _title;
-        set
-        {
-            if (value.Length > 25)
-                throw new Exception("Title can be 25 chars maximum.");
-            _title = value;
-        }
-    }
+    /// <summary>
+    /// This track's title, if any. Limited to 25 characters.
+    /// </summary>
+    public string Title => _title;
 
-    public string Author
-    {
-        get => _author;
-        set
-        {
-            if (value.Length > 25)
-                throw new Exception("Author can be 25 chars maximum.");
-            _author = value;
-        }
-    }
+    /// <summary>
+    /// This track's author, if any. Limited to 25 characters.
+    /// </summary>
+    public string Author => _author;
 
-    public int Tempo;
-    public int Speed;
+    /// <summary>
+    /// The tempo of this track, in bpm.
+    /// </summary>
+    public readonly int Tempo;
+    
+    /// <summary>
+    /// The speed of this track, in ticks per row.
+    /// </summary>
+    public readonly int Speed;
+    
+    private float _trackVolume;
 
     private Pattern[] _patterns;
 
@@ -54,7 +51,7 @@ public struct Track : IDisposable
 
     private AudioDevice _device;
 
-    private Track(AudioDevice device, int tempo, int speed, Sound[] samples, Pattern[] patterns)
+    private Track(AudioDevice device, int tempo, int speed, Sound[] samples, Pattern[] patterns, float trackVolume)
     {
         _patterns = patterns;
         _currentPattern = 0;
@@ -68,14 +65,55 @@ public struct Track : IDisposable
         _author = "";
         Tempo = tempo;
         Speed = speed;
+        _trackVolume = trackVolume;
         _timer.Elapsed += TimerOnElapsed;
         SceneManager.Active.CreatedResources.Add(this);
     }
 
+    /// <summary>
+    /// Play the track, with the given volume level.
+    /// </summary>
     public void Play()
     {
-        _timer.Stop();
         _timer.Start();
+    }
+
+    /// <summary>
+    /// Stop the track from playing. If <see cref="Play"/> is called after this is called, the track will start from the
+    /// beginning.
+    /// </summary>
+    public void Stop()
+    {
+        _timer.Stop();
+        _currentPattern = 0;
+        _currentRow = 0;
+        int maxChannels = 0;
+        foreach (Pattern pattern in _patterns)
+        {
+            if (pattern.NumChannels > maxChannels)
+                maxChannels = pattern.NumChannels;
+        }
+        
+        for (int i = 0; i < maxChannels; i++)
+            _device.Stop(i);
+    }
+
+    /// <summary>
+    /// Pause the current track. If <see cref="Play"/> is called after this is called, the track will start where it
+    /// left off.
+    /// </summary>
+    public void Pause()
+    {
+        _timer.Stop();
+        int maxChannels = 0;
+        foreach (Pattern pattern in _patterns)
+        {
+            if (pattern.NumChannels > maxChannels)
+                maxChannels = pattern.NumChannels;
+        }
+        
+        for (int i = 0; i < maxChannels; i++)
+            _device.Stop(i);
     }
     
     private void TimerOnElapsed(object? sender, ElapsedEventArgs e)
@@ -90,7 +128,7 @@ public struct Track : IDisposable
             switch (note.Key)
             {
                 case PianoKey.None:
-                    _device.SetVolume(i, note.Volume * PitchNote.RefVolume);
+                    _device.SetVolume(i, note.Volume * _trackVolume * PitchNote.RefVolume);
                     if (note.Effect == Effect.None)
                         continue;
                     switch (note.Effect)
@@ -108,7 +146,7 @@ public struct Track : IDisposable
                 default:
                 {
                     PitchNote pn = new PitchNote(note.Key, note.Octave, note.Volume);
-                    _device.PlaySound(i, _samples[note.SampleNum], pn.Pitch, pn.Volume);
+                    _device.PlaySound(i, _samples[note.SampleNum], pn.Pitch, pn.Volume * _trackVolume);
                     break;
                 }
             }
@@ -124,11 +162,9 @@ public struct Track : IDisposable
             if (_currentPattern >= _patterns.Length)
                 _currentPattern = 0;
         }
-        
-        _device.Update();
     }
     
-    public static Track LoadCtra(AudioDevice device, string path)
+    public static Track LoadCtra(AudioDevice device, string path, float trackVolume = 1f)
     {
         using DeflateStream deflateStream = new DeflateStream(File.OpenRead(path), CompressionMode.Decompress);
         using BinaryReader reader = new BinaryReader(deflateStream);
@@ -195,11 +231,12 @@ public struct Track : IDisposable
             patterns.Add(p);
         }
 
-        return new Track(device, tempo, speed, samples.ToArray(), patterns.ToArray());
+        return new Track(device, tempo, speed, samples.ToArray(), patterns.ToArray(), trackVolume);
     }
 
     public void Dispose()
     {
+        _timer.Elapsed -= TimerOnElapsed;
         foreach (Sound sound in _samples)
             sound.Dispose();
     }

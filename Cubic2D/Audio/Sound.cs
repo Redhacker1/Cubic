@@ -66,8 +66,12 @@ public struct Sound : IDisposable
         }
 
         Loop = loop;
-        BeginLoopPoint = beginLoopPoint * 4;
-        EndLoopPoint = endLoopPoint == -1 ? Data.Length : endLoopPoint * 4;
+        // sampleToBytes calculates the correct multiplier to convert the given sample number in begin and endLoopPoint,
+        // into the correct byte multiplier for Data.
+        // This ensures that no matter the format of the data, the loop points will always be consistent.
+        int sampleToBytes = (Channels * BitsPerSample) / 8;
+        BeginLoopPoint = beginLoopPoint * sampleToBytes;
+        EndLoopPoint = endLoopPoint == -1 ? Data.Length : endLoopPoint * sampleToBytes;
         
         Buffer = 0;
         LoopBuffer = -1;

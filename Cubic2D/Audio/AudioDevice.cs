@@ -14,6 +14,9 @@ public sealed class AudioDevice : IDisposable
 
     private float _masterVolume;
 
+    /// <summary>
+    /// The master volume for this <see cref="AudioDevice"/>. A value of 1.0 is "full volume".
+    /// </summary>
     public float MasterVolume
     {
         get => _masterVolume;
