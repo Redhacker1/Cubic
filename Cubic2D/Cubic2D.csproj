@@ -11,9 +11,15 @@
       <PackageReference Include="FreeTypeSharp" Version="1.1.3" />
       <PackageReference Include="OpenTK.OpenAL" Version="4.6.7" />
       <PackageReference Include="StbImageSharp" Version="2.27.7" />
-      <PackageReference Include="Veldrid" Version="4.9.0-g3839ab315a" />
+      <PackageReference Include="Veldrid" Version="4.9.0-beta1" />
       <PackageReference Include="Veldrid.SPIRV" Version="1.0.14" />
-      <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0-g3839ab315a" />
+      <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0-beta1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Audio\openal32.dll">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

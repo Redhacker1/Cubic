@@ -10,7 +10,7 @@ namespace Cubic2D.Audio;
 /// </summary>
 public struct Sound : IDisposable
 {
-    public readonly byte[] Data;
+    public byte[] Data;
     public readonly int Channels;
     public readonly int SampleRate;
     public readonly int BitsPerSample;
@@ -20,8 +20,8 @@ public struct Sound : IDisposable
     internal readonly int LoopBuffer;
 
     public readonly bool Loop;
-    public readonly int BeginLoopPoint;
-    public readonly int EndLoopPoint;
+    public int BeginLoopPoint;
+    public int EndLoopPoint;
 
     public Sound(byte[] data, int channels, int sampleRate, int bitsPerSample, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1)
     {
@@ -134,10 +134,36 @@ public struct Sound : IDisposable
 
     private void CreateBuffers(out int buffer1, out int buffer2)
     {
+        /*const int newSampleRate = 11025;
+        // Calculate our alignment for the number of bytes we need.
+        int alignment = (Channels * BitsPerSample) / 8;
+        // This will help us determine (a) How many bytes our new data array should be, (b) the section of data we copy
+        // across to this new array from the old array for any given value of i.
+        float ratio = SampleRate / (float) newSampleRate;
+        byte[] data = new byte[(int) ((Data.Length * ratio) - (Data.Length * ratio) % alignment)];
+        for (int i = 0; i < data.Length; i += alignment)
+        {
+            // dataPoint calculates the exact starting array index for any given value of i, based on our computed
+            // ratio. It is aligned to the correct byte, so dataPoint + alignment will always be the next sample in the
+            // array.
+            int dataPoint = (int) ((i * 1 / ratio) - (i * 1 / ratio) % alignment);
+            // Append the data for the alignment we need. Typically, alignment will be 4.
+            // (16 bits per sample * 2 channels) / sizeof(byte) = 4. The first two bytes will be the first channel and
+            // the last two bytes will be the second channel.
+            if (dataPoint >= Data.Length)
+                break;
+            for (int a = 0; a < alignment; a++)
+                data[i + a] = Data[dataPoint + a];
+        }
+
+        Data = data;*/
+        
         buffer1 = AL.GenBuffer();
         buffer2 = -1;
         if (Loop)
         {
+            //BeginLoopPoint = (int) ((BeginLoopPoint * ratio) - (BeginLoopPoint * ratio) % alignment);
+            //EndLoopPoint = (int) ((EndLoopPoint * ratio) - (EndLoopPoint * ratio) % alignment);
             if (BeginLoopPoint > 0)
             {
                 AL.BufferData(buffer1, Format, Data[..BeginLoopPoint], SampleRate);

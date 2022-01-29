@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 using System.Timers;
 using Cubic2D.Scenes;
+using OpenTK.Audio.OpenAL;
+using Timer = System.Timers.Timer;
 
 namespace Cubic2D.Audio;
 
@@ -49,12 +52,14 @@ public struct Track : IDisposable
     private int _currentRow;
     //private int[] _order;
 
+    private int _interval;
+
     private Timer _timer;
 
-    private int _interval;
-    private long _lastMs;
-
     private AudioDevice _device;
+
+    private int _buffer;
+    private int _source;
 
     private Track(AudioDevice device, int tempo, int speed, Sound[] samples, Pattern[] patterns, float trackVolume)
     {
@@ -65,7 +70,6 @@ public struct Track : IDisposable
         _timer = new Timer(_interval);
         _device = device;
         _samples = samples;
-        _lastMs = 0;
         _title = "";
         _author = "";
         Tempo = tempo;
@@ -79,7 +83,11 @@ public struct Track : IDisposable
         }
 
         MaxChannels = maxChannels;
-        _timer.Elapsed += TimerOnElapsed;
+
+        _buffer = AL.GenBuffer();
+        _source = AL.GenSource();
+        
+        _timer.Elapsed += BeginPlayback;
         SceneManager.Active.CreatedResources.Add(this);
     }
 
@@ -100,6 +108,7 @@ public struct Track : IDisposable
     {
         _device.TrackChannels = 0;
         _timer.Stop();
+
         _currentPattern = 0;
         _currentRow = 0;
         for (int i = 0; i < MaxChannels; i++)
@@ -116,8 +125,37 @@ public struct Track : IDisposable
         for (int i = 0; i < MaxChannels; i++)
             _device.Stop(i);
     }
+
+    /*public void Play2()
+    {
+        Sound sound = _samples[6];
+        Note[,] notes = _patterns[2].Notes;
+        const int sampleRate = 44100;
+        Console.WriteLine(_interval);
+        const int rows = 16;
+        byte[] buf = new byte[(int) ((sampleRate * 2 * rows * (_interval / 1000f)) - (sampleRate * 2 * rows * (_interval / 1000f)) % 4)];
+        for (int r = 0; r < rows; r++)
+        {
+            Note note = notes[3, r];
+            if (note.Initialized)
+            {
+                float ratio = sampleRate / (float) 44100;
+                int offset = r * 2 * sampleRate * (int) (_interval / 1000f);
+                for (int i = offset; i < (buf.Length - sound.Data.Length < 0 ? buf.Length : sound.Data.Length); i += 4)
+                {
+                    int dataPoint = (int) ((i * 1 / ratio) - (i * 1 / ratio) % 4);
+                    for (int a = 0; a < 4; a++)
+                        buf[(i + a) + (int) (sampleRate * 2 * r * (_interval / 1000f)) - (sampleRate * 2 * r * (_interval / 1000f)) % 4)] = sound.Data[dataPoint + a];
+                }
+            }
+        }
+
+        AL.BufferData(_buffer, ALFormat.Stereo16, buf, 44100);
+        AL.Source(_source, ALSourcei.Buffer, _buffer);
+        AL.SourcePlay(_source);
+    }*/
     
-    private void TimerOnElapsed(object? sender, ElapsedEventArgs e)
+    private void BeginPlayback(object? sender, ElapsedEventArgs e)
     {
         Pattern pattern = _patterns[_currentPattern];
         bool skip = false;
@@ -140,6 +178,7 @@ public struct Track : IDisposable
                             skip = true;
                             break;
                     }
+
                     continue;
                 case PianoKey.NoteOff:
                     _device.Stop(i);
@@ -164,7 +203,7 @@ public struct Track : IDisposable
                 _currentPattern = 0;
         }
     }
-    
+
     public static Track LoadCtra(AudioDevice device, string path, float trackVolume = 1f)
     {
         using DeflateStream deflateStream = new DeflateStream(File.OpenRead(path), CompressionMode.Decompress);
@@ -237,8 +276,7 @@ public struct Track : IDisposable
 
     public void Dispose()
     {
-        _timer.Elapsed -= TimerOnElapsed;
-        _timer.Dispose();
+        //_timer.Elapsed -= TimerOnElapsed;
         foreach (Sound sound in _samples)
             sound.Dispose();
     }
