@@ -13,6 +13,8 @@ public sealed unsafe class GameWindow
 {
     internal Sdl2Window SdlWindow;
     private GameSettings _settings;
+
+    private string _title;
     
     #region Public properties
 
@@ -48,8 +50,12 @@ public sealed unsafe class GameWindow
 
     public string Title
     {
-        get => SdlWindow.Title;
-        set => SdlWindow.Title = value;
+        get => _title;
+        set
+        {
+            _title = value;
+            SdlWindow.Title = value;
+        }
     }
 
     public bool Resizable
@@ -118,6 +124,7 @@ public sealed unsafe class GameWindow
     {
         SdlWindow = VeldridStartup.CreateWindow(new WindowCreateInfo(0, 0, _settings.Size.Width, _settings.Size.Height,
             WindowState.Hidden, _settings.Title));
+        _title = _settings.Title;
         SdlWindow.Resizable = _settings.Resizable;
 
         if (_settings.Location != new Point(-1, -1))
