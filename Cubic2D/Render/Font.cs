@@ -141,6 +141,7 @@ public class Font : IDisposable
 
     private unsafe void CreateFontTexture(uint fontSize)
     {
+        _characters.Clear();
         FT_Set_Pixel_Sizes(_face, 0, fontSize);
 
         FreeTypeFaceFacade facade = new FreeTypeFaceFacade(_freeType, _face);
@@ -161,6 +162,9 @@ public class Font : IDisposable
             }
 
             // Ooh boy, pointer garbage!
+            // FreeType provides us a font in grayscale, in this case typically the "red" channel if you will.
+            // Problem is we can't really draw this. So we need to convert it into RGBA colour space.
+            // This garbage does this.
             // First calculate the grayscale size of the glyph. Easy enough, just the width x height (fontsize),
             // multiplied by 8 (as each char is 8 bits).
             uint size = glyph.width * fontSize * 8;
