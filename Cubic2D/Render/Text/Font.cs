@@ -117,64 +117,157 @@ public class Font : IDisposable
         Color currentColor = startColor;
         for (int i = 0; i < text.Length; i++)
         {
-            unsafe
+            char c = text[i];
+            switch (c)
             {
-                char c = text[i];
-                switch (c)
-                {
-                    // If newline argument is given, actually create a new line in our text drawing.
-                    case '\n':
-                        pos.Y += _storedSize + extraLineSpacing;
-                        pos.X = position.X;
+                // If newline argument is given, actually create a new line in our text drawing.
+                case '\n':
+                    pos.Y += _storedSize + extraLineSpacing;
+                    pos.X = position.X;
+                    continue;
+                case '\\':
+                    if (text[i + 1] == '[')
                         continue;
-                    case '\\':
-                        if (text[i + 1] == '[')
+                    break;
+                // '[' characters potentially represents commands the renderer can follow.
+                case '[':
+                    // Backslashes are ignored.
+                    if (i - 1 > -1 && text[i - 1] == '\\')
+                        break;
+                    string potentialParam = "";
+                    int texPtr = i;
+                    while (text[++texPtr] != ']')
+                        potentialParam += text[texPtr];
+                    int len = potentialParam.Length + 1;
+                    potentialParam = potentialParam.Replace(" ", "").ToLower();
+                    if (potentialParam.StartsWith('u'))
+                    {
+                        i += len;
+                        c = (char) int.Parse(potentialParam[1..], NumberStyles.HexNumber);
+                        break;
+                    }
+                    if (potentialParam[1] != '=')
+                        break;
+                    switch (potentialParam[0])
+                    {
+                        case 'c':
+                            currentColor = FontHelper.GetColor(potentialParam[2..]);
+                            i += len;
                             continue;
-                        break;
-                    // '[' characters potentially represents commands the renderer can follow.
-                    case '[':
-                        // Backslashes are ignored.
-                        if (i - 1 > -1 && text[i - 1] == '\\')
-                            break;
-                        string potentialParam = "";
-                        int texPtr = i;
-                        while (text[++texPtr] != ']')
-                            potentialParam += text[texPtr];
-                        int len = potentialParam.Length + 1;
-                        potentialParam = potentialParam.Replace(" ", "").ToLower();
-                        if (potentialParam[1] != '=')
-                            break;
-                        switch (potentialParam[0])
-                        {
-                            case 'c':
-                                currentColor = FontHelper.GetColor(potentialParam[2..]);
-                                i += len;
-                                continue;
-                            case 'u':
-                                i += len;
-                                c = (char) int.Parse(potentialParam[2..], NumberStyles.HexNumber);
-                                break;
-                        }
+                    }
 
-                        break;
-                }
-
-                FontHelper.Character chr = _characters[c];
-                // Calculate the character's position.
-                Vector2 charPos =
-                    new Vector2(pos.X + chr.Bearing.X, pos.Y - chr.Size.Height + (chr.Size.Height - chr.Bearing.Y));
-                // First we translate the char position by our rotation, scale, and origin point, then the sprite batch
-                // takes care of the rest :)
-                charPos = Vector2.Transform(charPos,
-                    Matrix4x4.CreateTranslation(new Vector3(-origin - position, 0)) *
-                    Matrix4x4.CreateScale(new Vector3(scale, 1)) * Matrix4x4.CreateRotationZ(rotation) *
-                    Matrix4x4.CreateTranslation(new Vector3(position, 0)));
-
-                renderer.Draw(_currentTexture, charPos, new Rectangle(chr.Position, chr.Size), currentColor, rotation,
-                    Vector2.Zero, scale, SpriteFlipMode.None);
-                pos.X += chr.Advance;
+                    break;
             }
+
+            FontHelper.Character chr = _characters[c];
+            // Calculate the character's position.
+            Vector2 charPos =
+                new Vector2(pos.X + chr.Bearing.X, pos.Y - chr.Size.Height + (chr.Size.Height - chr.Bearing.Y));
+            // First we translate the char position by our rotation, scale, and origin point, then the sprite batch
+            // takes care of the rest :)
+            charPos = Vector2.Transform(charPos,
+                Matrix4x4.CreateTranslation(new Vector3(-origin - position, 0)) *
+                Matrix4x4.CreateScale(new Vector3(scale, 1)) * Matrix4x4.CreateRotationZ(rotation) *
+                Matrix4x4.CreateTranslation(new Vector3(position, 0)));
+
+            renderer.Draw(_currentTexture, charPos, new Rectangle(chr.Position, chr.Size), currentColor, rotation,
+                Vector2.Zero, scale, SpriteFlipMode.None);
+            pos.X += chr.Advance;
         }
+    }
+
+    /// <summary>
+    /// Roughly measure the displayed size in pixels of a text string, with this font.
+    /// </summary>
+    /// <param name="size">The font size.</param>
+    /// <param name="text">The text to measure.</param>
+    /// <param name="extraLineSpacing">Any extra line spacing between lines.</param>
+    /// <returns></returns>
+    public Size MeasureString(uint size, string text, int extraLineSpacing = 0)
+    {
+        // A fair bit of code here is reused from Draw(). We even generate a new texture... (Although to be
+        // honest, who would measure the size of a string in a font size that is never going to be used?)
+        
+        Size stringSize = new Size(0, (int) size);
+
+        // If the font size is not the same as our old one, generate a new texture!
+        if (size != _storedSize)
+        {
+            if (_cachedAtlases.ContainsKey(size))
+            {
+                (Texture2D, Dictionary<char, FontHelper.Character>) ch = _cachedAtlases[size];
+                _currentTexture = ch.Item1;
+                _characters = ch.Item2;
+            }
+            else
+            {
+                Texture2D newTex = new Texture2D(_game, _texWidth, _texHeight);
+                _currentTexture = newTex;
+                _characters = FontHelper.CreateFontTexture(newTex, _game.Graphics, _face, size, _asciiRangeStart,
+                    _asciiRangeEnd);
+                _cachedAtlases.Add(size, (newTex, _characters));
+            }
+            _storedSize = size;
+        }
+
+        int pos = 0;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            
+            // TODO: Move this stuff into a function wherever possible, i hate that this code repeats so much
+            // We need to include this code here too to make sure the measurestring doesn't include the parameters
+            // as part of the text, otherwise the size would be very much off.
+            switch (c)
+            {
+                // If newline argument is given, actually create a new line in our text drawing.
+                case '\n':
+                    stringSize.Height += (int) _storedSize + extraLineSpacing;
+                    pos = 0;
+                    continue;
+                case '\\':
+                    if (text[i + 1] == '[')
+                        continue;
+                    break;
+                // '[' characters potentially represents commands the renderer can follow.
+                case '[':
+                    // Backslashes are ignored.
+                    if (i - 1 > -1 && text[i - 1] == '\\')
+                        break;
+                    string potentialParam = "";
+                    int texPtr = i;
+                    while (text[++texPtr] != ']')
+                        potentialParam += text[texPtr];
+                    int len = potentialParam.Length + 1;
+                    potentialParam = potentialParam.Replace(" ", "").ToLower();
+                    if (potentialParam.StartsWith('u'))
+                    {
+                        i += len;
+                        c = (char) int.Parse(potentialParam[1..], NumberStyles.HexNumber);
+                        break;
+                    }
+                    if (potentialParam[1] != '=')
+                        break;
+                    switch (potentialParam[0])
+                    {
+                        case 'c':
+                            i += len;
+                            continue;
+                    }
+
+                    break;
+            }
+
+            FontHelper.Character chr = _characters[c];
+            Vector2 charPos =
+                new Vector2(pos + chr.Bearing.X, chr.Size.Height + (chr.Size.Height - chr.Bearing.Y));
+            if ((int) charPos.X + chr.Size.Width > stringSize.Width)
+                stringSize.Width = (int) charPos.X + chr.Size.Width;
+            pos += chr.Advance;
+        }
+
+        return stringSize;
     }
 
     public void Dispose()

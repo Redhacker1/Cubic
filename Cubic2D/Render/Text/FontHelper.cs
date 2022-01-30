@@ -121,7 +121,7 @@ public static class FontHelper
             throw new CubicException($"The given colour is not a valid colour (Color name: '{name}')");
         }
     }
-    
+
     internal struct Character
     {
         public Point Position;

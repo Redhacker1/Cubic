@@ -5,6 +5,14 @@
         <ImplicitUsings>disable</ImplicitUsings>
         <Nullable>disable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <PackageVersion>1.0.0-alpha</PackageVersion>
+        <Title>Cubic2D</Title>
+        <Authors>ohtrobinson</Authors>
+        <Description>Cross-platform powerful 2D game engine.</Description>
+        <Copyright>Ollie Robinson</Copyright>
+        <RepositoryUrl>https://github.com/ohtrobinson/Cubic2D</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -20,6 +28,10 @@
       <None Update="Audio\openal32.dll">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+    </ItemGroup>
+    
+    <ItemGroup>
+        <None Include="../README.md" Pack="true" PackagePath="/" />
     </ItemGroup>
 
 </Project>
