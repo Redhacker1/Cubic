@@ -57,6 +57,19 @@ public class Texture2D : IDisposable
         device.UpdateTexture(Texture, data, 0, 0, 0, (uint) width, (uint) height, 1, 0, 0);
         Size = new Size(width, height);
     }
+
+    public Texture2D(CubicGame game, int width, int height)
+    {
+        GraphicsDevice device = game.Graphics.GraphicsDevice;
+        Texture = device.ResourceFactory.CreateTexture(TextureDescription.Texture2D((uint) width,
+            (uint) height, 1, 1, PixelFormat.R8_G8_B8_A8_UNorm, TextureUsage.Sampled));
+        Size = new Size(width, height);
+    }
+
+    public void SetData(Graphics graphics, IntPtr data, uint size, uint x, uint y, uint width, uint height)
+    {
+        graphics.GraphicsDevice.UpdateTexture(Texture, data, size, x, y, 0, width, height, 1, 0, 0);
+    }
     
     public void Dispose()
     {
