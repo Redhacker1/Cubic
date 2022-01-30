@@ -26,10 +26,11 @@ public static class FontHelper
         ColorNames = new Dictionary<string, Color>();
         PropertyInfo[] colorProperties = typeof(Color).GetProperties(BindingFlags.Public | BindingFlags.Static);
         foreach (PropertyInfo prop in colorProperties)
-            ColorNames.Add(prop.Name, (Color) prop.GetValue(null, null));
+            ColorNames.Add(prop.Name.ToLower(), (Color) prop.GetValue(null, null));
     }
 
-    internal static unsafe Dictionary<char, Character> CreateFontTexture(Texture2D texture, Graphics graphics, IntPtr face, uint fontSize)
+    internal static unsafe Dictionary<char, Character> CreateFontTexture(Texture2D texture, Graphics graphics,
+        IntPtr face, uint fontSize, uint asciiRangeStart, uint asciiRangeEnd)
     {
         Dictionary<char, Character> characters = new Dictionary<char, Character>();
         FT_Set_Pixel_Sizes(face, 0, fontSize);
@@ -41,7 +42,7 @@ public static class FontHelper
 
         // First we run through and gather metrics on each character, generating a texture for the first 128 ASCII
         // characters
-        for (uint c = 0; c < 128; c++)
+        for (uint c = asciiRangeStart; c < asciiRangeEnd; c++)
         {
             FT_Load_Char(face, c, FT_LOAD_RENDER);
 
@@ -142,10 +143,10 @@ public static class FontHelper
     /// <param name="color">The colour itself.</param>
     public static void SetCustomColor(string colorName, Color color)
     {
-        if (ColorNames.ContainsKey(colorName))
-            ColorNames[colorName] = color;
+        if (ColorNames.ContainsKey(colorName.ToLower()))
+            ColorNames[colorName.ToLower()] = color;
         else
-            ColorNames.Add(colorName, color);
+            ColorNames.Add(colorName.ToLower(), color);
     }
 
     #endregion

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Numerics;
 using System.Reflection;
 using Cubic2D.Scenes;
@@ -28,15 +29,21 @@ public class Font : IDisposable
     private readonly int _texWidth;
     private readonly int _texHeight;
 
+    private readonly uint _asciiRangeStart;
+    private readonly uint _asciiRangeEnd;
+
     /// <summary>
     /// Create a new dynamic font. This font can be retrieved at any font size.
     /// </summary>
     /// <param name="game">The active Cubic game.</param>
     /// <param name="fontPath">The path to the font.</param>
+    /// <param name="asciiRangeStart">The starting character of the ASCII set.</param>
+    /// <param name="asciiRangeEnd">The ending character of the ASCII set.</param>
     /// <param name="texWidth">The width of the font atlas's texture. By default, this is 1024.</param>
     /// <param name="texHeight">The height of the font atlas's texture. By default, this is 1024.</param>
     /// <exception cref="CubicException">Thrown if the font does not exist.</exception>
-    public Font(CubicGame game, string fontPath, int texWidth = 1024, int texHeight = 1024)
+    public Font(CubicGame game, string fontPath, uint asciiRangeStart = 0, uint asciiRangeEnd = 128,
+        int texWidth = 1024, int texHeight = 1024)
     {
         _game = game;
         if (FT_New_Face(FontHelper.FreeType.Native, fontPath, 0, out _face) != FT_Error.FT_Err_Ok)
@@ -46,6 +53,9 @@ public class Font : IDisposable
 
         _texWidth = texWidth;
         _texHeight = texHeight;
+
+        _asciiRangeStart = asciiRangeStart;
+        _asciiRangeEnd = asciiRangeEnd;
         
         SceneManager.Active.CreatedResources.Add(this);
     }
@@ -85,7 +95,8 @@ public class Font : IDisposable
             {
                 Texture2D newTex = new Texture2D(_game, _texWidth, _texHeight);
                 _currentTexture = newTex;
-                _characters = FontHelper.CreateFontTexture(newTex, _game.Graphics, _face, size);
+                _characters = FontHelper.CreateFontTexture(newTex, _game.Graphics, _face, size, _asciiRangeStart,
+                    _asciiRangeEnd);
                 _cachedAtlases.Add(size, (newTex, _characters));
             }
             _storedSize = size;
@@ -106,48 +117,63 @@ public class Font : IDisposable
         Color currentColor = startColor;
         for (int i = 0; i < text.Length; i++)
         {
-            char c = text[i];
-            switch (c)
+            unsafe
             {
-                // If newline argument is given, actually create a new line in our text drawing.
-                case '\n':
-                    pos.Y += _storedSize + extraLineSpacing;
-                    pos.X = position.X;
-                    continue;
-                case '\\':
-                    if (text[i + 1] == '<')
+                char c = text[i];
+                switch (c)
+                {
+                    // If newline argument is given, actually create a new line in our text drawing.
+                    case '\n':
+                        pos.Y += _storedSize + extraLineSpacing;
+                        pos.X = position.X;
                         continue;
-                    break;
-                // '<' characters potentially represents commands the renderer can follow.
-                case '<':
-                    // Backslashes are ignored.
-                    if (text[i - 1] == '\\')
+                    case '\\':
+                        if (text[i + 1] == '[')
+                            continue;
                         break;
-                    switch (text[(i + 1)..(i + 7)])
-                    {
-                        // If our given "command" is colour, work out the colour!
-                        case "Color:":
-                            string col = "";
-                            int texPtr = i + 6;
-                            while (text[++texPtr] != '>')
-                                col += text[texPtr];
-                            col = col.Trim();
-                            currentColor = FontHelper.GetColor(col);
-                            i = texPtr;
+                    // '[' characters potentially represents commands the renderer can follow.
+                    case '[':
+                        // Backslashes are ignored.
+                        if (i - 1 > -1 && text[i - 1] == '\\')
                             break;
-                    }
-                    // This continue is here as without it the first bracket would be drawn.
-                    continue;
-            }
+                        string potentialParam = "";
+                        int texPtr = i;
+                        while (text[++texPtr] != ']')
+                            potentialParam += text[texPtr];
+                        int len = potentialParam.Length + 1;
+                        potentialParam = potentialParam.Replace(" ", "").ToLower();
+                        if (potentialParam[1] != '=')
+                            break;
+                        switch (potentialParam[0])
+                        {
+                            case 'c':
+                                currentColor = FontHelper.GetColor(potentialParam[2..]);
+                                i += len;
+                                continue;
+                            case 'u':
+                                i += len;
+                                c = (char) int.Parse(potentialParam[2..], NumberStyles.HexNumber);
+                                break;
+                        }
 
-            FontHelper.Character chr = _characters[c];
-            // Calculate the character's position.
-            Vector2 charPos =
-                new Vector2(pos.X + chr.Bearing.X, pos.Y - chr.Size.Height + (chr.Size.Height - chr.Bearing.Y));
-            // The sprite batch takes care of the rest :)
-            renderer.Draw(_currentTexture, charPos, new Rectangle(chr.Position, chr.Size), currentColor, rotation, origin,
-                scale, SpriteFlipMode.None);
-            pos.X += chr.Advance;
+                        break;
+                }
+
+                FontHelper.Character chr = _characters[c];
+                // Calculate the character's position.
+                Vector2 charPos =
+                    new Vector2(pos.X + chr.Bearing.X, pos.Y - chr.Size.Height + (chr.Size.Height - chr.Bearing.Y));
+                // First we translate the char position by our rotation, scale, and origin point, then the sprite batch
+                // takes care of the rest :)
+                charPos = Vector2.Transform(charPos,
+                    Matrix4x4.CreateTranslation(new Vector3(-origin - position, 0)) *
+                    Matrix4x4.CreateScale(new Vector3(scale, 1)) * Matrix4x4.CreateRotationZ(rotation) *
+                    Matrix4x4.CreateTranslation(new Vector3(position, 0)));
+
+                renderer.Draw(_currentTexture, charPos, new Rectangle(chr.Position, chr.Size), currentColor, rotation,
+                    Vector2.Zero, scale, SpriteFlipMode.None);
+                pos.X += chr.Advance;
+            }
         }
     }
 

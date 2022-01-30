@@ -270,6 +270,8 @@ void main()
         _indices[4] = 2 + 4 * _currentSprite;
         _indices[5] = 3 + 4 * _currentSprite;
         
+        // TODO: Switch to array so only one UpdateBuffer needs to be called instead of one per sprite in this case.
+        // TODO: Implement proper sprite sorting instead of z-depth sorting. It is bonkers for transparency apparently.
         _graphics.CL.UpdateBuffer(_vertexBuffer, _currentSprite * VertexSizeInBytes, _vertices);
         _graphics.CL.UpdateBuffer(_indexBuffer, _currentSprite * IndexSizeInBytes, _indices);
 
