@@ -62,7 +62,7 @@ public static class FontHelper
             // This garbage does this.
             // First calculate the grayscale size of the glyph. Easy enough, just the width x height (fontsize),
             // multiplied by 8 (as each char is 8 bits).
-            uint size = glyph.width * fontSize * 8;
+            uint size = glyph.width * glyph.rows * 8;
             int offset = 0;
             // We need to create an array that is 4x this size, as we need 4 channels while the current data only has
             // one channel.
@@ -76,15 +76,12 @@ public static class FontHelper
                 int currOffset = 0;
                 // Set the R, G, and B channels of the glyph to 255 each, as they just need to be white.
                 // The alpha channel is set to the value of the native glyph, producing the result we want.
-                for (int x = 0; x < glyph.width; x++)
+                for (int i = 0; i < glyph.width * glyph.rows; i++)
                 {
-                    for (int y = 0; y < fontSize; y++)
-                    {
-                        data[offset++] = 255;
-                        data[offset++] = 255;
-                        data[offset++] = 255;
-                        data[offset++] = buf[currOffset++];
-                    }
+                    data[offset++] = 255;
+                    data[offset++] = 255;
+                    data[offset++] = 255;
+                    data[offset++] = buf[currOffset++];
                 }
             }
 
@@ -92,7 +89,7 @@ public static class FontHelper
             fixed (byte* p = data)
             {
                 texture.SetData(graphics, (IntPtr) p, size * 4, offsetX, offsetY, glyph.width,
-                    fontSize);
+                    glyph.rows);
             }
 
             // Load each character into the character dictionary so it can be referenced later.
