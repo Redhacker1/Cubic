@@ -29,20 +29,20 @@ public class Font : IDisposable
     private readonly int _texWidth;
     private readonly int _texHeight;
 
-    private readonly uint _asciiRangeStart;
-    private readonly uint _asciiRangeEnd;
+    private readonly uint _unicodeRangeStart;
+    private readonly uint _unicodeRangeEnd;
 
     /// <summary>
     /// Create a new dynamic font. This font can be retrieved at any font size.
     /// </summary>
     /// <param name="game">The active Cubic game.</param>
     /// <param name="fontPath">The path to the font.</param>
-    /// <param name="asciiRangeStart">The starting character of the ASCII set.</param>
-    /// <param name="asciiRangeEnd">The ending character of the ASCII set.</param>
+    /// <param name="unicodeRangeStart">The starting character of the unicode set.</param>
+    /// <param name="unicodeRangeEnd">The ending character of the unicode set.</param>
     /// <param name="texWidth">The width of the font atlas's texture. By default, this is 1024.</param>
     /// <param name="texHeight">The height of the font atlas's texture. By default, this is 1024.</param>
     /// <exception cref="CubicException">Thrown if the font does not exist.</exception>
-    public Font(CubicGame game, string fontPath, uint asciiRangeStart = 0, uint asciiRangeEnd = 128,
+    public Font(CubicGame game, string fontPath, uint unicodeRangeStart = 0, uint unicodeRangeEnd = 128,
         int texWidth = 1024, int texHeight = 1024)
     {
         _game = game;
@@ -54,8 +54,8 @@ public class Font : IDisposable
         _texWidth = texWidth;
         _texHeight = texHeight;
 
-        _asciiRangeStart = asciiRangeStart;
-        _asciiRangeEnd = asciiRangeEnd;
+        _unicodeRangeStart = unicodeRangeStart;
+        _unicodeRangeEnd = unicodeRangeEnd;
         
         SceneManager.Active.CreatedResources.Add(this);
     }
@@ -76,8 +76,6 @@ public class Font : IDisposable
     public void Draw(SpriteRenderer renderer, uint size, string text, Vector2 position, Color startColor,
         float rotation, Vector2 origin, Vector2 scale, int extraLineSpacing = 0)
     {
-        // TODO: Implement origin, scale, rotation.
-        
         // We need to keep a reference to both the current character's position and our actual position, which is what
         // we do here.
         Vector2 pos = position;
@@ -95,8 +93,8 @@ public class Font : IDisposable
             {
                 Texture2D newTex = new Texture2D(_game, _texWidth, _texHeight);
                 _currentTexture = newTex;
-                _characters = FontHelper.CreateFontTexture(newTex, _game.Graphics, _face, size, _asciiRangeStart,
-                    _asciiRangeEnd);
+                _characters = FontHelper.CreateFontTexture(newTex, _game.Graphics, _face, size, _unicodeRangeStart,
+                    _unicodeRangeEnd);
                 _cachedAtlases.Add(size, (newTex, _characters));
             }
             _storedSize = size;
@@ -118,45 +116,18 @@ public class Font : IDisposable
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
-            switch (c)
+            FontHelper.StringParam param = FontHelper.CheckParams(ref c, ref i, text);
+            switch (param.Type)
             {
-                // If newline argument is given, actually create a new line in our text drawing.
-                case '\n':
+                case FontHelper.ParamType.NewLine:
                     pos.Y += _storedSize + extraLineSpacing;
                     pos.X = position.X;
                     continue;
-                case '\\':
-                    if (text[i + 1] == '[')
-                        continue;
-                    break;
-                // '[' characters potentially represents commands the renderer can follow.
-                case '[':
-                    // Backslashes are ignored.
-                    if (i - 1 > -1 && text[i - 1] == '\\')
-                        break;
-                    string potentialParam = "";
-                    int texPtr = i;
-                    while (text[++texPtr] != ']')
-                        potentialParam += text[texPtr];
-                    int len = potentialParam.Length + 1;
-                    potentialParam = potentialParam.Replace(" ", "").ToLower();
-                    if (potentialParam.StartsWith('u'))
-                    {
-                        i += len;
-                        c = (char) int.Parse(potentialParam[1..], NumberStyles.HexNumber);
-                        break;
-                    }
-                    if (potentialParam[1] != '=')
-                        break;
-                    switch (potentialParam[0])
-                    {
-                        case 'c':
-                            currentColor = FontHelper.GetColor(potentialParam[2..]);
-                            i += len;
-                            continue;
-                    }
-
-                    break;
+                case FontHelper.ParamType.EscapeChar:
+                    continue;
+                case FontHelper.ParamType.Color:
+                    currentColor = param.Color;
+                    continue;
             }
 
             FontHelper.Character chr = _characters[c];
@@ -203,8 +174,8 @@ public class Font : IDisposable
             {
                 Texture2D newTex = new Texture2D(_game, _texWidth, _texHeight);
                 _currentTexture = newTex;
-                _characters = FontHelper.CreateFontTexture(newTex, _game.Graphics, _face, size, _asciiRangeStart,
-                    _asciiRangeEnd);
+                _characters = FontHelper.CreateFontTexture(newTex, _game.Graphics, _face, size, _unicodeRangeStart,
+                    _unicodeRangeEnd);
                 _cachedAtlases.Add(size, (newTex, _characters));
             }
             _storedSize = size;
@@ -216,47 +187,18 @@ public class Font : IDisposable
         {
             char c = text[i];
             
-            // TODO: Move this stuff into a function wherever possible, i hate that this code repeats so much
             // We need to include this code here too to make sure the measurestring doesn't include the parameters
             // as part of the text, otherwise the size would be very much off.
-            switch (c)
+            FontHelper.StringParam param = FontHelper.CheckParams(ref c, ref i, text);
+            switch (param.Type)
             {
-                // If newline argument is given, actually create a new line in our text drawing.
-                case '\n':
+                case FontHelper.ParamType.NewLine:
                     stringSize.Height += (int) _storedSize + extraLineSpacing;
                     pos = 0;
                     continue;
-                case '\\':
-                    if (text[i + 1] == '[')
-                        continue;
-                    break;
-                // '[' characters potentially represents commands the renderer can follow.
-                case '[':
-                    // Backslashes are ignored.
-                    if (i - 1 > -1 && text[i - 1] == '\\')
-                        break;
-                    string potentialParam = "";
-                    int texPtr = i;
-                    while (text[++texPtr] != ']')
-                        potentialParam += text[texPtr];
-                    int len = potentialParam.Length + 1;
-                    potentialParam = potentialParam.Replace(" ", "").ToLower();
-                    if (potentialParam.StartsWith('u'))
-                    {
-                        i += len;
-                        c = (char) int.Parse(potentialParam[1..], NumberStyles.HexNumber);
-                        break;
-                    }
-                    if (potentialParam[1] != '=')
-                        break;
-                    switch (potentialParam[0])
-                    {
-                        case 'c':
-                            i += len;
-                            continue;
-                    }
-
-                    break;
+                case FontHelper.ParamType.EscapeChar:
+                case FontHelper.ParamType.Color:
+                    continue;
             }
 
             FontHelper.Character chr = _characters[c];

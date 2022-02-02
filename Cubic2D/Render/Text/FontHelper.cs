@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Reflection;
 using FreeTypeSharp;
 using FreeTypeSharp.Native;
@@ -120,6 +121,73 @@ public static class FontHelper
         {
             throw new CubicException($"The given colour is not a valid colour (Color name: '{name}')");
         }
+    }
+
+    // Interpret string for any potential params, such as unicode, new line delimeters, and colour arguments.
+    internal static StringParam CheckParams(ref char c, ref int i, string text)
+    {
+        StringParam param = new StringParam()
+        {
+            Type = ParamType.None
+        };
+        
+        switch (c)
+        {
+            // If newline argument is given, actually create a new line in our text drawing.
+            case '\n':
+                param.Type = ParamType.NewLine;
+                break;
+            case '\\':
+                if (text[i + 1] == '[')
+                    param.Type = ParamType.EscapeChar;
+                break;
+            // '[' characters potentially represents commands the renderer can follow.
+            case '[':
+                // Backslashes are ignored.
+                if (i - 1 > -1 && text[i - 1] == '\\')
+                    break;
+                string potentialParam = "";
+                int texPtr = i;
+                while (text[++texPtr] != ']')
+                    potentialParam += text[texPtr];
+                int len = potentialParam.Length + 1;
+                potentialParam = potentialParam.Replace(" ", "").ToLower();
+                if (potentialParam.StartsWith('u'))
+                {
+                    i += len;
+                    c = (char) int.Parse(potentialParam[1..], NumberStyles.HexNumber);
+                    break;
+                }
+                if (potentialParam[1] != '=')
+                    break;
+                switch (potentialParam[0])
+                {
+                    case 'c':
+                        param.Type = ParamType.Color;
+                        param.Color = GetColor(potentialParam[2..]);
+                        i += len;
+                        break;
+                }
+
+                break;
+        }
+
+        return param;
+    }
+
+    internal enum ParamType
+    {
+        None,
+        NewLine,
+        EscapeChar,
+        Color,
+    }
+
+    internal ref struct StringParam
+    {
+        public ParamType Type;
+
+        public Color Color;
     }
 
     internal struct Character
