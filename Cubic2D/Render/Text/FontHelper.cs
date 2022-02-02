@@ -31,21 +31,21 @@ public static class FontHelper
     }
 
     internal static unsafe Dictionary<char, Character> CreateFontTexture(Texture2D texture, Graphics graphics,
-        IntPtr face, uint fontSize, uint asciiRangeStart, uint asciiRangeEnd)
+        FontFace face, uint fontSize, uint asciiRangeStart, uint asciiRangeEnd)
     {
         Dictionary<char, Character> characters = new Dictionary<char, Character>();
-        FT_Set_Pixel_Sizes(face, 0, fontSize);
+        FT_Set_Pixel_Sizes(face.NativePtr, 0, fontSize);
 
         uint offsetX = 0;
         uint offsetY = 0;
         
-        FreeTypeFaceFacade facade = new FreeTypeFaceFacade(FreeType, face);
+        FreeTypeFaceFacade facade = new FreeTypeFaceFacade(FreeType, face.NativePtr);
 
         // First we run through and gather metrics on each character, generating a texture for the first 128 ASCII
         // characters
         for (uint c = asciiRangeStart; c < asciiRangeEnd; c++)
         {
-            FT_Load_Char(face, c, FT_LOAD_RENDER);
+            FT_Load_Char(face.NativePtr, c, FT_LOAD_RENDER);
 
             // Calculate our character's offset based on the last glyph's size.
             // Here, we wrap the glyph to the next "line" of the texture if it overflows the texture's size.

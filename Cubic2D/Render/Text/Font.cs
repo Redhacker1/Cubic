@@ -1,26 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Globalization;
 using System.Numerics;
-using System.Reflection;
 using Cubic2D.Scenes;
 using Cubic2D.Windowing;
-using FreeTypeSharp;
-using FreeTypeSharp.Native;
-using static FreeTypeSharp.Native.FT;
-using Point = System.Drawing.Point;
 using Rectangle = System.Drawing.Rectangle;
 
 namespace Cubic2D.Render.Text;
 
-public class Font : IDisposable
+public struct Font : IDisposable
 {
-    private IntPtr _face;
+    private FontFace _face;
     private Texture2D _currentTexture;
-    private CubicGame _game;
+    private readonly CubicGame _game;
 
-    private Dictionary<uint, (Texture2D, Dictionary<char, FontHelper.Character>)> _cachedAtlases;
+    private readonly Dictionary<uint, (Texture2D, Dictionary<char, FontHelper.Character>)> _cachedAtlases;
 
     private uint _storedSize;
 
@@ -46,8 +40,7 @@ public class Font : IDisposable
         int texWidth = 1024, int texHeight = 1024)
     {
         _game = game;
-        if (FT_New_Face(FontHelper.FreeType.Native, fontPath, 0, out _face) != FT_Error.FT_Err_Ok)
-            throw new CubicException("Font could not be loaded!");
+        _face = new FontFace(fontPath);
 
         _cachedAtlases = new Dictionary<uint, (Texture2D, Dictionary<char, FontHelper.Character>)>();
 
@@ -56,6 +49,10 @@ public class Font : IDisposable
 
         _unicodeRangeStart = unicodeRangeStart;
         _unicodeRangeEnd = unicodeRangeEnd;
+        
+        _currentTexture = null;
+        _storedSize = 0;
+        _characters = null;
         
         SceneManager.Active.CreatedResources.Add(this);
     }
@@ -212,10 +209,26 @@ public class Font : IDisposable
         return stringSize;
     }
 
-    public void Dispose()
+    /// <summary>
+    /// Clear all atlases stored in this font. If you know you aren't going to reuse a font's atlas again, run this to
+    /// clear it from CPU and GPU memory.<br />
+    /// <b>WARNING:</b> This will regenerate ALL font atlases you are currently using, which may allocate a lot of memory,
+    /// so call this method SPARINGLY.
+    /// </summary>
+    public void ClearAtlasCache()
     {
-        FT_Done_Face(_face);
+        _storedSize = 0;
         foreach (KeyValuePair<uint, (Texture2D, Dictionary<char, FontHelper.Character>)> atlas in _cachedAtlases)
             atlas.Value.Item1.Dispose();
+        _cachedAtlases.Clear();
+        GC.Collect();
+    }
+
+    public void Dispose()
+    {
+        _face.Dispose();
+        foreach (KeyValuePair<uint, (Texture2D, Dictionary<char, FontHelper.Character>)> atlas in _cachedAtlases)
+            atlas.Value.Item1.Dispose();
+        GC.Collect();
     }
 }
