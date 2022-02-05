@@ -3,7 +3,7 @@ namespace Cubic2D.Audio;
 internal enum PianoKey
 {
     None,
-    NoteOff,
+    NoteCut,
     C,
     CSharp,
     D,

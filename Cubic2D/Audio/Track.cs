@@ -180,7 +180,7 @@ public struct Track : IDisposable
                     }
 
                     continue;
-                case PianoKey.NoteOff:
+                case PianoKey.NoteCut:
                     _device.Stop(i);
                     continue;
                 default:

@@ -8,7 +8,7 @@ namespace Cubic2D.Audio;
 /// <summary>
 /// Represents a sound sample that can be played by an <see cref="AudioDevice"/>.
 /// </summary>
-public struct Sound : IDisposable
+public partial struct Sound : IDisposable
 {
     public byte[] Data;
     public readonly int Channels;
@@ -55,15 +55,13 @@ public struct Sound : IDisposable
     /// <remarks><paramref name="beginLoopPoint"/> and <paramref name="endLoopPoint"/> are only used if <paramref name="loop"/> is set.</remarks>
     public Sound(string path, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1)
     {
-        string ext = Path.GetExtension(path);
-        switch (ext)
+        string ext = Path.GetExtension(path).ToLower();
+        Data = ext switch
         {
-            case ".wav":
-                Data = LoadWav(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample);
-                break;
-            default:
-                throw new Exception("Given file is not a valid type.");
-        }
+            ".wav" => LoadWav(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample),
+            ".ctra" => LoadCtra(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample),
+            _ => throw new Exception("Given file is not a valid type.")
+        };
 
         Loop = loop;
         // sampleToBytes calculates the correct multiplier to convert the given sample number in begin and endLoopPoint,
@@ -82,46 +80,6 @@ public struct Sound : IDisposable
         SceneManager.Active.CreatedResources.Add(this);
     }
 
-    public static byte[] LoadWav(Stream stream, out int channels, out int sampleRate, out int bitsPerSample)
-    {
-        using (BinaryReader reader = new BinaryReader(stream))
-        {
-            // Header
-            
-            if (new string(reader.ReadChars(4)) != "RIFF") // ChunkID
-                throw new Exception("Given file is not a wave file.");
-            
-            reader.ReadInt32(); // ChunkSize
-            
-            if (new string(reader.ReadChars(4)) != "WAVE") // Format
-                throw new Exception("Given wave file is not valid.");
-            
-            if (new string(reader.ReadChars(4)) != "fmt ") // Subchunk1ID
-                throw new Exception("Given wave file is not valid.");
-
-            reader.ReadInt32(); // Subchunk1Size
-            
-            if (reader.ReadInt16() != 1) // AudioFormat
-                throw new Exception("Compressed wave files cannot be loaded.");
-
-            channels = reader.ReadInt16();
-            sampleRate = reader.ReadInt32();
-
-            reader.ReadInt32(); // ByteRate, we just calculate this when needed.
-            reader.ReadInt16(); // BlockAlign
-
-            bitsPerSample = reader.ReadInt16();
-            
-            // Data
-            
-            if (new string(reader.ReadChars(4)) != "data") // Subchunk2ID
-                throw new Exception("Given wave file is not valid.");
-
-            int size = reader.ReadInt32(); // Subchunk2Size
-            return reader.ReadBytes(size);
-        }
-    }
-    
     private ALFormat GetFormat(int channels, int bits)
     {
         return channels switch
