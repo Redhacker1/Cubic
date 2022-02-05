@@ -47,8 +47,11 @@ public partial struct Sound
         }
     }
 
-    public static byte[] LoadCtra(Stream stream, out int channels, out int sampleRate, out int bitsPerSample)
+    public static byte[] LoadCtra(Stream stream, out int channels, out int sampleRate, out int bitsPerSample, 
+        out int beginLoopPoint, out int endLoopPoint)
     {
+        beginLoopPoint = 0;
+        endLoopPoint = -1;
         Console.WriteLine("CTRA->Sound converter");
         for (int i = 0; i < 25; i++)
             Console.Write('-');
@@ -178,7 +181,21 @@ public partial struct Sound
                 {
                     Note note = patterns[currentPattern].Notes[c, currentRow];
                     // Set the volume to the note's volume * the reference volume in PitchNote (1 / 64f)
-                    volume = note.Volume * PitchNote.RefVolume;
+                    // TODO: THIS IS BAD DO NOT DO THIS IT IGNORES ANY VOLUME COMMANDS IF THEY HAVE AN EFFECT ON IT CHANGE ASAP
+                    if (note.Effect == Effect.None)
+                        volume = note.Volume * PitchNote.RefVolume;
+                    else
+                    {
+                        switch (note.Effect)
+                        {
+                            case Effect.PositionJump:
+                                int currentRows = 0;
+                                for (int p = note.EffectParam; p > 0; p--)
+                                    currentRows += patterns[p].Length;
+                                beginLoopPoint = currentRows * samplesPerRow;
+                                break;
+                        }
+                    }
                     // Just set volume & sample rate to 0, essentially "stopping" the note.
                     if (note.Key == PianoKey.NoteCut)
                     {
@@ -219,26 +236,35 @@ public partial struct Sound
                     // If the alignment is 4, this will repeat twice, for both channels.
                     for (int a = 0; a < alignment; a += 2)
                     {
-                        // Convert our two bytes of data into a single short (16-bit) signed value.
-                        // The data is little-endian, so we left shift the second byte by 8 to get our 16-bit value.
-                        // Do this for both the current data in our data array, and the data in our sample data array.
-                        short dataSample = (short) ((data[i + a]) | (data[i + a + 1] << 8));
-                        short currentSample = (short) ((samples[sampleNum].Data[dataPoint + a]) |
-                                                         (samples[sampleNum].Data[dataPoint + a + 1] << 8));
-                        // Add the two values together, dividing the currentSample by the number of channels we have
-                        // (and multiplying it by the volume multiplier) to ensure that it does not clip.
-                        short final = (short) (dataSample + (currentSample / (float) maxChannels) * volume);
+                        //if (samples[sampleNum].BitsPerSample == 16)
+                        //{
+                            // Convert our two bytes of data into a single short (16-bit) signed value.
+                            // The data is little-endian, so we left shift the second byte by 8 to get our 16-bit value.
+                            // Do this for both the current data in our data array, and the data in our sample data array.
+                            short dataSample = (short) ((data[i + a]) | (data[i + a + 1] << 8));
+                            short currentSample = (short) ((samples[sampleNum].Data[dataPoint + a]) |
+                                                           (samples[sampleNum].Data[dataPoint + a + 1] << 8));
+                            // Add the two values together, dividing the currentSample by the number of channels we have
+                            // (and multiplying it by the volume multiplier) to ensure that it does not clip.
+                            short final = (short) (dataSample + (currentSample / (float) maxChannels) * volume);
 
-                        // Finally, we convert our calculated 16-bit value back into two little-endian 8-bit values
-                        // that a wave format can hold.
-                        data[i + a] = (byte) (final & 0xFF);
-                        data[i + a + 1] = (byte) (final >> 8);
+                            // Finally, we convert our calculated 16-bit value back into two little-endian 8-bit values
+                            // that a wave format can hold.
+                            data[i + a] = (byte) (final & 0xFF);
+                            data[i + a + 1] = (byte) (final >> 8);
+                        //}
+                        //else if (samples[sampleNum].BitsPerSample == 8)
+                        //{
+                            //data[i + a] = (byte) (data[i + a] + (samples[sampleNum].Data[dataPoint + a] / (float) maxChannels) * volume);
+                            //data[i + a + 1] = (byte) (data[i + a + 1] + (samples[sampleNum].Data[dataPoint + a] / (float) maxChannels) * volume);
+                        //}
                     }
                 }
 
                 // Increase our samplePos by our alignment to ensure we always are at a new sample.
-                samplePos += alignment;
+                samplePos += samples[sampleNum].Alignment;
 
+                // TODO: Looping does not work properly. At all. pls fix
                 if (samples[sampleNum].Loop)
                 {
                     // If the datapoint is more than the ending loop point of the sample, reset it back to the beginning
@@ -272,6 +298,9 @@ public partial struct Sound
             }
         }
 
+        if (endLoopPoint == -1)
+            endLoopPoint = (int) (data.Length / alignment);
+
         // So far no errors yet, hopefully this error will never happen!
         ALError e;
         if ((e = AL.GetError()) != ALError.NoError)
@@ -293,5 +322,22 @@ public partial struct Sound
         public bool Loop;
         public uint BeginLoopPoint;
         public uint EndLoopPoint;
+    }
+
+    private static void MonoToStereo(ref byte[] data, byte bitsPerSample)
+    {
+        byte[] newData = new byte[data.Length << 1];
+
+        int newI = 0;
+        byte align = (byte) (bitsPerSample / 8);
+        for (int i = 0; i < data.Length; i += align)
+        {
+            for (int a = 0; a < align; a++)
+            {
+                newData[newI++] = data[i + a];
+            }
+        }
+
+        data = newData;
     }
 }
