@@ -20,7 +20,8 @@ public class Texture2D : IDisposable
         {
             ImageResult result = ImageResult.FromStream(stream);
 
-            Handle = CreateTexture(result.Width, result.Height, result.Data);
+            Handle = CreateTexture(result.Width, result.Height, result.Data,
+                result.Comp == ColorComponents.RedGreenBlueAlpha ? PixelFormat.Rgba : PixelFormat.Rgb);
             Size = new Size(result.Width, result.Height);
         }
         
@@ -48,13 +49,13 @@ public class Texture2D : IDisposable
         GL.BindTexture(TextureTarget.Texture2D, 0);
     }
 
-    private static int CreateTexture(int width, int height, byte[] data)
+    private static int CreateTexture(int width, int height, byte[] data, PixelFormat format = PixelFormat.Rgba)
     {
         int texture = GL.GenTexture();
         GL.ActiveTexture(TextureUnit.Texture0);
         GL.BindTexture(TextureTarget.Texture2D, texture);
 
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, width, height, 0, PixelFormat.Rgba,
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, width, height, 0, format,
             PixelType.UnsignedByte, data);
 
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int) TextureWrapMode.Repeat);
