@@ -33,12 +33,16 @@ public class Texture2D : IDisposable
     {
         Handle = CreateTexture(width, height, data);
         Size = new Size(width, height);
+        
+        SceneManager.Active.CreatedResources.Add(this);
     }
 
     public Texture2D(int width, int height)
     {
         Handle = CreateTexture(width, height, null);
         Size = new Size(width, height);
+        
+        SceneManager.Active.CreatedResources.Add(this);
     }
 
     public void SetData(IntPtr data, uint x, uint y, uint width, uint height)

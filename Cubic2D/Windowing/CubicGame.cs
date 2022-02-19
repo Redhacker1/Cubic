@@ -67,6 +67,7 @@ public sealed unsafe class CubicGame : IDisposable
             Time.Update();
             AudioDevice.Update();
             SceneManager.Update(this);
+            Metrics.Reset();
             Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
             SceneManager.Draw();
             Graphics.PresentFrame();
@@ -75,6 +76,7 @@ public sealed unsafe class CubicGame : IDisposable
 
     public void Dispose()
     {
+        Texture2D.Blank.Dispose();
         SceneManager.Active.Dispose();
         Graphics.Dispose();
         AudioDevice.Dispose();

@@ -223,6 +223,7 @@ void main()
             throw new CubicException("There is no active batch session. You must start a new batch session before you can issue draw calls.");
         _sprites.Add(new Sprite(texture, position, source, tint, rotation, origin, scale, flip, depth, _currentSprite));
         _currentSprite++;
+        Metrics.SpritesDrawnInternal++;
     }
     
     private void DrawSprite(Sprite sprite)
@@ -339,6 +340,8 @@ void main()
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
         GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
 
+        Metrics.DrawCallsInternal++;
+        
         _currentSpriteIndex = 0;
     }
     
