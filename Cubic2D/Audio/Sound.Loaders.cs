@@ -224,6 +224,19 @@ public partial struct Sound
                 // our computed ratio. It is aligned to the correct byte, so dataPoint + alignment will always be the
                 // next sample in the array.
                 int dataPoint = (int) ((samplePos * 1 / ratio) - (samplePos * 1 / ratio) % alignment);
+                
+                // TODO: Looping does not work properly. At all. pls fix
+                if (samples[sampleNum].Loop)
+                {
+                    // If the datapoint is more than the ending loop point of the sample, reset it back to the beginning
+                    // loop point of the sample. (we need to divide by alignment here as we are working with samples and
+                    // not bytes).
+                    if (dataPoint >= samples[sampleNum].EndLoopPoint)
+                    {
+                        //Console.WriteLine(dataPoint - samples[sampleNum].EndLoopPoint);
+                        samplePos = (samples[sampleNum].BeginLoopPoint / samples[sampleNum].Alignment);
+                    }
+                }
 
                 // This statement just prevents any potential overflows with our datapoint, which, with strange sample
                 // rates, can occur.
@@ -263,16 +276,6 @@ public partial struct Sound
 
                 // Increase our samplePos by our alignment to ensure we always are at a new sample.
                 samplePos += samples[sampleNum].Alignment;
-
-                // TODO: Looping does not work properly. At all. pls fix
-                if (samples[sampleNum].Loop)
-                {
-                    // If the datapoint is more than the ending loop point of the sample, reset it back to the beginning
-                    // loop point of the sample. (we need to divide by alignment here as we are working with samples and
-                    // not bytes).
-                    if (dataPoint >= samples[sampleNum].EndLoopPoint)
-                        samplePos = samples[sampleNum].BeginLoopPoint / samples[sampleNum].Alignment;
-                }
 
                 // Yet another "i" value, this one helps us determine which row we are on.
                 rowI++;

@@ -1,10 +1,10 @@
 using System;
 using System.Drawing;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Cubic2D.Windowing;
-using Veldrid;
-using Veldrid.Sdl2;
-using Veldrid.StartupUtilities;
+using OpenTK.Graphics.OpenGL4;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Cubic2D.Render;
 
@@ -12,17 +12,11 @@ public class Graphics : IDisposable
 {
     public event OnResize ViewportResized;
     
-    private Sdl2Window _window;
-    
-    internal readonly GraphicsDevice GraphicsDevice;
-    internal readonly ResourceFactory ResourceFactory;
-
-    // ReSharper disable once InconsistentNaming
-    internal readonly CommandList CL;
+    private GameWindow _window;
 
     public readonly SpriteRenderer SpriteRenderer;
 
-    public GraphicsApi Api
+    /*public GraphicsApi Api
     {
         get
         {
@@ -36,134 +30,58 @@ public class Graphics : IDisposable
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
-    }
+    }*/
 
     public bool VSync
     {
-        get => GraphicsDevice.SyncToVerticalBlank;
-        set => GraphicsDevice.SyncToVerticalBlank = value;
+        set => GLFW.SwapInterval(value ? 1 : 0);
     }
 
-    internal Graphics(Sdl2Window window, GameSettings settings)
+    public Size FramebufferSize
+    {
+        get
+        {
+            int[] data = new int[4];
+            GL.GetInteger(GetPName.Viewport, data);
+            return new Size(data[2], data[3]);
+        }
+    }
+
+    internal Graphics(GameWindow window, GameSettings settings)
     {
         _window = window;
-        GraphicsDeviceOptions options = new GraphicsDeviceOptions()
-        {
-            PreferDepthRangeZeroToOne = true,
-            PreferStandardClipSpaceYDirection = true,
-            SyncToVerticalBlank = settings.VSync,
-            SwapchainDepthFormat = PixelFormat.R16_UNorm
-        };
 
-        GraphicsBackend backend;
-        if (settings.Api == GraphicsApi.Default)
-        {
-            // Do no checks here cause if windows doesn't support DX11 then what drugs is it on
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                backend = GraphicsBackend.Direct3D11;
-            // Try to support Vulkan in Linux if possible, cause it's better.
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                backend = GraphicsDevice.IsBackendSupported(GraphicsBackend.Vulkan)
-                    ? GraphicsBackend.Vulkan
-                    : GraphicsBackend.OpenGL;
-            }
-            // Newer macs should support Metal so use that where possible.
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                backend = GraphicsDevice.IsBackendSupported(GraphicsBackend.Metal)
-                    ? GraphicsBackend.Metal
-                    : GraphicsBackend.OpenGL;
-            }
-            else
-            {
-                // OpenGL ES is fallback option, it should technically be supported on all platforms (untested)
-                backend = GraphicsDevice.IsBackendSupported(GraphicsBackend.OpenGL)
-                    ? GraphicsBackend.OpenGL
-                    : GraphicsBackend.OpenGLES;
-            }
-        }
-        else
-        {
-            backend = settings.Api switch
-            {
-                GraphicsApi.Direct3D => GraphicsBackend.Direct3D11,
-                GraphicsApi.Vulkan => GraphicsBackend.Vulkan,
-                GraphicsApi.OpenGL => GraphicsBackend.OpenGL,
-                GraphicsApi.OpenGLES => GraphicsBackend.OpenGLES,
-                GraphicsApi.Metal => GraphicsBackend.Metal,
-                _ => throw new ArgumentOutOfRangeException()
-            };
-        }
-
-        try
-        {
-            GraphicsDevice = VeldridStartup.CreateGraphicsDevice(window, options, backend);
-        }
-        catch (VeldridException)
-        {
-            // Multi-gpu linux issue where the GPU chosen may claim to support Vulkan but may not necessarily actually
-            // support Vulkan (I had this issue). In this case, since Veldrid doesn't support manually selecting a 
-            // device (Y E T), we fallback to OpenGL backend as it should work.
-            if (backend == GraphicsBackend.Vulkan)
-            {
-                backend = GraphicsBackend.OpenGL;
-                try
-                {
-                    GraphicsDevice = VeldridStartup.CreateGraphicsDevice(window, options, backend);
-                }
-                catch (VeldridException)
-                {
-                    throw new CubicException(
-                        "Fallback OpenGL graphics device could not be created! Please make sure your drivers are up to date.");
-                }
-            }
-            else
-                throw new CubicException(
-                    "Graphics device with the given API could not be created. Please ensure the given API is supported on this platform, and that your drivers are up to date.");
-        }
-
-        ResourceFactory = GraphicsDevice.ResourceFactory;
-
-        CL = ResourceFactory.CreateCommandList();
+        window.Resize += WindowResized;
         
-        window.Resized += WindowResized;
+        GL.LoadBindings(new GLFWBindingsContext());
 
         SpriteRenderer = new SpriteRenderer(this);
     }
     
 
-    internal void PrepareFrame(RgbaFloat clearColor)
+    internal void PrepareFrame(Vector4 clearColor)
     {
-        // Prepare the command list so calls can be issued.
-        CL.Begin();
-        CL.SetFramebuffer(GraphicsDevice.SwapchainFramebuffer);
-        CL.ClearColorTarget(0, clearColor);
-        CL.ClearDepthStencil(0);
+        GL.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
+        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
     }
 
-    internal void PresentFrame()
+    internal unsafe void PresentFrame()
     {
-        // End command list, and "present" to the main window.
-        CL.End();
-        GraphicsDevice.SubmitCommands(CL);
-        GraphicsDevice.SwapBuffers();
-        GraphicsDevice.WaitForIdle();
+        GLFW.SwapBuffers(_window.Handle);
     }
     
-    private void WindowResized()
+    private void WindowResized(Size size)
     {
         // Resize viewport.
-        GraphicsDevice.ResizeMainWindow((uint) _window.Width, (uint) _window.Height);
-        ViewportResized?.Invoke(new Size(_window.Width, _window.Height));
+        GL.Viewport(0, 0, size.Width, size.Height);
+        ViewportResized?.Invoke(size);
     }
 
     public void Dispose()
     {
+        SpriteRenderer.Dispose();
         // Dispose of the command list and graphics device, remove delegate for window resizing.
-        CL.Dispose();
-        GraphicsDevice.Dispose();
-        _window.Resized -= WindowResized;
+        _window.Resize -= WindowResized;
     }
 
     public delegate void OnResize(Size size);

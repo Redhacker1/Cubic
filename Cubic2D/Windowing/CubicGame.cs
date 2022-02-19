@@ -2,11 +2,11 @@ using System;
 using Cubic2D.Audio;
 using Cubic2D.Render;
 using Cubic2D.Scenes;
-using Veldrid;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Cubic2D.Windowing;
 
-public sealed class CubicGame : IDisposable
+public sealed unsafe class CubicGame : IDisposable
 {
     private GameSettings _settings;
     
@@ -47,8 +47,8 @@ public sealed class CubicGame : IDisposable
         
         Window.Prepare();
 
-        Graphics = new Graphics(Window.SdlWindow, _settings);
-        Window.SdlWindow.Visible = _settings.StartVisible;
+        Graphics = new Graphics(Window, _settings);
+        Window.Visible = _settings.StartVisible;
         TargetFps = _settings.TargetFps;
 
         AudioDevice = new AudioDevice(_settings.AudioChannels);
@@ -56,23 +56,17 @@ public sealed class CubicGame : IDisposable
         SetDefaults();
         
         SceneManager.Initialize(this);
-        
-        Window.SdlWindow.WindowState = _settings.WindowMode switch
-        {
-            WindowMode.Windowed => WindowState.Normal,
-            WindowMode.Fullscreen => WindowState.FullScreen,
-            WindowMode.BorderlessFullscreen => WindowState.BorderlessFullScreen,
-            _ => throw new ArgumentOutOfRangeException()
-        };
+
+        Window.WindowMode = _settings.WindowMode;
         
         Time.Start();
         
-        while (Window.SdlWindow.Exists)
+        while (!Window.ShouldClose)
         {
             if (Time.Stopwatch.Elapsed.TotalSeconds - Time.LastTime < _targetFrameDelta && _lockFps)
                 continue;
+            Input.Update(Window);
             Time.Update();
-            Input.Update(Window.SdlWindow.PumpEvents());
             AudioDevice.Update();
             SceneManager.Update(this);
             Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
@@ -90,7 +84,7 @@ public sealed class CubicGame : IDisposable
 
     public void Close()
     {
-        Window.SdlWindow.Close();
+        Window.ShouldClose = true;
     }
 
     private void SetDefaults()
@@ -98,6 +92,4 @@ public sealed class CubicGame : IDisposable
         // I really hate having to do this but I wanna avoid static stuff.
         Texture2D.Blank = new Texture2D(this, 1, 1, new byte[] {255, 255, 255, 255});
     }
-    
-    //public static CubicGame Current { get; private set; }
 }

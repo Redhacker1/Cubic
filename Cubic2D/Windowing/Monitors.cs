@@ -1,26 +1,26 @@
 using System.Collections.Generic;
 using System.Drawing;
-using static Veldrid.Sdl2.Sdl2Native;
-using Point = Veldrid.Point;
-using Rectangle = Veldrid.Rectangle;
+using OpenTK.Windowing.GraphicsLibraryFramework;
+using GMonitor = OpenTK.Windowing.GraphicsLibraryFramework.Monitor;
 
 namespace Cubic2D.Windowing;
 
 public static unsafe class Monitors
 {
-    public static int Count => SDL_GetNumVideoDisplays();
+    public static int Count => GLFW.GetMonitors().Length;
     
     public static Monitor GetPrimaryMonitor() => GetMonitor(0);
 
     public static Monitor GetMonitor(int index)
     {
-        Rectangle bounds;
-        SDL_GetDisplayBounds(0, &bounds);
+        GMonitor* m = GLFW.GetMonitors()[index];
+        VideoMode* mode = GLFW.GetVideoMode(m);
+        GLFW.GetMonitorPos(m, out int x, out int y);
 
         Monitor monitor = new Monitor()
         {
-            Position = new Point(bounds.X, bounds.Y),
-            Resolution = new Size(bounds.Width, bounds.Height)
+            Position = new Point(x, y),
+            Resolution = new Size(mode->Width, mode->Height)
         };
         
         return monitor;
@@ -29,17 +29,16 @@ public static unsafe class Monitors
     public static Monitor[] GetMonitors()
     {
         List<Monitor> monitors = new List<Monitor>();
-        int count = SDL_GetNumVideoDisplays();
 
-        for (int i = 0; i < count; i++)
+        foreach (GMonitor* m in GLFW.GetMonitors())
         {
-            Rectangle bounds;
-            SDL_GetDisplayBounds(i, &bounds);
+            VideoMode* mode = GLFW.GetVideoMode(m);
+            GLFW.GetMonitorPos(m, out int x, out int y);
 
             Monitor monitor = new Monitor()
             {
-                Position = new Point(bounds.X, bounds.Y),
-                Resolution = new Size(bounds.Width, bounds.Height)
+                Position = new Point(x, y),
+                Resolution = new Size(mode->Width, mode->Height)
             };
             
             monitors.Add(monitor);

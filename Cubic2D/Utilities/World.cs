@@ -1,14 +1,14 @@
 using System.Drawing;
-using Veldrid;
+using System.Numerics;
 
 namespace Cubic2D.Utilities;
 
 public class World
 {
-    internal RgbaFloat ClearColorInternal = RgbaFloat.Black;
+    internal Vector4 ClearColorInternal = new Vector4(0, 0, 0, 1);
 
     public Color ClearColor
     {
-        set => ClearColorInternal = new RgbaFloat(value.Normalize());
+        set => ClearColorInternal = value.Normalize();
     }
 }

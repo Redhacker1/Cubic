@@ -88,8 +88,7 @@ public static class FontHelper
             // Convert to intptr and update our texture accordingly.
             fixed (byte* p = data)
             {
-                texture.SetData(graphics, (IntPtr) p, size * 4, offsetX, offsetY, glyph.width,
-                    glyph.rows);
+                texture.SetData(graphics, (IntPtr) p, offsetX, offsetY, glyph.width, glyph.rows);
             }
 
             // Load each character into the character dictionary so it can be referenced later.

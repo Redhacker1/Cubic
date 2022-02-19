@@ -3,14 +3,14 @@ using System.Drawing;
 using System.IO;
 using Cubic2D.Scenes;
 using Cubic2D.Windowing;
+using OpenTK.Graphics.OpenGL4;
 using StbImageSharp;
-using Veldrid;
 
 namespace Cubic2D.Render;
 
 public class Texture2D : IDisposable
 {
-    internal Texture Texture;
+    internal int Handle;
 
     public readonly Size Size;
 
@@ -19,29 +19,8 @@ public class Texture2D : IDisposable
         using (Stream stream = File.OpenRead(path))
         {
             ImageResult result = ImageResult.FromStream(stream);
-            
-            // Convert to RGBA format image if required, as Veldrid doesn't support RGB format images for some reason.
-            byte[] data;
-            if (result.Comp == ColorComponents.RedGreenBlue)
-            {
-                data = new byte[result.Width * result.Height * 4];
-                int dataI = 0;
-                byte[] rData = result.Data;
-                for (int i = 0; i < rData.Length; i += 3)
-                {
-                    data[dataI++] = rData[i];
-                    data[dataI++] = rData[i + 1];
-                    data[dataI++] = rData[i + 2];
-                    data[dataI++] = 255;
-                }
-            }
-            else
-                data = result.Data;
-            
-            GraphicsDevice device = game.Graphics.GraphicsDevice;
-            Texture = device.ResourceFactory.CreateTexture(TextureDescription.Texture2D((uint) result.Width,
-                (uint) result.Height, 1, 1, PixelFormat.R8_G8_B8_A8_UNorm, TextureUsage.Sampled));
-            device.UpdateTexture(Texture, data, 0, 0, 0, (uint) result.Width, (uint) result.Height, 1, 0, 0);
+
+            Handle = CreateTexture(result.Width, result.Height, result.Data);
             Size = new Size(result.Width, result.Height);
         }
         
@@ -51,29 +30,44 @@ public class Texture2D : IDisposable
 
     public Texture2D(CubicGame game, int width, int height, byte[] data)
     {
-        GraphicsDevice device = game.Graphics.GraphicsDevice;
-        Texture = device.ResourceFactory.CreateTexture(TextureDescription.Texture2D((uint) width,
-            (uint) height, 1, 1, PixelFormat.R8_G8_B8_A8_UNorm, TextureUsage.Sampled));
-        device.UpdateTexture(Texture, data, 0, 0, 0, (uint) width, (uint) height, 1, 0, 0);
+        Handle = CreateTexture(width, height, data);
         Size = new Size(width, height);
     }
 
     public Texture2D(CubicGame game, int width, int height)
     {
-        GraphicsDevice device = game.Graphics.GraphicsDevice;
-        Texture = device.ResourceFactory.CreateTexture(TextureDescription.Texture2D((uint) width,
-            (uint) height, 1, 1, PixelFormat.R8_G8_B8_A8_UNorm, TextureUsage.Sampled));
+        Handle = CreateTexture(width, height, null);
         Size = new Size(width, height);
     }
 
-    public void SetData(Graphics graphics, IntPtr data, uint size, uint x, uint y, uint width, uint height)
+    public void SetData(Graphics graphics, IntPtr data, uint x, uint y, uint width, uint height)
     {
-        graphics.GraphicsDevice.UpdateTexture(Texture, data, size, x, y, 0, width, height, 1, 0, 0);
+        GL.BindTexture(TextureTarget.Texture2D, Handle);
+        GL.TexSubImage2D(TextureTarget.Texture2D, 0, (int) x, (int) y, (int) width, (int) height, PixelFormat.Rgba,
+            PixelType.UnsignedByte, data);
+        GL.BindTexture(TextureTarget.Texture2D, 0);
     }
-    
+
+    private static int CreateTexture(int width, int height, byte[] data)
+    {
+        int texture = GL.GenTexture();
+        GL.ActiveTexture(TextureUnit.Texture0);
+        GL.BindTexture(TextureTarget.Texture2D, texture);
+
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, width, height, 0, PixelFormat.Rgba,
+            PixelType.UnsignedByte, data);
+
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int) TextureWrapMode.Repeat);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int) TextureWrapMode.Repeat);
+        
+        GL.BindTexture(TextureTarget.Texture2D, 0);
+
+        return texture;
+    }
+
     public void Dispose()
     {
-        Texture.Dispose();
+        GL.DeleteTexture(Handle);
 #if DEBUG
         Console.WriteLine("Texture disposed");
 #endif

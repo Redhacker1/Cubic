@@ -1,5 +1,4 @@
 using System.Drawing;
-using Point = Veldrid.Point;
 
 namespace Cubic2D.Windowing;
 

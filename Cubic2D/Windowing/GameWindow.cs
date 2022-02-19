@@ -1,20 +1,26 @@
 using System;
 using System.Drawing;
-using Veldrid;
-using Veldrid.Sdl2;
-using Veldrid.StartupUtilities;
-using static Veldrid.Sdl2.Sdl2Native;
-using Point = System.Drawing.Point;
-using Rectangle = Veldrid.Rectangle;
+using OpenTK.Windowing.Common;
+using OpenTK.Windowing.GraphicsLibraryFramework;
+using GMonitor = OpenTK.Windowing.GraphicsLibraryFramework.Monitor;
 
 namespace Cubic2D.Windowing;
 
-public sealed unsafe class GameWindow
+public sealed unsafe class GameWindow : IDisposable
 {
-    internal Sdl2Window SdlWindow;
+    internal Window* Handle;
     private GameSettings _settings;
 
     private string _title;
+
+    private bool _visible;
+
+    private GLFWCallbacks.KeyCallback _keyCallback;
+    private GLFWCallbacks.MouseButtonCallback _mouseCallback;
+    private GLFWCallbacks.ScrollCallback _scrollCallback;
+    private GLFWCallbacks.WindowSizeCallback _sizeCallback;
+
+    public event OnResize Resize;
     
     #region Public properties
 
@@ -27,11 +33,14 @@ public sealed unsafe class GameWindow
     
     public Size Size
     {
-        get => new Size(SdlWindow.Width, SdlWindow.Height);
+        get
+        {
+            GLFW.GetWindowSize(Handle, out int width, out int height);
+            return new Size(width, height);
+        }
         set
         {
-            SdlWindow.Width = value.Width;
-            SdlWindow.Height = value.Height;
+            GLFW.SetWindowSize(Handle, value.Width, value.Height);
             if (AutoCenter)
                 CenterWindow();
         }
@@ -39,11 +48,14 @@ public sealed unsafe class GameWindow
 
     public Point Location
     {
-        get => new Point(SdlWindow.X, SdlWindow.Y);
+        get
+        {
+            GLFW.GetWindowPos(Handle, out int x, out int y);
+            return new Point(x, y);
+        }
         set
         {
-            SdlWindow.X = value.X;
-            SdlWindow.Y = value.Y;
+            GLFW.SetWindowPos(Handle, value.X, value.Y);
             AutoCenter = false;
         }
     }
@@ -54,46 +66,47 @@ public sealed unsafe class GameWindow
         set
         {
             _title = value;
-            SdlWindow.Title = value;
+            GLFW.SetWindowTitle(Handle, value);
         }
     }
 
-    public bool Resizable
+    /*public bool Resizable
     {
         get => SdlWindow.Resizable;
         set => SdlWindow.Resizable = value;
-    }
+    }*/
 
     public bool Visible
     {
-        get => SdlWindow.Visible;
-        set => SdlWindow.Visible = value;
+        get => _visible;
+        set
+        {
+            if (value)
+                GLFW.ShowWindow(Handle);
+            else
+                GLFW.HideWindow(Handle);
+        }
     }
 
     public WindowMode WindowMode
     {
-        get
-        {
-            return SdlWindow.WindowState switch
-            {
-                WindowState.Normal => WindowMode.Windowed,
-                WindowState.FullScreen => WindowMode.Fullscreen,
-                WindowState.Maximized => WindowMode.Windowed,
-                WindowState.Minimized => WindowMode.Windowed,
-                WindowState.BorderlessFullScreen => WindowMode.BorderlessFullscreen,
-                WindowState.Hidden => WindowMode.Windowed,
-                _ => throw new ArgumentOutOfRangeException()
-            };
-        }
+        get => GLFW.GetWindowMonitor(Handle) != null ? WindowMode.Fullscreen : WindowMode.Windowed;
         set
         {
-            SdlWindow.WindowState = value switch
+            switch (value)
             {
-                WindowMode.Windowed => WindowState.Normal,
-                WindowMode.Fullscreen => WindowState.FullScreen,
-                WindowMode.BorderlessFullscreen => WindowState.BorderlessFullScreen,
-                _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
-            };
+                case WindowMode.Windowed:
+                    GLFW.SetWindowMonitor(Handle, null, 0, 0, Size.Width, Size.Height, GLFW.DontCare);
+                    AutoCenter = true;
+                    CenterWindow();
+                    break;
+                case WindowMode.Fullscreen:
+                    GLFW.SetWindowMonitor(Handle, GLFW.GetPrimaryMonitor(), 0, 0, Size.Width, Size.Height,
+                        GLFW.DontCare);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(value), value, null);
+            }
         }
     }
     
@@ -106,10 +119,10 @@ public sealed unsafe class GameWindow
     /// </summary>
     public void CenterWindow(int display = 0)
     {
-        Rectangle bounds;
-        SDL_GetDisplayBounds(display, &bounds);
-        SdlWindow.X = bounds.X + bounds.Width / 2 - SdlWindow.Width / 2;
-        SdlWindow.Y = bounds.Y + bounds.Height / 2 - SdlWindow.Height / 2;
+        GMonitor* monitor = GLFW.GetMonitors()[display];
+        VideoMode* mode = GLFW.GetVideoMode(monitor);
+        GLFW.GetMonitorPos(monitor, out int x, out int y);
+        GLFW.SetWindowPos(Handle, x + mode->Width / 2 - Size.Width / 2, y + mode->Height / 2 - Size.Height / 2);
     }
     
     #endregion
@@ -117,15 +130,45 @@ public sealed unsafe class GameWindow
     internal GameWindow(GameSettings settings)
     {
         _settings = settings;
+
+        _keyCallback = Input.KeyCallback;
+        _mouseCallback = Input.MouseCallback;
+        _scrollCallback = Input.ScrollCallback;
+        _sizeCallback = WindowSizeChanged;
+    }
+
+    private void WindowSizeChanged(Window* window, int width, int height)
+    {
+        Resize?.Invoke(new Size(width, height));
     }
 
     // Prepare window for running.
     internal void Prepare()
     {
-        SdlWindow = VeldridStartup.CreateWindow(new WindowCreateInfo(0, 0, _settings.Size.Width, _settings.Size.Height,
-            WindowState.Hidden, _settings.Title));
-        _title = _settings.Title;
-        SdlWindow.Resizable = _settings.Resizable;
+        if (!GLFW.Init())
+            throw new CubicException("GLFW could not initialise.");
+        
+        GLFW.WindowHint(WindowHintBool.Visible, false);
+        GLFW.WindowHint(WindowHintBool.Resizable, _settings.Resizable);
+        GLFW.WindowHint(WindowHintOpenGlProfile.OpenGlProfile, OpenGlProfile.Core);
+        GLFW.WindowHint(WindowHintInt.ContextVersionMajor, 3);
+        GLFW.WindowHint(WindowHintInt.ContextVersionMinor, 3);
+
+        GMonitor* monitor = GLFW.GetPrimaryMonitor();
+        VideoMode* mode = GLFW.GetVideoMode(monitor);
+        GLFW.WindowHint(WindowHintInt.RedBits, mode->RedBits);
+        GLFW.WindowHint(WindowHintInt.GreenBits, mode->GreenBits);
+        GLFW.WindowHint(WindowHintInt.BlueBits, mode->BlueBits);
+        Console.WriteLine(mode->RefreshRate);
+        Handle = GLFW.CreateWindow(_settings.Size.Width, _settings.Size.Height, _settings.Title, null, null);
+
+        if (Handle == null)
+        {
+            GLFW.Terminate();
+            throw new CubicException("Window was not created.");
+        }
+        
+        GLFW.MakeContextCurrent(Handle);
 
         if (_settings.Location != new Point(-1, -1))
             Location = _settings.Location;
@@ -134,5 +177,18 @@ public sealed unsafe class GameWindow
             AutoCenter = true;
             CenterWindow();
         }
+    }
+
+    internal bool ShouldClose
+    {
+        get => GLFW.WindowShouldClose(Handle);
+        set => GLFW.SetWindowShouldClose(Handle, value);
+    }
+
+    public delegate void OnResize(Size size);
+
+    public void Dispose()
+    {
+        GLFW.Terminate();
     }
 }

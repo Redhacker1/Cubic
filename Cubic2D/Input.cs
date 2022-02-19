@@ -1,12 +1,17 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Veldrid;
+using Cubic2D.Windowing;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Cubic2D;
 
 public static class Input
 {
+    private static readonly HashSet<KeyState> _keyStates = new HashSet<KeyState>();
+    private static readonly HashSet<MouseState> _mouseStates = new HashSet<MouseState>();
+
     private static readonly HashSet<Keys> _keysHeld = new HashSet<Keys>();
     private static readonly HashSet<Keys> _frameKeys = new HashSet<Keys>();
 
@@ -138,42 +143,88 @@ public static class Input
     /// The change in scroll since the last frame.
     /// </summary>
     public static Vector2 ScrollWheelDelta { get; private set; }
-    
-    internal static void Update(InputSnapshot snapshot)
+
+    internal static unsafe void Update(GameWindow window)
     {
+        _keyStates.Clear();
+        _mouseStates.Clear();
         _frameKeys.Clear();
         _frameButtons.Clear();
-        
-        foreach (KeyEvent e in snapshot.KeyEvents)
+
+        GLFW.PollEvents();
+
+        foreach (KeyState state in _keyStates)
         {
-            if (e.Down)
+            if (state.Pressed)
             {
-                if (_keysHeld.Add((Keys) e.Key))
-                    _frameKeys.Add((Keys) e.Key);
+                if (_keysHeld.Add(state.Key))
+                    _frameKeys.Add(state.Key);
             }
             else
             {
-                _keysHeld.Remove((Keys) e.Key);
-                _frameKeys.Remove((Keys) e.Key);
-            }
-        }
-        
-        foreach (MouseEvent e in snapshot.MouseEvents)
-        {
-            if (e.Down)
-            {
-                if (_buttonsHeld.Add((MouseButtons) e.MouseButton))
-                    _frameButtons.Add((MouseButtons) e.MouseButton);
-            }
-            else
-            {
-                _buttonsHeld.Remove((MouseButtons) e.MouseButton);
-                _frameButtons.Remove((MouseButtons) e.MouseButton);
+                _keysHeld.Remove(state.Key);
+                _frameKeys.Remove(state.Key);
             }
         }
 
-        MousePosition = snapshot.MousePosition;
-        ScrollWheelDelta = new Vector2(0, snapshot.WheelDelta);
+        foreach (MouseState state in _mouseStates)
+        {
+            if (state.Pressed)
+            {
+                if (_buttonsHeld.Add(state.Button))
+                    _frameButtons.Add(state.Button);
+            }
+            else
+            {
+                _buttonsHeld.Remove(state.Button);
+                _frameButtons.Remove(state.Button);
+            }
+        }
+
+        GLFW.GetCursorPos(window.Handle, out double x, out double y);
+        MousePosition = new Vector2((float) x, (float) y);
+    }
+
+    internal static unsafe void KeyCallback(Window* window, OpenTK.Windowing.GraphicsLibraryFramework.Keys key,
+        int scanCode, InputAction action, KeyModifiers mods)
+    {
+        if (action != InputAction.Repeat)
+            _keyStates.Add(new KeyState((Keys) key, action == InputAction.Press));
+    }
+
+    internal static unsafe void MouseCallback(Window* window, MouseButton button, InputAction action, KeyModifiers mods)
+    {
+        if (action != InputAction.Repeat)
+            _mouseStates.Add(new MouseState((MouseButtons) button, action == InputAction.Press));
+    }
+
+    private struct KeyState
+    {
+        public Keys Key;
+        public bool Pressed;
+
+        public KeyState(Keys key, bool pressed)
+        {
+            Key = key;
+            Pressed = pressed;
+        }
+    }
+    
+    private struct MouseState
+    {
+        public MouseButtons Button;
+        public bool Pressed;
+
+        public MouseState(MouseButtons button, bool pressed)
+        {
+            Button = button;
+            Pressed = pressed;
+        }
+    }
+
+    public static unsafe void ScrollCallback(Window* window, double offsetx, double offsety)
+    {
+        Console.WriteLine(offsety);
     }
 }
 
