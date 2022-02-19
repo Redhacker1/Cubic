@@ -14,7 +14,7 @@ public class Texture2D : IDisposable
 
     public readonly Size Size;
 
-    public Texture2D(CubicGame game, string path)
+    public Texture2D(string path)
     {
         using (Stream stream = File.OpenRead(path))
         {
@@ -28,19 +28,19 @@ public class Texture2D : IDisposable
         SceneManager.Active.CreatedResources.Add(this);
     }
 
-    public Texture2D(CubicGame game, int width, int height, byte[] data)
+    public Texture2D(int width, int height, byte[] data)
     {
         Handle = CreateTexture(width, height, data);
         Size = new Size(width, height);
     }
 
-    public Texture2D(CubicGame game, int width, int height)
+    public Texture2D(int width, int height)
     {
         Handle = CreateTexture(width, height, null);
         Size = new Size(width, height);
     }
 
-    public void SetData(Graphics graphics, IntPtr data, uint x, uint y, uint width, uint height)
+    public void SetData(IntPtr data, uint x, uint y, uint width, uint height)
     {
         GL.BindTexture(TextureTarget.Texture2D, Handle);
         GL.TexSubImage2D(TextureTarget.Texture2D, 0, (int) x, (int) y, (int) width, (int) height, PixelFormat.Rgba,
@@ -73,5 +73,5 @@ public class Texture2D : IDisposable
 #endif
     }
 
-    public static Texture2D Blank { get; internal set; }
+    public static readonly Texture2D Blank = new Texture2D(1, 1, new byte[] {255, 255, 255, 255});
 }

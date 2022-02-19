@@ -16,22 +16,6 @@ public class Graphics : IDisposable
 
     public readonly SpriteRenderer SpriteRenderer;
 
-    /*public GraphicsApi Api
-    {
-        get
-        {
-            return GraphicsDevice.BackendType switch
-            {
-                GraphicsBackend.Direct3D11 => GraphicsApi.Direct3D,
-                GraphicsBackend.Vulkan => GraphicsApi.Vulkan,
-                GraphicsBackend.OpenGL => GraphicsApi.OpenGL,
-                GraphicsBackend.Metal => GraphicsApi.Metal,
-                GraphicsBackend.OpenGLES => GraphicsApi.OpenGLES,
-                _ => throw new ArgumentOutOfRangeException()
-            };
-        }
-    }*/
-
     public bool VSync
     {
         set => GLFW.SwapInterval(value ? 1 : 0);
@@ -54,6 +38,8 @@ public class Graphics : IDisposable
         window.Resize += WindowResized;
         
         GL.LoadBindings(new GLFWBindingsContext());
+
+        VSync = settings.VSync;
 
         SpriteRenderer = new SpriteRenderer(this);
     }

@@ -30,8 +30,8 @@ public static class FontHelper
             ColorNames.Add(prop.Name.ToLower(), (Color) prop.GetValue(null, null));
     }
 
-    internal static unsafe Dictionary<char, Character> CreateFontTexture(Texture2D texture, Graphics graphics,
-        FontFace face, uint fontSize, uint asciiRangeStart, uint asciiRangeEnd)
+    internal static unsafe Dictionary<char, Character> CreateFontTexture(Texture2D texture, FontFace face,
+        uint fontSize, uint asciiRangeStart, uint asciiRangeEnd)
     {
         Dictionary<char, Character> characters = new Dictionary<char, Character>();
         FT_Set_Pixel_Sizes(face.NativePtr, 0, fontSize);
@@ -88,7 +88,7 @@ public static class FontHelper
             // Convert to intptr and update our texture accordingly.
             fixed (byte* p = data)
             {
-                texture.SetData(graphics, (IntPtr) p, offsetX, offsetY, glyph.width, glyph.rows);
+                texture.SetData((IntPtr) p, offsetX, offsetY, glyph.width, glyph.rows);
             }
 
             // Load each character into the character dictionary so it can be referenced later.

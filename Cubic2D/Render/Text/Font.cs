@@ -12,7 +12,6 @@ public struct Font : IDisposable
 {
     private FontFace _face;
     private Texture2D _currentTexture;
-    private readonly CubicGame _game;
 
     private readonly Dictionary<uint, (Texture2D, Dictionary<char, FontHelper.Character>)> _cachedAtlases;
 
@@ -36,10 +35,9 @@ public struct Font : IDisposable
     /// <param name="texWidth">The width of the font atlas's texture. By default, this is 1024.</param>
     /// <param name="texHeight">The height of the font atlas's texture. By default, this is 1024.</param>
     /// <exception cref="CubicException">Thrown if the font does not exist.</exception>
-    public Font(CubicGame game, string fontPath, uint unicodeRangeStart = 0, uint unicodeRangeEnd = 128,
-        int texWidth = 1024, int texHeight = 1024)
+    public Font(string fontPath, uint unicodeRangeStart = 0, uint unicodeRangeEnd = 128, int texWidth = 1024,
+        int texHeight = 1024)
     {
-        _game = game;
         _face = new FontFace(fontPath);
 
         _cachedAtlases = new Dictionary<uint, (Texture2D, Dictionary<char, FontHelper.Character>)>();
@@ -71,7 +69,7 @@ public struct Font : IDisposable
     /// <param name="extraLineSpacing">Any additional spacing between lines. This can also be a negative number if you want less spacing.</param>
     /// <exception cref="CubicException">Thrown if an incorrect parameter is given to the text drawer.</exception>
     public void Draw(SpriteRenderer renderer, uint size, string text, Vector2 position, Color startColor,
-        float rotation, Vector2 origin, Vector2 scale, int extraLineSpacing = 0)
+        float rotation, Vector2 origin, Vector2 scale, int depth = 0, int extraLineSpacing = 0)
     {
         // We need to keep a reference to both the current character's position and our actual position, which is what
         // we do here.
@@ -88,10 +86,9 @@ public struct Font : IDisposable
             }
             else
             {
-                Texture2D newTex = new Texture2D(_game, _texWidth, _texHeight);
+                Texture2D newTex = new Texture2D(_texWidth, _texHeight);
                 _currentTexture = newTex;
-                _characters = FontHelper.CreateFontTexture(newTex, _game.Graphics, _face, size, _unicodeRangeStart,
-                    _unicodeRangeEnd);
+                _characters = FontHelper.CreateFontTexture(newTex, _face, size, _unicodeRangeStart, _unicodeRangeEnd);
                 _cachedAtlases.Add(size, (newTex, _characters));
             }
             _storedSize = size;
@@ -139,7 +136,7 @@ public struct Font : IDisposable
                 Matrix4x4.CreateTranslation(new Vector3(position, 0)));
 
             renderer.Draw(_currentTexture, charPos, new Rectangle(chr.Position, chr.Size), currentColor, rotation,
-                Vector2.Zero, scale, SpriteFlipMode.None);
+                Vector2.Zero, scale, SpriteFlipMode.None, depth);
             pos.X += chr.Advance;
         }
     }
@@ -169,10 +166,9 @@ public struct Font : IDisposable
             }
             else
             {
-                Texture2D newTex = new Texture2D(_game, _texWidth, _texHeight);
+                Texture2D newTex = new Texture2D(_texWidth, _texHeight);
                 _currentTexture = newTex;
-                _characters = FontHelper.CreateFontTexture(newTex, _game.Graphics, _face, size, _unicodeRangeStart,
-                    _unicodeRangeEnd);
+                _characters = FontHelper.CreateFontTexture(newTex, _face, size, _unicodeRangeStart, _unicodeRangeEnd);
                 _cachedAtlases.Add(size, (newTex, _characters));
             }
             _storedSize = size;

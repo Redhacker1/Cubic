@@ -19,6 +19,7 @@ public sealed unsafe class GameWindow : IDisposable
     private GLFWCallbacks.MouseButtonCallback _mouseCallback;
     private GLFWCallbacks.ScrollCallback _scrollCallback;
     private GLFWCallbacks.WindowSizeCallback _sizeCallback;
+    private GLFWCallbacks.CharCallback _charCallback;
 
     public event OnResize Resize;
     
@@ -135,6 +136,7 @@ public sealed unsafe class GameWindow : IDisposable
         _mouseCallback = Input.MouseCallback;
         _scrollCallback = Input.ScrollCallback;
         _sizeCallback = WindowSizeChanged;
+        _charCallback = Input.CharCallback;
     }
 
     private void WindowSizeChanged(Window* window, int width, int height)
@@ -159,14 +161,21 @@ public sealed unsafe class GameWindow : IDisposable
         GLFW.WindowHint(WindowHintInt.RedBits, mode->RedBits);
         GLFW.WindowHint(WindowHintInt.GreenBits, mode->GreenBits);
         GLFW.WindowHint(WindowHintInt.BlueBits, mode->BlueBits);
-        Console.WriteLine(mode->RefreshRate);
+        GLFW.WindowHint(WindowHintInt.RefreshRate, mode->RefreshRate);
         Handle = GLFW.CreateWindow(_settings.Size.Width, _settings.Size.Height, _settings.Title, null, null);
+        _title = _settings.Title;
 
         if (Handle == null)
         {
             GLFW.Terminate();
             throw new CubicException("Window was not created.");
         }
+
+        GLFW.SetKeyCallback(Handle, _keyCallback);
+        GLFW.SetMouseButtonCallback(Handle, _mouseCallback);
+        GLFW.SetScrollCallback(Handle, _scrollCallback);
+        GLFW.SetWindowSizeCallback(Handle, _sizeCallback);
+        GLFW.SetCharCallback(Handle, _charCallback);
         
         GLFW.MakeContextCurrent(Handle);
 

@@ -33,10 +33,3 @@ public class MyScript : Component
 
 ### Cross-platform
 Cubic2D supports many different platforms, including Windows, Linux, MacOS, and soon, mobile OSs too.
-
-#### Rendering APIs
-Cubic2D uses the [Veldrid](https://github.com/mellinoe/veldrid) abstraction layer for rendering. Therefore, it supports the following rendering APIs:
-* Direct3D
-* Vulkan
-* OpenGL/ES
-* Metal

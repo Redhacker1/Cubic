@@ -13,8 +13,8 @@ public enum GraphicsApi
     /// </summary>
     OpenGL,
     
-    /*/// <summary>
+    /// <summary>
     /// OpenGLES backend. Works on all platforms, however works best on mobile platforms.
     /// </summary>
-    OpenGLES*/
+    OpenGLES
 }

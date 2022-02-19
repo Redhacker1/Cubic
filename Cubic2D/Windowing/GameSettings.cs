@@ -53,11 +53,11 @@ public struct GameSettings
     /// </summary>
     public bool StartVisible;
 
-    /// <summary>
+    /*/// <summary>
     /// Set the graphics API Cubic should use. If you don't know which, leave this value, and Cubic will work out which
     /// one to use for you. (Default: Default)
     /// </summary>
-    public GraphicsApi Api;
+    public GraphicsApi Api;*/
 
     /// <summary>
     /// The number of channels the <see cref="AudioDevice"/> will have. (Default: 32)
@@ -74,7 +74,7 @@ public struct GameSettings
         TargetFps = 60;
         Location = new Point(-1, -1);
         StartVisible = true;
-        Api = GraphicsApi.Default;
+        //Api = GraphicsApi.Default;
         AudioChannels = 32;
     }
 }

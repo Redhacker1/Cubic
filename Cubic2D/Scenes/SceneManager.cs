@@ -53,7 +53,7 @@ public static class SceneManager
 
     internal static void Draw()
     {
-        Active.Draw();
+        Active.DrawInternal();
     }
 
     /// <summary>

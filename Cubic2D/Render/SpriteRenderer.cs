@@ -35,7 +35,7 @@ public class SpriteRenderer : IDisposable
     private const string VertexCode = @"
 #version 330 core
 
-in vec3 aPosition;
+in vec2 aPosition;
 in vec2 aTexCoords;
 in vec4 aTint;
 in float aRotation;
@@ -57,9 +57,8 @@ void main()
     vertexPos *= aScale;
     vertexPos = rot * vertexPos;
     vertexPos += aOrigin;
-    vec3 vPos = vec3(vertexPos, aPosition.z);
 
-    gl_Position = vec4(vPos, 1.0) * uProjectionView;
+    gl_Position = vec4(vertexPos, 0.0, 1.0) * uProjectionView;
     vec2 texCoords = aTexCoords;
     texCoords.y *= -1;
     frag_texCoords = texCoords;
@@ -94,8 +93,11 @@ void main()
 
     private bool _begun;
     private uint _currentSprite;
+    private uint _currentSpriteIndex;
     private Texture2D _currentTexture;
 
+    private List<Sprite> _sprites;
+    
     private SpriteVertex[] _spriteVertices;
     private uint[] _spriteIndices;
     
@@ -108,6 +110,8 @@ void main()
     {
         _graphics = graphics;
 
+        _sprites = new List<Sprite>(64);
+        
         _vertices = new SpriteVertex[NumVertices];
         _indices = new uint[NumIndices];
 
@@ -157,6 +161,9 @@ void main()
         GL.BindVertexArray(0);
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
         GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
+        
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
         _graphics.ViewportResized += GraphicsOnViewportResized;
     }
@@ -171,6 +178,7 @@ void main()
     /// Initialise the SpriteRenderer so it can start accepting draw calls, and begin a batch session.
     /// </summary>
     /// <param name="transform">The optional transformation (camera) matrix to use for this batch session.</param>
+    /// <param name="sample">Which sample type this batch should use.</param>
     /// <exception cref="CubicException">Thrown if you try to call <see cref="Begin"/> before a batch session has ended.</exception>
     public void Begin(Matrix4x4? transform = null, TextureSample sample = TextureSample.Point)
     {
@@ -208,25 +216,31 @@ void main()
     /// <param name="depth">The depth the sprite will be drawn at. A sprite with a greater depth will be placed <b>behind</b> other sprites with lesser depths.</param>
     /// <exception cref="CubicException">Thrown if a draw call is issued when there is no current batch session.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the <see cref="flip"/> value provided is invalid.</exception>
-    public void Draw(Texture2D texture, Vector2 position, Rectangle? source, Color tint, float rotation, Vector2 origin, Vector2 scale, SpriteFlipMode flip, float depth = 0)
+    public void Draw(Texture2D texture, Vector2 position, Rectangle? source, Color tint, float rotation, Vector2 origin,
+        Vector2 scale, SpriteFlipMode flip, float depth = 0)
     {
         if (!_begun)
             throw new CubicException("There is no active batch session. You must start a new batch session before you can issue draw calls.");
-        
-        if (texture != _currentTexture)
+        _sprites.Add(new Sprite(texture, position, source, tint, rotation, origin, scale, flip, depth, _currentSprite));
+        _currentSprite++;
+    }
+    
+    private void DrawSprite(Sprite sprite)
+    {
+        if (sprite.Texture != _currentTexture)
             Flush();
-        if (_currentSprite >= MaxSprites)
+        if (_currentSpriteIndex >= MaxSprites)
             Flush();
-        _currentTexture = texture;
+        _currentTexture = sprite.Texture;
 
-        Rectangle src = source ?? new Rectangle(0, 0, texture.Size.Width, texture.Size.Height);
+        Rectangle src = sprite.Source ?? new Rectangle(0, 0, sprite.Texture.Size.Width, sprite.Texture.Size.Height);
 
-        float texOffsetX = src.X / (float) texture.Size.Width;
-        float texOffsetY = 1 - (src.Y + src.Height) / (float) texture.Size.Height;
-        float texOffsetW = texOffsetX + src.Width / (float) texture.Size.Width;
-        float texOffsetH = texOffsetY + src.Height / (float) texture.Size.Height;
+        float texOffsetX = src.X / (float) sprite.Texture.Size.Width;
+        float texOffsetY = 1 - (src.Y + src.Height) / (float) sprite.Texture.Size.Height;
+        float texOffsetW = texOffsetX + src.Width / (float) sprite.Texture.Size.Width;
+        float texOffsetH = texOffsetY + src.Height / (float) sprite.Texture.Size.Height;
 
-        switch (flip)
+        switch (sprite.Flip)
         {
             case SpriteFlipMode.None:
                 break;
@@ -241,34 +255,32 @@ void main()
                 texOffsetH *= -1;
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(flip), flip, null);
+                throw new ArgumentOutOfRangeException(nameof(sprite.Flip), sprite.Flip, null);
         }
 
-        Vector4 normalizedTint = tint.Normalize();
+        Vector4 normalizedTint = sprite.Tint.Normalize();
 
-        position -= origin;
-        origin += position;
+        sprite.Position -= sprite.Origin;
+        sprite.Origin += sprite.Position;
 
         // We overwrite the elements of the arrays to reduce array allocations, making it more memory efficient.
         
-        _vertices[0] = new SpriteVertex(new Vector3(position.X + src.Width, position.Y + src.Height, depth), new Vector2(texOffsetW, texOffsetY), normalizedTint, rotation, origin, scale);
-        _vertices[1] = new SpriteVertex(new Vector3(position.X + src.Width, position.Y, depth), new Vector2(texOffsetW, texOffsetH), normalizedTint, rotation, origin, scale);
-        _vertices[2] = new SpriteVertex(new Vector3(position.X, position.Y, depth), new Vector2(texOffsetX, texOffsetH), normalizedTint, rotation, origin, scale);
-        _vertices[3] = new SpriteVertex(new Vector3(position.X, position.Y + src.Height, depth), new Vector2(texOffsetX, texOffsetY), normalizedTint, rotation, origin, scale);
+        _vertices[0] = new SpriteVertex(new Vector2(sprite.Position.X + src.Width, sprite.Position.Y + src.Height), new Vector2(texOffsetW, texOffsetY), normalizedTint, sprite.Rotation, sprite.Origin, sprite.Scale);
+        _vertices[1] = new SpriteVertex(new Vector2(sprite.Position.X + src.Width, sprite.Position.Y), new Vector2(texOffsetW, texOffsetH), normalizedTint, sprite.Rotation, sprite.Origin, sprite.Scale);
+        _vertices[2] = new SpriteVertex(new Vector2(sprite.Position.X, sprite.Position.Y), new Vector2(texOffsetX, texOffsetH), normalizedTint, sprite.Rotation, sprite.Origin, sprite.Scale);
+        _vertices[3] = new SpriteVertex(new Vector2(sprite.Position.X, sprite.Position.Y + src.Height), new Vector2(texOffsetX, texOffsetY), normalizedTint, sprite.Rotation, sprite.Origin, sprite.Scale);
 
-        _indices[0] = NumVertices * _currentSprite;
-        _indices[1] = 1 + NumVertices * _currentSprite;
-        _indices[2] = 3 + NumVertices * _currentSprite;
-        _indices[3] = 1 + NumVertices * _currentSprite;
-        _indices[4] = 2 + NumVertices * _currentSprite;
-        _indices[5] = 3 + NumVertices * _currentSprite;
-        
-        // TODO: Implement proper sprite sorting instead of z-depth sorting. It is bonkers for transparency apparently.
+        _indices[0] = NumVertices * _currentSpriteIndex;
+        _indices[1] = 1 + NumVertices * _currentSpriteIndex;
+        _indices[2] = 3 + NumVertices * _currentSpriteIndex;
+        _indices[3] = 1 + NumVertices * _currentSpriteIndex;
+        _indices[4] = 2 + NumVertices * _currentSpriteIndex;
+        _indices[5] = 3 + NumVertices * _currentSpriteIndex;
 
-        Array.Copy(_vertices, 0, _spriteVertices, _currentSprite * NumVertices, NumVertices);
-        Array.Copy(_indices, 0, _spriteIndices, _currentSprite * NumIndices, NumIndices);
+        Array.Copy(_vertices, 0, _spriteVertices, _currentSpriteIndex * NumVertices, NumVertices);
+        Array.Copy(_indices, 0, _spriteIndices, _currentSpriteIndex * NumIndices, NumIndices);
 
-        _currentSprite++;
+        _currentSpriteIndex++;
     }
 
     /// <summary>
@@ -279,16 +291,34 @@ void main()
     {
         if (!_begun)
             throw new CubicException("There is no current batch session active, there is none to close.");
-        
+
+        _sprites.Sort((sprite, sprite1) =>
+        {
+            // The CompareTo method seems to produce random results based on what's in the list.
+            // This means if two sprites have the same depth value, it's random what order they will be drawn in.
+            // Any decent game should really have a different depth level for each sprite, but many won't, so therefore
+            // if the depth values are the same we should sort by draw call (ID) instead.
+            int sort = sprite1.Depth.CompareTo(sprite.Depth);
+            if (sort == 0)
+                sort = sprite.ID.CompareTo(sprite1.ID);
+            return sort;
+        });
+
+        for (int i = 0; i < _currentSprite; i++)
+            DrawSprite(_sprites[i]);
         Flush();
+        _currentSprite = 0;
+        
+        _sprites.Clear();
+
         _begun = false;
     }
 
     private void Flush()
     {
-        if (_currentSprite == 0)
+        if (_currentSpriteIndex == 0)
             return;
-        
+
         GL.BindVertexArray(_vao);
         GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
         GL.BindBuffer(BufferTarget.ElementArrayBuffer, _ebo);
@@ -304,12 +334,12 @@ void main()
         
         GL.UseProgram(_shader.Handle);
         GL.BindVertexArray(_vao);
-        GL.DrawElements(PrimitiveType.Triangles, (int) (_currentSprite * NumIndices), DrawElementsType.UnsignedInt, 0);
+        GL.DrawElements(PrimitiveType.Triangles, (int) (_currentSpriteIndex * NumIndices), DrawElementsType.UnsignedInt, 0);
         GL.BindVertexArray(0);
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
         GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
 
-        _currentSprite = 0;
+        _currentSpriteIndex = 0;
     }
     
     public void Dispose()
@@ -321,16 +351,45 @@ void main()
         _graphics.ViewportResized -= GraphicsOnViewportResized;
     }
 
+    private struct Sprite
+    {
+        public Texture2D Texture;
+        public Vector2 Position;
+        public Rectangle? Source;
+        public Color Tint;
+        public float Rotation;
+        public Vector2 Origin;
+        public Vector2 Scale;
+        public SpriteFlipMode Flip;
+        public float Depth;
+        public uint ID;
+
+        public Sprite(Texture2D texture, Vector2 position, Rectangle? source, Color tint, float rotation, Vector2 origin,
+            Vector2 scale, SpriteFlipMode flip, float depth, uint id)
+        {
+            Texture = texture;
+            Position = position;
+            Source = source;
+            Tint = tint;
+            Rotation = rotation;
+            Origin = origin;
+            Scale = scale;
+            Flip = flip;
+            Depth = depth;
+            ID = id;
+        }
+    }
+
     private struct SpriteVertex
     {
-        public Vector3 Position;
+        public Vector2 Position;
         public Vector2 TexCoords;
         public Vector4 Tint;
         public float Rotation;
         public Vector2 Origin;
         public Vector2 Scale;
 
-        public SpriteVertex(Vector3 position, Vector2 texCoords, Vector4 tint, float rotation, Vector2 origin, Vector2 scale)
+        public SpriteVertex(Vector2 position, Vector2 texCoords, Vector4 tint, float rotation, Vector2 origin, Vector2 scale)
         {
             Position = position;
             TexCoords = texCoords;

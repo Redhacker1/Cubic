@@ -52,9 +52,7 @@ public sealed unsafe class CubicGame : IDisposable
         TargetFps = _settings.TargetFps;
 
         AudioDevice = new AudioDevice(_settings.AudioChannels);
-        
-        SetDefaults();
-        
+
         SceneManager.Initialize(this);
 
         Window.WindowMode = _settings.WindowMode;
@@ -85,11 +83,5 @@ public sealed unsafe class CubicGame : IDisposable
     public void Close()
     {
         Window.ShouldClose = true;
-    }
-
-    private void SetDefaults()
-    {
-        // I really hate having to do this but I wanna avoid static stuff.
-        Texture2D.Blank = new Texture2D(this, 1, 1, new byte[] {255, 255, 255, 255});
     }
 }
