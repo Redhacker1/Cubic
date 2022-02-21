@@ -15,6 +15,7 @@ public static class Input
 
     private static readonly HashSet<Keys> _keysHeld = new HashSet<Keys>();
     private static readonly HashSet<Keys> _frameKeys = new HashSet<Keys>();
+    private static readonly HashSet<Keys> _repeatedKeys = new HashSet<Keys>();
 
     private static readonly HashSet<MouseButtons> _buttonsHeld = new HashSet<MouseButtons>();
     private static readonly HashSet<MouseButtons> _frameButtons = new HashSet<MouseButtons>();
@@ -49,6 +50,23 @@ public static class Input
     /// <param name="key">The key to check.</param>
     /// <returns>True if the key is <b>not</b> held down.</returns>
     public static bool KeyReleased(Keys key) => !_keysHeld.Contains(key);
+
+    /// <summary>
+    /// Check if the given key is held and repeating. This is useful for dealing with a repeating action that does not
+    /// occur once per frame, such as navigation in a text box.
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns>True if the key is repeating.</returns>
+    public static bool KeyRepeat(Keys key) => _repeatedKeys.Contains(key);
+
+    /// <summary>
+    /// Check if the given key is pressed or is repeating. This is useful for dealing with a repeating action that does
+    /// not occur once per frame, such as navigation in a text box.
+    /// </summary>
+    /// <param name="key">The key to check.</param>
+    /// <returns>True if the given key is pressed or repeating.</returns>
+    /// <remarks>This method acts like <see cref="KeyPressed"/> and <see cref="KeyRepeat"/> combined.</remarks>
+    public static bool KeyPressedOrRepeating(Keys key) => _frameKeys.Contains(key) || _repeatedKeys.Contains(key);
 
     /// <summary>
     /// Check if any of the given keys are held down.
@@ -151,6 +169,7 @@ public static class Input
         _mouseStates.Clear();
         _frameKeys.Clear();
         _frameButtons.Clear();
+        _repeatedKeys.Clear();
         ScrollWheelDelta = Vector2.Zero;
 
         GLFW.PollEvents();
@@ -190,7 +209,9 @@ public static class Input
     internal static unsafe void KeyCallback(Window* window, OpenTK.Windowing.GraphicsLibraryFramework.Keys key,
         int scanCode, InputAction action, KeyModifiers mods)
     {
-        if (action != InputAction.Repeat)
+        if (action == InputAction.Repeat)
+            _repeatedKeys.Add((Keys) key);
+        else
             _keyStates.Add(new KeyState((Keys) key, action == InputAction.Press));
     }
 

@@ -120,7 +120,7 @@ public static class FontHelper
     }
 
     // Interpret string for any potential params, such as unicode, new line delimeters, and colour arguments.
-    internal static StringParam CheckParams(ref char c, ref int i, string text)
+    internal static StringParam CheckParams(ref char c, ref int i, string text, bool ignoreParams)
     {
         StringParam param = new StringParam()
         {
@@ -139,6 +139,8 @@ public static class FontHelper
                 break;
             // '[' characters potentially represents commands the renderer can follow.
             case '[':
+                if (ignoreParams)
+                    break;
                 // Backslashes are ignored.
                 if (i - 1 > -1 && text[i - 1] == '\\')
                     break;

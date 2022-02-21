@@ -155,6 +155,7 @@ public sealed unsafe class GameWindow : IDisposable
         GLFW.WindowHint(WindowHintOpenGlProfile.OpenGlProfile, OpenGlProfile.Core);
         GLFW.WindowHint(WindowHintInt.ContextVersionMajor, 3);
         GLFW.WindowHint(WindowHintInt.ContextVersionMinor, 3);
+        GLFW.WindowHint(WindowHintBool.OpenGLForwardCompat, true);
 
         GMonitor* monitor = GLFW.GetPrimaryMonitor();
         VideoMode* mode = GLFW.GetVideoMode(monitor);

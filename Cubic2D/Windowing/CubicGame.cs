@@ -1,5 +1,6 @@
 using System;
 using Cubic2D.Audio;
+using Cubic2D.GUI;
 using Cubic2D.Render;
 using Cubic2D.Scenes;
 using OpenTK.Windowing.GraphicsLibraryFramework;
@@ -66,10 +67,12 @@ public sealed unsafe class CubicGame : IDisposable
             Input.Update(Window);
             Time.Update();
             AudioDevice.Update();
+            UI.Update();
             SceneManager.Update(this);
             Metrics.Reset();
             Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
             SceneManager.Draw();
+            UI.Draw(Graphics.SpriteRenderer);
             Graphics.PresentFrame();
         }
     }

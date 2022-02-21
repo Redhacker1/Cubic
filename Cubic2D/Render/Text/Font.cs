@@ -69,7 +69,7 @@ public struct Font : IDisposable
     /// <param name="extraLineSpacing">Any additional spacing between lines. This can also be a negative number if you want less spacing.</param>
     /// <exception cref="CubicException">Thrown if an incorrect parameter is given to the text drawer.</exception>
     public void Draw(SpriteRenderer renderer, uint size, string text, Vector2 position, Color startColor,
-        float rotation, Vector2 origin, Vector2 scale, int depth = 0, int extraLineSpacing = 0)
+        float rotation, Vector2 origin, Vector2 scale, int depth = 0, int extraLineSpacing = 0, bool ignoreParams = false)
     {
         // We need to keep a reference to both the current character's position and our actual position, which is what
         // we do here.
@@ -110,7 +110,7 @@ public struct Font : IDisposable
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
-            FontHelper.StringParam param = FontHelper.CheckParams(ref c, ref i, text);
+            FontHelper.StringParam param = FontHelper.CheckParams(ref c, ref i, text, ignoreParams);
             switch (param.Type)
             {
                 case FontHelper.ParamType.NewLine:
@@ -148,7 +148,7 @@ public struct Font : IDisposable
     /// <param name="text">The text to measure.</param>
     /// <param name="extraLineSpacing">Any extra line spacing between lines.</param>
     /// <returns></returns>
-    public Size MeasureString(uint size, string text, int extraLineSpacing = 0)
+    public Size MeasureString(uint size, string text, int extraLineSpacing = 0, bool ignoreParams = false)
     {
         // A fair bit of code here is reused from Draw(). We even generate a new texture... (Although to be
         // honest, who would measure the size of a string in a font size that is never going to be used?)
@@ -182,7 +182,7 @@ public struct Font : IDisposable
             
             // We need to include this code here too to make sure the measurestring doesn't include the parameters
             // as part of the text, otherwise the size would be very much off.
-            FontHelper.StringParam param = FontHelper.CheckParams(ref c, ref i, text);
+            FontHelper.StringParam param = FontHelper.CheckParams(ref c, ref i, text, ignoreParams);
             switch (param.Type)
             {
                 case FontHelper.ParamType.NewLine:

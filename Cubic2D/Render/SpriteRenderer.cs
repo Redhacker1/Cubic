@@ -105,6 +105,8 @@ void main()
     private uint[] _indices;
 
     private TextureSample _sample;
+    
+    public Size FramebufferSize { get; private set; }
 
     internal SpriteRenderer(Graphics graphics)
     {
@@ -157,6 +159,8 @@ void main()
 
         _projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, _graphics.FramebufferSize.Width,
             _graphics.FramebufferSize.Height, 0, -1f, 1f);
+
+        FramebufferSize = _graphics.FramebufferSize;
         
         GL.BindVertexArray(0);
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
@@ -172,6 +176,8 @@ void main()
     {
         _projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, _graphics.FramebufferSize.Width,
             _graphics.FramebufferSize.Height, 0, -1, 1);
+
+        FramebufferSize = size;
     }
 
     /// <summary>
