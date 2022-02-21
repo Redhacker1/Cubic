@@ -1,5 +1,6 @@
 # Cubic2D
 A fast, cross-platform 2D game engine.
+[![Cubic2D Sample](http://i.rollbot.net/Cubic2DImage.png)](https://github.com/ohtrobinson/Cubic2DSample)
 
 ### Component system
 In Cubic2D, it's easy to add components and custom scripts to your entities.
