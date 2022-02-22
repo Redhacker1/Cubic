@@ -16,20 +16,14 @@ public class Graphics : IDisposable
 
     public readonly SpriteRenderer SpriteRenderer;
 
+    private readonly int[] _viewport;
+
     public bool VSync
     {
         set => GLFW.SwapInterval(value ? 1 : 0);
     }
 
-    public Size FramebufferSize
-    {
-        get
-        {
-            int[] data = new int[4];
-            GL.GetInteger(GetPName.Viewport, data);
-            return new Size(data[2], data[3]);
-        }
-    }
+    public Rectangle Viewport => new Rectangle(_viewport[0], _viewport[1], _viewport[2], _viewport[3]);
 
     internal Graphics(GameWindow window, GameSettings settings)
     {
@@ -41,6 +35,12 @@ public class Graphics : IDisposable
 
         VSync = settings.VSync;
 
+        _viewport = new int[4];
+        
+        GL.GetInteger(GetPName.Viewport, _viewport);
+
+        //GL.Enable(EnableCap.ScissorTest);
+        
         SpriteRenderer = new SpriteRenderer(this);
     }
     
@@ -49,6 +49,7 @@ public class Graphics : IDisposable
     {
         GL.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        //ResetScissor();
     }
 
     internal unsafe void PresentFrame()
@@ -60,8 +61,19 @@ public class Graphics : IDisposable
     {
         // Resize viewport.
         GL.Viewport(0, 0, size.Width, size.Height);
+        GL.GetInteger(GetPName.Viewport, _viewport);
         ViewportResized?.Invoke(size);
     }
+
+    /*public void SetScissor(Rectangle rectangle)
+    {
+        GL.Scissor(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
+    }
+
+    public void ResetScissor()
+    {
+        GL.Scissor(0, 0, FramebufferSize.Width, FramebufferSize.Height);
+    }*/
 
     public void Dispose()
     {

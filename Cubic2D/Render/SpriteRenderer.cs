@@ -97,7 +97,7 @@ void main()
     private Texture2D _currentTexture;
 
     private List<Sprite> _sprites;
-    
+
     private SpriteVertex[] _spriteVertices;
     private uint[] _spriteIndices;
     
@@ -113,7 +113,7 @@ void main()
         _graphics = graphics;
 
         _sprites = new List<Sprite>(64);
-        
+
         _vertices = new SpriteVertex[NumVertices];
         _indices = new uint[NumIndices];
 
@@ -157,10 +157,10 @@ void main()
             location += 1;
         }
 
-        _projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, _graphics.FramebufferSize.Width,
-            _graphics.FramebufferSize.Height, 0, -1f, 1f);
+        _projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, _graphics.Viewport.Width,
+            _graphics.Viewport.Height, 0, -1f, 1f);
 
-        FramebufferSize = _graphics.FramebufferSize;
+        FramebufferSize = _graphics.Viewport.Size;
         
         GL.BindVertexArray(0);
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
@@ -174,8 +174,8 @@ void main()
 
     private void GraphicsOnViewportResized(Size size)
     {
-        _projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, _graphics.FramebufferSize.Width,
-            _graphics.FramebufferSize.Height, 0, -1, 1);
+        _projectionMatrix = Matrix4x4.CreateOrthographicOffCenter(0, _graphics.Viewport.Width,
+            _graphics.Viewport.Height, 0, -1, 1);
 
         FramebufferSize = size;
     }
@@ -313,9 +313,10 @@ void main()
 
         for (int i = 0; i < _currentSprite; i++)
             DrawSprite(_sprites[i]);
+
         Flush();
         _currentSprite = 0;
-        
+
         _sprites.Clear();
 
         _begun = false;
@@ -350,7 +351,7 @@ void main()
         
         _currentSpriteIndex = 0;
     }
-    
+
     public void Dispose()
     {
         GL.DeleteVertexArray(_vao);

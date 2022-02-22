@@ -72,7 +72,7 @@ public sealed unsafe class CubicGame : IDisposable
             Metrics.Reset();
             Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
             SceneManager.Draw();
-            UI.Draw(Graphics.SpriteRenderer);
+            UI.Draw(Graphics);
             Graphics.PresentFrame();
         }
     }

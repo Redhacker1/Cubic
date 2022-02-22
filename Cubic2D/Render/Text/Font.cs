@@ -197,8 +197,11 @@ public struct Font : IDisposable
             FontHelper.Character chr = _characters[c];
             Vector2 charPos =
                 new Vector2(pos + chr.Bearing.X, chr.Size.Height + (chr.Size.Height - chr.Bearing.Y));
-            if ((int) charPos.X + chr.Size.Width > stringSize.Width)
-                stringSize.Width = (int) charPos.X + chr.Size.Width;
+            // This is mostly to deal with spaces or blank chars, they usually have a width of 0, but still have an
+            // advance. Therefore we use the advance if the width of the char is 0.
+            int charWidth = chr.Size.Width > 0 ? chr.Size.Width : chr.Advance;
+            if ((int) charPos.X + charWidth > stringSize.Width)
+                stringSize.Width = (int) charPos.X + charWidth;
             pos += chr.Advance;
         }
 

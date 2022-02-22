@@ -16,7 +16,6 @@ public static partial class UI
     private static List<char> _charBuffer;
     private static int _hoveringID;
     private static int _currentID;
-    private static Point _textCursorPos;
 
     private static bool _mouseButtonHeld;
     private static bool _clicked;
@@ -146,16 +145,16 @@ public static partial class UI
         }
     }
 
-    internal static void Draw(SpriteRenderer renderer)
+    internal static void Draw(Graphics graphics)
     {
         // Update the framebuffer size per frame to allow the anchoring system to work.
-        _framebufferSize = renderer.FramebufferSize;
+        _framebufferSize = graphics.Viewport.Size;
         
         // I'd rather not do this in draw but I have to due to the way the updating works
         _charBuffer.Clear();
         
         // UI is drawn on a different spritebatch, and always drawn on top.
-        renderer.Begin();
+        graphics.SpriteRenderer.Begin();
         
         // Explanation of what's going on below
         // ----------------------------------------
@@ -178,7 +177,8 @@ public static partial class UI
         {
             Rectangle rect = cRect.Item1;
             Color col = cRect.Item2;
-            renderer.Draw(Texture2D.Blank, new Vector2(rect.X, rect.Y), null, col, 0, Vector2.Zero,
+            //graphics.SetScissor(_elementPositions[cRect.Item3]);
+            graphics.SpriteRenderer.Draw(Texture2D.Blank, new Vector2(rect.X, rect.Y), null, col, 0, Vector2.Zero,
                 new Vector2(rect.Width, rect.Height), SpriteFlipMode.None, -cRect.Item3);
         }
 
@@ -189,9 +189,11 @@ public static partial class UI
                 origin = Theme.Font.MeasureString(size, text).ToVector2() / 2;
             origin.X = (int) origin.X;
             origin.Y = (int) origin.Y;
-            Theme.Font.Draw(renderer, size, text, pos, color, 0, origin, Vector2.One, -id, ignoreParams: ignoreParams);
+            
+            Theme.Font.Draw(graphics.SpriteRenderer, size, text, pos, color, 0, origin, Vector2.One, -id,
+                ignoreParams: ignoreParams);
         }
 
-        renderer.End();
+        graphics.SpriteRenderer.End();
     }
 }
