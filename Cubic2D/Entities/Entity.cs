@@ -112,7 +112,7 @@ public class Entity
         DeleteComponent(component);
     }
 
-    public Component GetComponent<T>() where T : Component
+    public T GetComponent<T>() where T : Component
     {
         foreach (Component component in _components)
         {

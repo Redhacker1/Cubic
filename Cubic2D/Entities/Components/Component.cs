@@ -17,7 +17,7 @@ public abstract class Component
 
     protected internal virtual void Draw(Graphics graphics) { }
 
-    protected T GetComponent<T>() where T : Component => (T) Entity.GetComponent<T>();
+    protected T GetComponent<T>() where T : Component => Entity.GetComponent<T>();
 
     protected void AddComponent(Type component, params object[] args) => Entity.AddComponent(component, args);
 
