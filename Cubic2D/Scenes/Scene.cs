@@ -59,7 +59,7 @@ public abstract class Scene : IDisposable
     internal void DrawInternal()
     {
         Camera.Main.GenerateTransformMatrix();
-        Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix);
+        Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix, World.SampleType);
         foreach (KeyValuePair<string, Entity> entity in _entities)
             entity.Value.Draw(Graphics);
         Draw();

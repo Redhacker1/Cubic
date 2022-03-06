@@ -3,7 +3,6 @@ using Cubic2D.Audio;
 using Cubic2D.GUI;
 using Cubic2D.Render;
 using Cubic2D.Scenes;
-using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace Cubic2D.Windowing;
 
@@ -45,6 +44,7 @@ public sealed unsafe class CubicGame : IDisposable
     {
         if (_running)
             throw new CubicException("Cubic cannot run multiple game instances at the same time.");
+        _running = true;
         
         Window.Prepare();
 
@@ -69,7 +69,7 @@ public sealed unsafe class CubicGame : IDisposable
             AudioDevice.Update();
             UI.Update();
             SceneManager.Update(this);
-            Metrics.Reset();
+            Metrics.Update();
             Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
             SceneManager.Draw();
             UI.Draw(Graphics);

@@ -3,12 +3,13 @@ namespace Cubic2D.Render;
 public enum TextureSample
 {
     /// <summary>
-    /// Use linear to provide typical texture upscaling.
+    /// Use linear interpolation for texture scaling.
     /// </summary>
     Linear,
     
     /// <summary>
-    /// Use point to provide pixel texture upscaling. This is better suited for older pixel-style games.
+    /// Use nearest neighbour (point sampling) interpolation for texture scaling. This option is best suited for older
+    /// style games.
     /// </summary>
-    Point
+    Nearest
 }

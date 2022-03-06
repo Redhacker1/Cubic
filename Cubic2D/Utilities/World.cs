@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Numerics;
+using Cubic2D.Render;
 
 namespace Cubic2D.Utilities;
 
@@ -11,4 +12,6 @@ public class World
     {
         set => ClearColorInternal = value.Normalize();
     }
+
+    public TextureSample SampleType = TextureSample.Nearest;
 }

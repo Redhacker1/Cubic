@@ -186,7 +186,7 @@ void main()
     /// <param name="transform">The optional transformation (camera) matrix to use for this batch session.</param>
     /// <param name="sample">Which sample type this batch should use.</param>
     /// <exception cref="CubicException">Thrown if you try to call <see cref="Begin"/> before a batch session has ended.</exception>
-    public void Begin(Matrix4x4? transform = null, TextureSample sample = TextureSample.Point)
+    public void Begin(Matrix4x4? transform = null, TextureSample sample = TextureSample.Nearest)
     {
         if (_begun)
             throw new CubicException(
@@ -336,9 +336,9 @@ void main()
         GL.ActiveTexture(TextureUnit.Texture0);
         GL.BindTexture(TextureTarget.Texture2D, _currentTexture.Handle);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter,
-            (int) (_sample == TextureSample.Point ? TextureMinFilter.Nearest : TextureMinFilter.Linear));
+            (int) (_sample == TextureSample.Nearest ? TextureMinFilter.Nearest : TextureMinFilter.Linear));
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter,
-            (int) (_sample == TextureSample.Point ? TextureMinFilter.Nearest : TextureMinFilter.Linear));
+            (int) (_sample == TextureSample.Nearest ? TextureMinFilter.Nearest : TextureMinFilter.Linear));
         
         GL.UseProgram(_shader.Handle);
         GL.BindVertexArray(_vao);

@@ -131,9 +131,11 @@ public partial struct Sound
         channels = 2;
         bitsPerSample = 16;
         sampleRate = 44100;
+        const int volumeRampUp = 17;
+        const int volumeRampDown = 46;
 
         //tempo = 255;
-        //speed = 1;
+        //speed = 36;
 
         int rowDurationInMs = (2500 / tempo) * speed;
         
@@ -209,7 +211,7 @@ public partial struct Sound
                         volume = pn.Volume;
                         sampleNum = note.SampleNum;
                         // Multiply the sample's sample rate by our pitch multiplier to get the output sample rate.
-                        sampRate = (int) (samples[sampleNum].SampleRate * pn.Pitch);
+                        sampRate = (int) (samples[sampleNum].SampleRate * pn.Pitch * 0.5f);
                         // Reset our sample position too to retrigger any samples.
                         samplePos = 0;
                     }
@@ -233,8 +235,8 @@ public partial struct Sound
                     // not bytes).
                     if (dataPoint >= samples[sampleNum].EndLoopPoint)
                     {
-                        //Console.WriteLine(dataPoint - samples[sampleNum].EndLoopPoint);
-                        samplePos = (samples[sampleNum].BeginLoopPoint / samples[sampleNum].Alignment);
+                        samplePos = samples[sampleNum].BeginLoopPoint / samples[sampleNum].Alignment;
+                        //dataPoint = (int) ((samplePos * 1 / ratio) - (samplePos * 1 / ratio) % alignment);
                     }
                 }
 
@@ -293,7 +295,9 @@ public partial struct Sound
                 if (currentRow >= patterns[currentPattern].Length)
                 {
                     currentPattern++;
-                    if (currentPattern >= patterns.Length)
+                    //if (currentPattern >= patterns.Length)
+                    //    break;
+                    if (currentPattern >= 4)
                         break;
                     currentRow = 0;
                     rowIncreased = true;
