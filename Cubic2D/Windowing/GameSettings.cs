@@ -1,6 +1,7 @@
 using System.Drawing;
 using Cubic2D.Render;
 using Cubic2D.Audio;
+using Cubic2D.Utilities;
 
 namespace Cubic2D.Windowing;
 
@@ -64,6 +65,11 @@ public struct GameSettings
     /// </summary>
     public int AudioChannels;
 
+    /// <summary>
+    /// The icon the game will use on startup.
+    /// </summary>
+    public Bitmap Icon;
+
     public GameSettings()
     {
         Size = new Size(1280, 720);
@@ -76,5 +82,6 @@ public struct GameSettings
         StartVisible = true;
         //Api = GraphicsApi.Default;
         AudioChannels = 32;
+        Icon = default;
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using Cubic2D.Scenes;
+using Cubic2D.Utilities;
 using Cubic2D.Windowing;
 using OpenTK.Graphics.OpenGL4;
 using StbImageSharp;
@@ -41,6 +42,14 @@ public class Texture2D : IDisposable
     {
         Handle = CreateTexture(width, height, null);
         Size = new Size(width, height);
+        
+        SceneManager.Active.CreatedResources.Add(this);
+    }
+
+    public Texture2D(Bitmap bitmap)
+    {
+        Handle = CreateTexture(bitmap.Size.Width, bitmap.Size.Height, bitmap.Data);
+        Size = bitmap.Size;
         
         SceneManager.Active.CreatedResources.Add(this);
     }

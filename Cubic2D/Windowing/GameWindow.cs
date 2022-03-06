@@ -172,6 +172,16 @@ public sealed unsafe class GameWindow : IDisposable
             throw new CubicException("Window was not created.");
         }
 
+        if (_settings.Icon != default)
+        {
+            fixed (byte* p = _settings.Icon.Data)
+            {
+                GLFW.SetWindowIcon(Handle,
+                    new ReadOnlySpan<Image>(new Image[]
+                        { new Image(_settings.Icon.Size.Width, _settings.Icon.Size.Height, p) }));
+            }
+        }
+
         GLFW.SetKeyCallback(Handle, _keyCallback);
         GLFW.SetMouseButtonCallback(Handle, _mouseCallback);
         GLFW.SetScrollCallback(Handle, _scrollCallback);
