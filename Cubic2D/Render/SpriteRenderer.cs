@@ -88,13 +88,14 @@ void main()
     private int _vbo;
     private int _ebo;
     private Shader _shader;
+    private Shader _shaderToUse;
 
     private Matrix4x4 _projectionMatrix;
 
     private bool _begun;
     private uint _currentSprite;
     private uint _currentSpriteIndex;
-    private Texture2D _currentTexture;
+    private Texture _currentTexture;
 
     private List<Sprite> _sprites;
 
@@ -186,7 +187,7 @@ void main()
     /// <param name="transform">The optional transformation (camera) matrix to use for this batch session.</param>
     /// <param name="sample">Which sample type this batch should use.</param>
     /// <exception cref="CubicException">Thrown if you try to call <see cref="Begin"/> before a batch session has ended.</exception>
-    public void Begin(Matrix4x4? transform = null, TextureSample sample = TextureSample.Nearest)
+    public void Begin(Matrix4x4? transform = null, TextureSample sample = TextureSample.Nearest, Shader shader = null)
     {
         if (_begun)
             throw new CubicException(
@@ -194,8 +195,9 @@ void main()
         _begun = true;
         
         Matrix4x4 tMatrix = transform ?? Matrix4x4.Identity;
-        GL.UseProgram(_shader.Handle);
-        _shader.Set("uProjectionView", tMatrix * _projectionMatrix);
+        _shaderToUse = shader ?? _shader;
+        GL.UseProgram(_shaderToUse.Handle);
+        _shaderToUse.Set("uProjectionView", tMatrix * _projectionMatrix);
 
         _sample = sample;
     }
@@ -205,7 +207,7 @@ void main()
     /// </summary>
     /// <param name="texture">The texture that should be drawn.</param>
     /// <param name="position">The position, relative to the transformation matrix, the sprite should be drawn at. If no transformation matrix is provided, this will be relative to the screen-coordinates.</param>
-    public void Draw(Texture2D texture, Vector2 position) => Draw(texture, position, null, Color.White, 0, Vector2.Zero,
+    public void Draw(Texture texture, Vector2 position) => Draw(texture, position, null, Color.White, 0, Vector2.Zero,
         Vector2.One, SpriteFlipMode.None);
 
     /// <summary>
@@ -222,7 +224,7 @@ void main()
     /// <param name="depth">The depth the sprite will be drawn at. A sprite with a greater depth will be placed <b>behind</b> other sprites with lesser depths.</param>
     /// <exception cref="CubicException">Thrown if a draw call is issued when there is no current batch session.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the <see cref="flip"/> value provided is invalid.</exception>
-    public void Draw(Texture2D texture, Vector2 position, Rectangle? source, Color tint, float rotation, Vector2 origin,
+    public void Draw(Texture texture, Vector2 position, Rectangle? source, Color tint, float rotation, Vector2 origin,
         Vector2 scale, SpriteFlipMode flip, float depth = 0)
     {
         if (!_begun)
@@ -330,8 +332,8 @@ void main()
         GL.BindVertexArray(_vao);
         GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
         GL.BindBuffer(BufferTarget.ElementArrayBuffer, _ebo);
-        GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, (int) (MaxSprites * VertexSizeInBytes), _spriteVertices);
-        GL.BufferSubData(BufferTarget.ElementArrayBuffer, IntPtr.Zero, (int) (MaxSprites * IndexSizeInBytes), _spriteIndices);
+        GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, (int) (_currentSpriteIndex * VertexSizeInBytes), _spriteVertices);
+        GL.BufferSubData(BufferTarget.ElementArrayBuffer, IntPtr.Zero, (int) (_currentSpriteIndex * IndexSizeInBytes), _spriteIndices);
         
         GL.ActiveTexture(TextureUnit.Texture0);
         GL.BindTexture(TextureTarget.Texture2D, _currentTexture.Handle);
@@ -340,7 +342,7 @@ void main()
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter,
             (int) (_sample == TextureSample.Nearest ? TextureMinFilter.Nearest : TextureMinFilter.Linear));
         
-        GL.UseProgram(_shader.Handle);
+        GL.UseProgram(_shaderToUse.Handle);
         GL.BindVertexArray(_vao);
         GL.DrawElements(PrimitiveType.Triangles, (int) (_currentSpriteIndex * NumIndices), DrawElementsType.UnsignedInt, 0);
         GL.BindVertexArray(0);
@@ -363,7 +365,7 @@ void main()
 
     private struct Sprite
     {
-        public Texture2D Texture;
+        public Texture Texture;
         public Vector2 Position;
         public Rectangle? Source;
         public Color Tint;
@@ -374,7 +376,7 @@ void main()
         public float Depth;
         public uint ID;
 
-        public Sprite(Texture2D texture, Vector2 position, Rectangle? source, Color tint, float rotation, Vector2 origin,
+        public Sprite(Texture texture, Vector2 position, Rectangle? source, Color tint, float rotation, Vector2 origin,
             Vector2 scale, SpriteFlipMode flip, float depth, uint id)
         {
             Texture = texture;

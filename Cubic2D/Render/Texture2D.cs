@@ -9,49 +9,36 @@ using StbImageSharp;
 
 namespace Cubic2D.Render;
 
-public class Texture2D : IDisposable
+public class Texture2D : Texture
 {
-    internal int Handle;
-
-    public readonly Size Size;
-
     public Texture2D(string path)
     {
         using (Stream stream = File.OpenRead(path))
         {
             ImageResult result = ImageResult.FromStream(stream);
-
+            
             Handle = CreateTexture(result.Width, result.Height, result.Data,
                 result.Comp == ColorComponents.RedGreenBlueAlpha ? PixelFormat.Rgba : PixelFormat.Rgb);
             Size = new Size(result.Width, result.Height);
         }
-        
-        // Add this to the list of created resources the scene has so it can be disposed later.
-        SceneManager.Active.CreatedResources.Add(this);
     }
 
     public Texture2D(int width, int height, byte[] data)
     {
         Handle = CreateTexture(width, height, data);
         Size = new Size(width, height);
-        
-        SceneManager.Active.CreatedResources.Add(this);
     }
 
     public Texture2D(int width, int height)
     {
         Handle = CreateTexture(width, height, null);
         Size = new Size(width, height);
-        
-        SceneManager.Active.CreatedResources.Add(this);
     }
 
     public Texture2D(Bitmap bitmap)
     {
         Handle = CreateTexture(bitmap.Size.Width, bitmap.Size.Height, bitmap.Data);
         Size = bitmap.Size;
-        
-        SceneManager.Active.CreatedResources.Add(this);
     }
 
     public void SetData(IntPtr data, uint x, uint y, uint width, uint height)
@@ -77,14 +64,6 @@ public class Texture2D : IDisposable
         GL.BindTexture(TextureTarget.Texture2D, 0);
 
         return texture;
-    }
-
-    public void Dispose()
-    {
-        GL.DeleteTexture(Handle);
-#if DEBUG
-        Console.WriteLine("Texture disposed");
-#endif
     }
 
     public static readonly Texture2D Blank = new Texture2D(1, 1, new byte[] {255, 255, 255, 255});

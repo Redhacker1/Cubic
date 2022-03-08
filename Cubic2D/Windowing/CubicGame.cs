@@ -6,7 +6,7 @@ using Cubic2D.Scenes;
 
 namespace Cubic2D.Windowing;
 
-public sealed unsafe class CubicGame : IDisposable
+public class CubicGame : IDisposable
 {
     private GameSettings _settings;
     
@@ -37,7 +37,6 @@ public sealed unsafe class CubicGame : IDisposable
     {
         _settings = settings;
         Window = new GameWindow(settings);
-        //Current = this;
     }
 
     public void Run()
@@ -53,8 +52,8 @@ public sealed unsafe class CubicGame : IDisposable
         TargetFps = _settings.TargetFps;
 
         AudioDevice = new AudioDevice(_settings.AudioChannels);
-
-        SceneManager.Initialize(this);
+        
+        Initialize();
 
         Window.WindowMode = _settings.WindowMode;
         
@@ -68,14 +67,20 @@ public sealed unsafe class CubicGame : IDisposable
             Time.Update();
             AudioDevice.Update();
             UI.Update();
-            SceneManager.Update(this);
+            Update();
             Metrics.Update();
             Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
-            SceneManager.Draw();
+            Draw();
             UI.Draw(Graphics);
             Graphics.PresentFrame();
         }
     }
+
+    protected virtual void Initialize() => SceneManager.Initialize(this);
+
+    protected virtual void Update() => SceneManager.Update(this);
+
+    protected virtual void Draw() => SceneManager.Draw();
 
     public void Dispose()
     {

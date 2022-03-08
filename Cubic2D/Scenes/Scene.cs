@@ -53,16 +53,12 @@ public abstract class Scene : IDisposable
     /// In order to get the engine to draw entities in the scene like normal, you <b>MUST</b> call base.Draw() somewhere
     /// within this method.
     /// </summary>
-    protected virtual void Draw() { }
-
-
-    internal void DrawInternal()
+    protected internal virtual void Draw()
     {
         Camera.Main.GenerateTransformMatrix();
         Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix, World.SampleType);
         foreach (KeyValuePair<string, Entity> entity in _entities)
             entity.Value.Draw(Graphics);
-        Draw();
         Graphics.SpriteRenderer.End();
     }
 
