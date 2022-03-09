@@ -27,7 +27,6 @@ public static class SceneManager
         if (Active == null)
             throw new CubicException("Scene could not be instantiated.");
         Active.Game = game;
-        Active.Graphics = game.Graphics;
         Active.Initialize();
     }
     
@@ -44,7 +43,6 @@ public static class SceneManager
             if (Active == null)
                 throw new CubicException("Scene could not be instantiated.");
             Active.Game = game;
-            Active.Graphics = game.Graphics;
             Active.Initialize();
         }
         

@@ -16,7 +16,7 @@ public class Graphics : IDisposable
 
     public readonly SpriteRenderer SpriteRenderer;
 
-    private readonly int[] _viewport;
+    private Rectangle _viewport;
 
     public bool VSync
     {
@@ -25,10 +25,12 @@ public class Graphics : IDisposable
 
     public Rectangle Viewport
     {
-        get
+        get => _viewport;
+        set
         {
-            GL.GetInteger(GetPName.Viewport, _viewport);
-            return new Rectangle(_viewport[0], _viewport[1], _viewport[2], _viewport[3]);
+            _viewport = value;
+            GL.Viewport(value.X, value.Y, value.Width, value.Height);
+            ViewportResized?.Invoke(value.Size);
         }
     }
 
@@ -37,12 +39,24 @@ public class Graphics : IDisposable
         if (target == null)
         {
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-            GL.Viewport(0, 0, _window.Size.Width, _window.Size.Height);
+            Viewport = new Rectangle(0, 0, _window.Size.Width, _window.Size.Height);
             return;
         }
 
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, target.Fbo);
-        GL.Viewport(0, 0, target.Size.Width, target.Size.Height);
+        Viewport = new Rectangle(0, 0, target.Size.Width, target.Size.Height);
+        GL.Clear(ClearBufferMask.ColorBufferBit);
+    }
+
+    public void Clear(Vector4 clearColor)
+    {
+        GL.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
+        GL.Clear(ClearBufferMask.ColorBufferBit);
+    }
+
+    public void Clear(Color clearColor)
+    {
+        GL.ClearColor(clearColor);
         GL.Clear(ClearBufferMask.ColorBufferBit);
     }
 
@@ -56,8 +70,6 @@ public class Graphics : IDisposable
 
         VSync = settings.VSync;
 
-        _viewport = new int[4];
-
         //GL.Enable(EnableCap.ScissorTest);
         
         SpriteRenderer = new SpriteRenderer(this);
@@ -66,8 +78,7 @@ public class Graphics : IDisposable
 
     internal void PrepareFrame(Vector4 clearColor)
     {
-        GL.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
-        GL.Clear(ClearBufferMask.ColorBufferBit);
+        Clear(clearColor);
         //ResetScissor();
     }
 
@@ -79,8 +90,7 @@ public class Graphics : IDisposable
     private void WindowResized(Size size)
     {
         // Resize viewport.
-        GL.Viewport(0, 0, size.Width, size.Height);
-        ViewportResized?.Invoke(size);
+        Viewport = new Rectangle(0, 0, size.Width, size.Height);
     }
 
     /*public void SetScissor(Rectangle rectangle)

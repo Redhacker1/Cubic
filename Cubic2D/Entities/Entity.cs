@@ -10,7 +10,7 @@ namespace Cubic2D.Entities;
 
 public class Entity
 {
-    private CubicGame _game;
+    internal CubicGame Game;
     private bool _initialized;
     private bool _updating;
     
@@ -140,22 +140,21 @@ public class Entity
         _componentStates.Clear();
     }
 
-    protected internal virtual void Draw(Graphics graphics)
+    protected internal virtual void Draw()
     {
         foreach (Component component in _components)
-            component?.Draw(graphics);
+            component?.Draw();
     }
 
     internal void Initialize(CubicGame game)
     {
-        _game = game;
+        Game = game;
         
         foreach (Component comp in _components)
         {
             if (comp == null)
                 continue;
             comp.Entity = this;
-            comp.Game = _game;
             comp.Initialize();
         }
 
@@ -177,7 +176,6 @@ public class Entity
             return;
         
         comp.Entity = this;
-        comp.Game = _game;
         comp.Initialize();
     }
 

@@ -11,13 +11,12 @@ public abstract class Scene : IDisposable
 {
     internal readonly List<IDisposable> CreatedResources;
 
-    protected internal Graphics Graphics { get; internal set; }
+    protected internal CubicGame Game { get; internal set; }
+    protected Graphics Graphics => Game.GraphicsInternal;
     protected internal readonly World World;
 
     private readonly Dictionary<string, Entity> _entities;
     private int _entityCount;
-    
-    protected internal CubicGame Game { get; internal set; }
 
     protected Scene()
     {
@@ -61,7 +60,7 @@ public abstract class Scene : IDisposable
         Camera.Main.GenerateTransformMatrix();
         Graphics.SpriteRenderer.Begin(Camera.Main.TransformMatrix, World.SampleType);
         foreach (KeyValuePair<string, Entity> entity in _entities)
-            entity.Value.Draw(Graphics);
+            entity.Value.Draw();
         Graphics.SpriteRenderer.End();
     }
 

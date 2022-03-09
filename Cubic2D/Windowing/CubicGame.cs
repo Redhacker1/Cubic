@@ -9,9 +9,13 @@ namespace Cubic2D.Windowing;
 public class CubicGame : IDisposable
 {
     private GameSettings _settings;
+
+    private ImGuiRenderer _imGuiRenderer;
     
     public readonly GameWindow Window;
-    internal Graphics Graphics;
+    internal Graphics GraphicsInternal;
+
+    protected Graphics Graphics => GraphicsInternal;
     public AudioDevice AudioDevice { get; private set; }
 
     private bool _running;
@@ -47,11 +51,13 @@ public class CubicGame : IDisposable
         
         Window.Prepare();
 
-        Graphics = new Graphics(Window, _settings);
+        GraphicsInternal = new Graphics(Window, _settings);
         Window.Visible = _settings.StartVisible;
         TargetFps = _settings.TargetFps;
 
         AudioDevice = new AudioDevice(_settings.AudioChannels);
+
+        _imGuiRenderer = new ImGuiRenderer(GraphicsInternal);
         
         SetValues();
         
@@ -69,12 +75,12 @@ public class CubicGame : IDisposable
             Time.Update();
             AudioDevice.Update();
             UI.Update();
+            _imGuiRenderer.Update(Time.DeltaTime);
             Update();
             Metrics.Update();
-            Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
-            Draw(Graphics);
-            UI.Draw(Graphics);
-            Graphics.PresentFrame();
+            GraphicsInternal.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
+            Draw();
+            GraphicsInternal.PresentFrame();
         }
     }
 
@@ -82,13 +88,18 @@ public class CubicGame : IDisposable
 
     protected virtual void Update() => SceneManager.Update(this);
 
-    protected virtual void Draw(Graphics graphics) => SceneManager.Draw();
+    protected virtual void Draw()
+    {
+        SceneManager.Draw();
+        UI.Draw(GraphicsInternal);
+        _imGuiRenderer.Render();
+    }
 
     public void Dispose()
     {
         Texture2D.Blank.Dispose();
         SceneManager.Active.Dispose();
-        Graphics.Dispose();
+        GraphicsInternal.Dispose();
         AudioDevice.Dispose();
     }
 

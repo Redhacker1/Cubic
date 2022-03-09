@@ -38,10 +38,10 @@ public sealed class Sprite : Component
         Flip = SpriteFlipMode.None;
     }
 
-    protected internal override void Draw(Graphics graphics)
+    protected internal override void Draw()
     {
         Transform transform = Transform;
-        graphics.SpriteRenderer.Draw(SpriteTexture, transform.Position, Source, Tint, transform.Rotation,
+        Graphics.SpriteRenderer.Draw(SpriteTexture, transform.Position, Source, Tint, transform.Rotation,
             transform.Origin, transform.Scale, Flip, transform.Depth);
     }
 }
