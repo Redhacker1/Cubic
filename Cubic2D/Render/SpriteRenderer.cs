@@ -4,7 +4,6 @@ using System.Drawing;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using Cubic2D.Utilities;
 using OpenTK.Graphics.OpenGL4;
 using Rectangle = System.Drawing.Rectangle;
@@ -35,12 +34,12 @@ public class SpriteRenderer : IDisposable
     private const string VertexCode = @"
 #version 330 core
 
-in vec2 aPosition;
-in vec2 aTexCoords;
-in vec4 aTint;
-in float aRotation;
-in vec2 aOrigin;
-in vec2 aScale;
+layout (location = 0) in vec2 aPosition;
+layout (location = 1) in vec2 aTexCoords;
+layout (location = 2) in vec4 aTint;
+layout (location = 3) in float aRotation;
+layout (location = 4) in vec2 aOrigin;
+layout (location = 5) in vec2 aScale;
 
 out vec2 frag_texCoords;
 out vec4 frag_tint;
@@ -169,6 +168,10 @@ void main()
         
         GL.Enable(EnableCap.Blend);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(CullFaceMode.Back);
+        GL.FrontFace(FrontFaceDirection.Ccw);
 
         _graphics.ViewportResized += GraphicsOnViewportResized;
     }
@@ -413,7 +416,7 @@ void main()
 
         // Precalculated size in bytes. This is precalculated as it's used in the size constant above and you can't use
         // sizeof() structs in constant fields.
-        public const uint SizeInBytes = 56;
+        public const uint SizeInBytes = 52;
     }
 }
 

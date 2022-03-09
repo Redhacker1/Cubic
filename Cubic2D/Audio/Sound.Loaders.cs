@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using OpenTK.Audio.OpenAL;
+using StbVorbisSharp;
 
 namespace Cubic2D.Audio;
 
@@ -45,6 +46,39 @@ public partial struct Sound
             int size = reader.ReadInt32(); // Subchunk2Size
             return reader.ReadBytes(size);
         }
+    }
+
+    // Decompresses ogg file into full memory.
+    public static byte[] LoadOgg(byte[] data, out int channels, out int sampleRate, out int bitsPerSample)
+    {
+        Vorbis vorbis = Vorbis.FromMemory(data);
+        byte[] pcm = new byte[(int) (vorbis.LengthInSeconds * vorbis.SampleRate * vorbis.Channels * 2)];
+        int offset = 0;
+        vorbis.SubmitBuffer();
+        while (vorbis.Decoded != 0)
+        {
+            for (int i = 0; i < vorbis.Decoded * vorbis.Channels; i++)
+            {
+                if (i * 2 + offset >= pcm.Length)
+                    goto STOP;
+                short pcmShort = vorbis.SongBuffer[i];
+
+                pcm[i * 2 + 0 + offset] = (byte) (pcmShort & 255);
+                pcm[i * 2 + 1 + offset] = (byte) (pcmShort >> 8);
+            }
+            
+            vorbis.SubmitBuffer();
+
+            offset += vorbis.Decoded * vorbis.Channels * 2;
+        }
+        
+        STOP: ;
+
+        channels = vorbis.Channels;
+        sampleRate = vorbis.SampleRate;
+        bitsPerSample = 4;
+
+        return pcm;
     }
 
     public static byte[] LoadCtra(Stream stream, out int channels, out int sampleRate, out int bitsPerSample, 

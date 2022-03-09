@@ -42,6 +42,9 @@ public abstract class Scene : IDisposable
     public void Dispose()
     {
         Unload();
+        // Stop all sounds from playing.
+        for (int i = 0; i < Game.AudioDevice.NumChannels; i++)
+            Game.AudioDevice.Stop(i);
         
         foreach (IDisposable resource in CreatedResources)
             resource.Dispose();

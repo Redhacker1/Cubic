@@ -11,7 +11,7 @@ namespace Cubic2D.Render;
 
 public class Texture2D : Texture
 {
-    public Texture2D(string path)
+    public Texture2D(string path, bool autoDispose = true) : base(autoDispose)
     {
         using (Stream stream = File.OpenRead(path))
         {
@@ -23,19 +23,19 @@ public class Texture2D : Texture
         }
     }
 
-    public Texture2D(int width, int height, byte[] data)
+    public Texture2D(int width, int height, byte[] data, bool autoDispose = true) : base(autoDispose)
     {
         Handle = CreateTexture(width, height, data);
         Size = new Size(width, height);
     }
 
-    public Texture2D(int width, int height)
+    public Texture2D(int width, int height, bool autoDispose = true) : base(autoDispose)
     {
         Handle = CreateTexture(width, height, null);
         Size = new Size(width, height);
     }
 
-    public Texture2D(Bitmap bitmap)
+    public Texture2D(Bitmap bitmap, bool autoDispose = true) : base(autoDispose)
     {
         Handle = CreateTexture(bitmap.Size.Width, bitmap.Size.Height, bitmap.Data);
         Size = bitmap.Size;
@@ -66,5 +66,5 @@ public class Texture2D : Texture
         return texture;
     }
 
-    public static readonly Texture2D Blank = new Texture2D(1, 1, new byte[] {255, 255, 255, 255});
+    public static Texture2D Blank { get; internal set; }
 }

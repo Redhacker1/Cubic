@@ -10,12 +10,13 @@ public abstract class Texture : IDisposable
     internal int Handle;
     public Size Size { get; protected set; }
 
-    public Texture()
+    public Texture(bool autoDispose)
     {
-        SceneManager.Active.CreatedResources.Add(this);
+        if (autoDispose)
+             SceneManager.Active.CreatedResources.Add(this);
     }
     
-    public void Dispose()
+    public virtual void Dispose()
     {
         GL.DeleteTexture(Handle);
 #if DEBUG

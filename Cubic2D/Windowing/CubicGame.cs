@@ -53,6 +53,8 @@ public class CubicGame : IDisposable
 
         AudioDevice = new AudioDevice(_settings.AudioChannels);
         
+        SetValues();
+        
         Initialize();
 
         Window.WindowMode = _settings.WindowMode;
@@ -70,7 +72,7 @@ public class CubicGame : IDisposable
             Update();
             Metrics.Update();
             Graphics.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
-            Draw();
+            Draw(Graphics);
             UI.Draw(Graphics);
             Graphics.PresentFrame();
         }
@@ -80,7 +82,7 @@ public class CubicGame : IDisposable
 
     protected virtual void Update() => SceneManager.Update(this);
 
-    protected virtual void Draw() => SceneManager.Draw();
+    protected virtual void Draw(Graphics graphics) => SceneManager.Draw();
 
     public void Dispose()
     {
@@ -93,5 +95,10 @@ public class CubicGame : IDisposable
     public void Close()
     {
         Window.ShouldClose = true;
+    }
+
+    private void SetValues()
+    {
+        Texture2D.Blank = new Texture2D(1, 1, new byte[] { 255, 255, 255, 255 }, false);
     }
 }
