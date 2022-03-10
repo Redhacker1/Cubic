@@ -15,7 +15,7 @@ public class RenderTarget : Texture
 
         Handle = GL.GenTexture();
         GL.BindTexture(TextureTarget.Texture2D, Handle);
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgb, size.Width, size.Height, 0, PixelFormat.Rgb,
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, size.Width, size.Height, 0, PixelFormat.Rgba,
             PixelType.UnsignedByte, IntPtr.Zero);
         GL.BindTexture(TextureTarget.Texture2D, 0);
 

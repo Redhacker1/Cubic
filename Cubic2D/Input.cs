@@ -163,6 +163,16 @@ public static class Input
     /// </summary>
     public static Vector2 ScrollWheelDelta { get; private set; }
 
+    /// <summary>
+    /// Transform the mouse position by the given matrix.
+    /// </summary>
+    /// <param name="transform">The transform matrix.</param>
+    public static void TransformMousePosition(Matrix4x4 transform)
+    {
+        Matrix4x4.Invert(transform, out Matrix4x4 invTransform);
+        MousePosition = Vector2.Transform(MousePosition, invTransform);
+    }
+
     internal static unsafe void Update(GameWindow window)
     {
         _keyStates.Clear();

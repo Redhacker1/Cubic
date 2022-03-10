@@ -60,10 +60,10 @@ public class CubicGame : IDisposable
         _imGuiRenderer = new ImGuiRenderer(GraphicsInternal);
         
         SetValues();
-        
-        Initialize();
 
         Window.WindowMode = _settings.WindowMode;
+        
+        Initialize();
         
         Time.Start();
         
@@ -74,8 +74,6 @@ public class CubicGame : IDisposable
             Input.Update(Window);
             Time.Update();
             AudioDevice.Update();
-            UI.Update();
-            _imGuiRenderer.Update(Time.DeltaTime);
             Update();
             Metrics.Update();
             GraphicsInternal.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
@@ -86,7 +84,12 @@ public class CubicGame : IDisposable
 
     protected virtual void Initialize() => SceneManager.Initialize(this);
 
-    protected virtual void Update() => SceneManager.Update(this);
+    protected virtual void Update()
+    {
+        UI.Update();
+        _imGuiRenderer.Update(Time.DeltaTime);
+        SceneManager.Update(this);
+    }
 
     protected virtual void Draw()
     {

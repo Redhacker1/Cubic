@@ -31,7 +31,7 @@ public class SpriteRenderer : IDisposable
 
     #region Shaders
 
-    private const string VertexCode = @"
+    public const string VertexShader = @"
 #version 330 core
 
 layout (location = 0) in vec2 aPosition;
@@ -64,7 +64,7 @@ void main()
     frag_tint = aTint;
 }";
 
-    private const string FragmentCode = @"
+    public const string FragmentShader = @"
 #version 330 core
 
 in vec2 frag_texCoords;
@@ -133,7 +133,7 @@ void main()
         GL.BufferData(BufferTarget.ElementArrayBuffer, (int) (MaxSprites * IndexSizeInBytes), IntPtr.Zero,
             BufferUsageHint.DynamicDraw);
 
-        _shader = new Shader(VertexCode, FragmentCode);
+        _shader = new Shader(VertexShader, FragmentShader);
         GL.UseProgram(_shader.Handle);
 
         Type type = typeof(SpriteVertex);

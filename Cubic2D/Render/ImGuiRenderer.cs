@@ -190,7 +190,6 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
         io.DisplaySize = new Vector2(_windowWidth / ScaleFactor.X, _windowHeight / ScaleFactor.Y);
         io.DisplayFramebufferScale = ScaleFactor;
         io.DeltaTime = deltaSeconds;
-        Console.WriteLine($"{_windowWidth}, {_windowHeight}");
     }
 
     private void UpdateImGuiInput()

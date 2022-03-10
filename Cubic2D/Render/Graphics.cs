@@ -45,7 +45,6 @@ public class Graphics : IDisposable
 
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, target.Fbo);
         Viewport = new Rectangle(0, 0, target.Size.Width, target.Size.Height);
-        GL.Clear(ClearBufferMask.ColorBufferBit);
     }
 
     public void Clear(Vector4 clearColor)

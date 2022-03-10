@@ -125,6 +125,18 @@ public sealed unsafe class GameWindow : IDisposable
         GLFW.GetMonitorPos(monitor, out int x, out int y);
         GLFW.SetWindowPos(Handle, x + mode->Width / 2 - Size.Width / 2, y + mode->Height / 2 - Size.Height / 2);
     }
+
+    public void SetWindowFullscreen(bool fullscreen, Size resolution)
+    {
+        VideoMode* mode = GLFW.GetVideoMode(GLFW.GetPrimaryMonitor());
+        GLFW.SetWindowMonitor(Handle, fullscreen ? GLFW.GetPrimaryMonitor() : null, 0, 0, resolution.Width,
+            resolution.Height, fullscreen ? mode->RefreshRate : GLFW.DontCare);
+        if (!fullscreen)
+        {
+            AutoCenter = true;
+            CenterWindow();
+        }
+    }
     
     #endregion
     

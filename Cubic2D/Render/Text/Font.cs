@@ -36,7 +36,7 @@ public struct Font : IDisposable
     /// <param name="texHeight">The height of the font atlas's texture. By default, this is 1024.</param>
     /// <exception cref="CubicException">Thrown if the font does not exist.</exception>
     public Font(string fontPath, uint unicodeRangeStart = 0, uint unicodeRangeEnd = 128, int texWidth = 1024,
-        int texHeight = 1024)
+        int texHeight = 1024, bool autoDispose = true)
     {
         _face = new FontFace(fontPath);
 
@@ -52,7 +52,8 @@ public struct Font : IDisposable
         _storedSize = 0;
         _characters = null;
         
-        SceneManager.Active.CreatedResources.Add(this);
+        if (autoDispose)
+            SceneManager.Active.CreatedResources.Add(this);
     }
     
     /// <summary>
@@ -86,7 +87,7 @@ public struct Font : IDisposable
             }
             else
             {
-                Texture2D newTex = new Texture2D(_texWidth, _texHeight);
+                Texture2D newTex = new Texture2D(_texWidth, _texHeight, autoDispose: false);
                 _currentTexture = newTex;
                 _characters = FontHelper.CreateFontTexture(newTex, _face, size, _unicodeRangeStart, _unicodeRangeEnd);
                 _cachedAtlases.Add(size, (newTex, _characters));
@@ -166,7 +167,7 @@ public struct Font : IDisposable
             }
             else
             {
-                Texture2D newTex = new Texture2D(_texWidth, _texHeight);
+                Texture2D newTex = new Texture2D(_texWidth, _texHeight, autoDispose: false);
                 _currentTexture = newTex;
                 _characters = FontHelper.CreateFontTexture(newTex, _face, size, _unicodeRangeStart, _unicodeRangeEnd);
                 _cachedAtlases.Add(size, (newTex, _characters));

@@ -43,10 +43,15 @@ public class Shader : IDisposable
 
     public void Set<T>(string uniformName, T value, bool transpose = true)
     {
+        GL.UseProgram(Handle);
+        
         int location = GL.GetUniformLocation(Handle, uniformName);
 
         switch (value)
         {
+            case bool bValue:
+                GL.Uniform1(location, bValue ? 1 : 0);
+                break;
             case int iValue:
                 GL.Uniform1(location, iValue);
                 break;
