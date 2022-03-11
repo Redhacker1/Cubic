@@ -24,4 +24,9 @@ public static class Extensions
     {
         return new Point((int) vector2.X, (int) vector2.Y);
     }
+
+    public static Size ToSize(this Vector2 vector2)
+    {
+        return new Size((int) vector2.X, (int) vector2.Y);
+    }
 }
