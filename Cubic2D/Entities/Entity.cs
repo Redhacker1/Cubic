@@ -127,7 +127,12 @@ public class Entity
     {
         _updating = true;
         foreach (Component component in _components)
-            component?.Update();
+        {
+            if (component is not { Enabled: true })
+                continue;
+            component.Update();
+        }
+
         _updating = false;
 
         foreach (ComponentState cState in _componentStates)
@@ -143,7 +148,11 @@ public class Entity
     protected internal virtual void Draw()
     {
         foreach (Component component in _components)
-            component?.Draw();
+        {
+            if (component is not { Enabled: true })
+                continue;
+            component.Draw();
+        }
     }
 
     internal void Initialize(CubicGame game)

@@ -6,6 +6,8 @@ namespace Cubic2D.Entities.Components;
 
 public abstract class Component
 {
+    public bool Enabled = true;
+    
     protected internal Entity Entity { get; internal set; }
 
     protected CubicGame Game => Entity.Game;
