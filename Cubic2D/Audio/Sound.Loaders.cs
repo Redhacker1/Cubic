@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using OpenTK.Audio.OpenAL;
@@ -107,7 +108,7 @@ public partial struct Sound
             throw new CubicException("Given CTRA file is not formed correctly (corrupted?).");
         byte numSamples = reader.ReadByte();
         Console.WriteLine("NumSamples: " + numSamples);
-        Sample[] samples = new Sample[numSamples];
+        CtraSample[] samples = new CtraSample[numSamples];
         for (int sample = 0; sample < numSamples; sample++)
         {
             Console.Write("Loading Sample " + sample + "... ");
@@ -353,7 +354,7 @@ public partial struct Sound
     
     // We can't use the "Sound" struct here as that constructs a buffer for each sound, which is a waste of memory and
     // processing time.
-    private struct Sample
+    private struct CtraSample
     {
         public byte[] Data;
         public uint SampleRate;
@@ -380,5 +381,94 @@ public partial struct Sound
         }
 
         data = newData;
+    }
+
+    private struct S3MSample
+    {
+        public uint Length;
+        public uint LoopBegin;
+        public uint LoopEnd;
+        public byte Volume;
+        public byte Flags;
+        public uint SampleRate;
+        public byte[] Data;
+    }
+
+    public static byte[] LoadS3M(AudioDevice dev, byte[] data, out int channels, out int sampleRate, out int bitsPerSample,
+        out int beginLoopPoint, out int endLoopPoint)
+    {
+        using MemoryStream memStream = new MemoryStream(data);
+        using BinaryReader reader = new BinaryReader(memStream);
+
+        Console.WriteLine(new string(reader.ReadChars(28))); // title
+        if (reader.ReadByte() != 0x1A) // sig1
+            throw new CubicException("Invalid s3m");
+        reader.ReadByte(); // type
+        reader.ReadUInt16(); // reserved
+
+        ushort horderCount = reader.ReadUInt16();
+        ushort instrumentCount = reader.ReadUInt16();
+        ushort patternPtrCount = reader.ReadUInt16();
+        ushort hFlags = reader.ReadUInt16();
+        reader.ReadUInt16(); // trackerVersion
+        reader.ReadUInt16(); // sampleType - for now we'll just assume unsigned samples.
+
+        if (new string(reader.ReadChars(4)) != "SCRM") // sig2
+            throw new CubicException("Invalid s3m");
+
+        byte globalVolume = reader.ReadByte();
+
+        byte initialSpeed = reader.ReadByte();
+        byte initialTempo = reader.ReadByte();
+        byte masterVolume = reader.ReadByte();
+        reader.ReadByte(); // ultraClickRemoval
+        byte defaultPan = reader.ReadByte();
+        reader.ReadBytes(8); // reserved
+        reader.ReadUInt16(); // ptrSpecial - we'll just assume this is not set.
+
+        byte[] channelSettings = reader.ReadBytes(32);
+        byte[] orderList = reader.ReadBytes(horderCount);
+        ushort[] ptrInstruments = new ushort[instrumentCount];
+        for (int i = 0; i < instrumentCount; i++)
+            ptrInstruments[i] = reader.ReadUInt16();
+
+        ushort[] ptrPatterns = new ushort[patternPtrCount];
+        for (int i = 0; i < patternPtrCount; i++)
+            ptrPatterns[i] = reader.ReadUInt16();
+
+        S3MSample[] samples = new S3MSample[instrumentCount];
+        for (int i = 0; i < instrumentCount; i++)
+        {
+            reader.BaseStream.Position = ptrInstruments[i] * 16;
+            Console.WriteLine(reader.BaseStream.Position);
+            if (reader.ReadByte() != 1)
+                throw new CubicException("OPL2 instruments are not supported, sorry.");
+            reader.ReadBytes(12);
+            
+            // For some unknown reason they chose to use 24 bits!!
+            uint pData = (uint) (reader.ReadByte() | reader.ReadByte() << 8 | reader.ReadByte() << 16);
+            samples[i].Length = reader.ReadUInt32();
+            samples[i].LoopBegin = reader.ReadUInt32();
+            samples[i].LoopEnd = reader.ReadUInt32();
+            samples[i].Volume = reader.ReadByte();
+            reader.ReadByte(); // pack, not used
+            samples[i].Flags = reader.ReadByte();
+            samples[i].SampleRate = reader.ReadUInt32() >> 8;
+            reader.ReadBytes(12); // Unused data & stuff we don't need. No soundblaster or GUS here!
+            Console.WriteLine(reader.ReadChars(28)); // We also don't need sample name either.
+            //if (new string(reader.ReadChars(4)) is not "SCRS" or "SCR ") // Apparently the value can also be SCR?
+            //    throw new CubicException("Instrument header has not been read correctly.");
+            reader.ReadChars(4);
+            reader.BaseStream.Position = pData * 16;
+            Console.WriteLine(reader.BaseStream.Position);
+            samples[i].Data = reader.ReadBytes((int) samples[i].Length);
+        }
+
+        channels = 2;
+        sampleRate = 44100;
+        bitsPerSample = 4;
+        beginLoopPoint = 0;
+        endLoopPoint = -1;
+        return null;
     }
 }
