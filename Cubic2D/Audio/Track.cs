@@ -11,7 +11,7 @@ using Timer = System.Timers.Timer;
 
 namespace Cubic2D.Audio;
 
-public struct Track : IDisposable
+public struct Track
 {
     private string _title;
     private string _author;
@@ -42,138 +42,210 @@ public struct Track : IDisposable
 
     private Sample[] _samples;
 
-    private Channel[] _channels;
-
-    private AudioDevice _device;
-
-    private byte[] _alignmentBuffer;
-
-    private int[] _buffers;
+    private byte[] _orders;
 
     private byte _currentRow;
     private byte _currentPattern;
 
-    public Track(AudioDevice device, string path, float trackVolume)
+    internal Track(Sample[] samples, Pattern[] patterns, byte[] orders, byte initialTempo, byte initialSpeed)
     {
-        _device = device;
-        _trackVolume = trackVolume;
-        _alignmentBuffer = new byte[4];
-        
-        Console.WriteLine("CTRA->Sound converter");
-        for (int i = 0; i < 25; i++)
-            Console.Write('-');
-        Console.WriteLine();
-        using DeflateStream deflateStream = new DeflateStream(File.OpenRead(path), CompressionMode.Decompress);
-        using BinaryReader reader = new BinaryReader(deflateStream);
-        if (new string(reader.ReadChars(10)) != "CUBICTRACK")
-            throw new CubicException("Given CTRA is not a cubic track.");
-        reader.ReadUInt32();
-        _title = reader.ReadChars(25).ToString();
-        _author = reader.ReadChars(25).ToString();
+        _title = "";
+        _author = "";
 
-        Tempo = reader.ReadByte();
-        Console.WriteLine("Tempo: " + Tempo);
-        Speed = reader.ReadByte();
-        Console.WriteLine("Speed: " + Speed);
+        _samples = samples;
+        _patterns = patterns;
+        _orders = orders;
 
-        if (new string(reader.ReadChars(7)) != "SAMPLES")
-            throw new CubicException("Given CTRA file is not formed correctly (corrupted?).");
-        byte numSamples = reader.ReadByte();
-        Console.WriteLine("NumSamples: " + numSamples);
-        _samples = new Sample[numSamples];
-        for (int sample = 0; sample < numSamples; sample++)
-        {
-            Console.Write("Loading Sample " + sample + "... ");
-            reader.ReadByte();
-            _samples[sample].SampleRate = reader.ReadUInt32();
-            _samples[sample].BitsPerSample = reader.ReadByte();
-            _samples[sample].Channels = reader.ReadByte();
-            bool loop = reader.ReadBoolean();
-            _samples[sample].Loop = loop;
-            if (loop)
-            {
-                _samples[sample].BeginLoopPoint = reader.ReadUInt32();
-                _samples[sample].EndLoopPoint = reader.ReadUInt32();
-            }
+        Tempo = initialTempo;
+        Speed = initialSpeed;
 
-            uint dataLength = reader.ReadUInt32();
-            _samples[sample].Data = reader.ReadBytes((int) dataLength);
-            _samples[sample].Alignment = (byte) ((_samples[sample].Channels * _samples[sample].BitsPerSample) / 8);
-            Console.WriteLine("Done");
-        }
-        
-        if (new string(reader.ReadChars(8)) != "PATTERNS")
-            throw new CubicException("Given CTRA file is not formed correctly (corrupted?).");
-
-        byte numPatterns = reader.ReadByte();
-        _patterns = new Pattern[numPatterns];
-        Console.WriteLine("NumPatterns: " + numPatterns);
-        for (int pattern = 0; pattern < numPatterns; pattern++)
-        {
-            Console.Write("Loading Pattern " + pattern + "... ");
-            reader.ReadByte();
-            byte pLength = reader.ReadByte();
-            byte pChannels = reader.ReadByte();
-            _patterns[pattern] = new Pattern(pChannels, pLength);
-            for (int channel = 0; channel < pChannels; channel++)
-            {
-                for (int row = 0; row < pLength; row++)
-                {
-                    if (!reader.ReadBoolean())
-                        continue;
-                    _patterns[pattern].SetNote(row, channel,
-                        new Note((PianoKey) reader.ReadByte(), (Octave) reader.ReadByte(), reader.ReadByte(),
-                            reader.ReadByte(), (Effect) reader.ReadByte(), reader.ReadByte()));
-                }
-            }
-            
-            Console.WriteLine("Done");
-        }
-
-        int maxChannels = 0;
-        for (int i = 0; i < _patterns.Length; i++)
-        {
-            if (_patterns[i].NumChannels > maxChannels)
-                maxChannels = _patterns[i].NumChannels;
-        }
-
-        _channels = new Channel[maxChannels];
-
-        _buffers = AL.GenBuffers(_channels.Length);
-
-        _currentPattern = 0;
         _currentRow = 0;
-
-        SceneManager.Active.CreatedResources.Add(this);
+        _currentPattern = 0;
+        _trackVolume = 1;
     }
 
-
-    //private byte[] GetSampleAtPoint(uint samplePoint)
-    //{
-        
-        
-    //}
-    
-    private struct Sample
+    internal static Track FromS3M(byte[] data)
     {
-        public byte[] Data;
+        using MemoryStream memStream = new MemoryStream(data);
+        using BinaryReader reader = new BinaryReader(memStream);
+
+        Console.WriteLine(new string(reader.ReadChars(28))); // title
+        if (reader.ReadByte() != 0x1A) // sig1
+            throw new CubicException("Invalid s3m");
+        reader.ReadByte(); // type
+        reader.ReadUInt16(); // reserved
+
+        ushort horderCount = reader.ReadUInt16();
+        ushort instrumentCount = reader.ReadUInt16();
+        ushort patternPtrCount = reader.ReadUInt16();
+        ushort hFlags = reader.ReadUInt16();
+        reader.ReadUInt16(); // trackerVersion
+        reader.ReadUInt16(); // sampleType - for now we'll just assume unsigned samples.
+
+        if (new string(reader.ReadChars(4)) != "SCRM") // sig2
+            throw new CubicException("Invalid s3m");
+
+        byte globalVolume = reader.ReadByte();
+
+        byte initialSpeed = reader.ReadByte();
+        byte initialTempo = reader.ReadByte();
+        byte masterVolume = reader.ReadByte();
+        reader.ReadByte(); // ultraClickRemoval
+        byte defaultPan = reader.ReadByte();
+        reader.ReadBytes(8); // reserved
+        reader.ReadUInt16(); // ptrSpecial - we'll just assume this is not set.
+
+        byte[] channelSettings = reader.ReadBytes(32);
+        byte[] orderList = reader.ReadBytes(horderCount);
+        ushort[] ptrInstruments = new ushort[instrumentCount];
+        for (int i = 0; i < instrumentCount; i++)
+            ptrInstruments[i] = reader.ReadUInt16();
+
+        ushort[] ptrPatterns = new ushort[patternPtrCount];
+        for (int i = 0; i < patternPtrCount; i++)
+            ptrPatterns[i] = reader.ReadUInt16();
+
+        Sample[] samples = new Sample[instrumentCount];
+        for (int i = 0; i < instrumentCount; i++)
+        {
+            reader.BaseStream.Position = ptrInstruments[i] * 16;
+            //Console.WriteLine(reader.BaseStream.Position);
+            if (reader.ReadByte() != 1)
+                throw new CubicException("OPL instruments are not supported, sorry.");
+            reader.ReadBytes(12);
+
+            reader.ReadByte();
+            // For some unknown reason they chose to use 24 bits!!
+            uint pData = (uint) (reader.ReadByte() | reader.ReadByte() << 8);
+            samples[i].Length = reader.ReadUInt32();
+            samples[i].LoopBegin = reader.ReadUInt32();
+            samples[i].LoopEnd = reader.ReadUInt32();
+            samples[i].Volume = reader.ReadByte();
+            reader.ReadBytes(2); // pack, not used
+            samples[i].Flags = reader.ReadByte();
+            samples[i].SampleRate = reader.ReadUInt32();
+            reader.ReadBytes(12); // Unused data & stuff we don't need. No soundblaster or GUS here!
+            Console.WriteLine(reader.ReadChars(28)); // We also don't need sample name either.
+            if (new string(reader.ReadChars(4)) != "SCRS")
+                throw new CubicException("Instrument header has not been read correctly.");
+            reader.BaseStream.Position = pData * 16;
+            //Console.WriteLine(reader.BaseStream.Position);
+            samples[i].Data = reader.ReadBytes((int) samples[i].Length);
+        }
+
+        //dev.PlaySound(new Sound(samples[0].Data, 2, (int) samples[0].SampleRate, 4, true));
+
+        Pattern[] patterns = new Pattern[patternPtrCount];
+        for (int i = 0; i < patternPtrCount; i++)
+        {
+            reader.BaseStream.Position = ptrPatterns[i] * 16;
+            Console.WriteLine(reader.BaseStream.Position);
+            reader.ReadUInt16();
+            patterns[i] = new Pattern(32);
+            for (int r = 0; r < patterns[i].Length; r++)
+            {
+                byte flag = reader.ReadByte();
+                if (flag == 0)
+                    continue;
+
+                byte channel = (byte) (flag & 31);
+                byte note = 255;
+                byte instrument = 0;
+                byte volume = 64;
+                byte specialCommand = 255;
+                byte commandInfo = 0;
+                
+                if ((flag & 32) == 32)
+                {
+                    note = reader.ReadByte();
+                    instrument = reader.ReadByte();
+                }
+
+                if ((flag & 64) == 64)
+                    volume = reader.ReadByte();
+
+                if ((flag & 128) == 128)
+                {
+                    specialCommand = reader.ReadByte();
+                    commandInfo = reader.ReadByte();
+                }
+
+                PianoKey key = PianoKey.None;
+                if (note == 254)
+                    key = PianoKey.NoteCut;
+                else
+                    key = (PianoKey) (note & 0xF) + 2;
+
+                Octave octave = (Octave) (note >> 4);
+
+                //Console.WriteLine(
+                //    $"Row: {r}, Channel: {channel}, Key: {key}, Octave: {octave}, Instrument: {instrument}, Volume: {volume}");
+
+                patterns[i].SetNote(r, channel, new Note(key, octave, instrument, volume));
+            }
+        }
+
+        return new Track(samples, patterns, orderList, initialTempo, initialSpeed);
+    }
+
+    internal byte[] ToPCM(byte channels, uint sampleRate, byte bitsPerSample, out int beginLoopPoint,
+        out int endLoopPoint)
+    {
+        int tempo = Tempo;
+        int speed = Speed;
+
+        Channel[] chn = new Channel[32];
+        
+        int rowDurationInMs = (2500 / tempo) * speed;
+
+        byte[] data = Array.Empty<byte>();
+        for (int p = 0; p < _orders.Length; p++)
+        {
+            Pattern pattern = _patterns[_orders[p]];
+            Array.Resize(ref data,
+                data.Length + (int) ((sampleRate * rowDurationInMs) / 1000) * (bitsPerSample / 8) * channels);
+            for (int c = 0; c < chn.Length; c++)
+            {
+                Note n = pattern.Notes[c, _currentRow];
+                if (!n.Initialized)
+                    continue;
+
+                if (n.Key != PianoKey.None)
+                {
+                    PitchNote pn = new PitchNote(n.Key, n.Octave, n.Volume);
+                    chn[c].SampleRate = (uint) (_samples[n.SampleNum].SampleRate * pn.Pitch);
+                    chn[c].Volume = pn.Volume;
+                    chn[c].Ratio = sampleRate / (float) chn[c].SampleRate;
+                    chn[c].SamplePos = 0;
+                }
+            }
+            for (int i = 0; i < (sampleRate * rowDurationInMs) / 1000; i++)
+            {
+                for (int c = 0; c < chn.Length; c++)
+                {
+                    
+                }
+            }
+        }
+    }
+
+    internal struct Sample
+    {
+        public uint Length;
+        public uint LoopBegin;
+        public uint LoopEnd;
+        public byte Volume;
+        public byte Flags;
         public uint SampleRate;
-        public byte BitsPerSample;
-        public byte Channels;
-        public byte Alignment;
-        public bool Loop;
-        public uint BeginLoopPoint;
-        public uint EndLoopPoint;
+        public byte[] Data;
     }
 
     private struct Channel
     {
+        public float Ratio;
+        public float Volume;
+        public uint SampleRate;
         public uint SamplePos;
         public byte SampleID;
-    }
-
-    public void Dispose()
-    {
-        AL.DeleteBuffers(_channels.Length, _buffers);
     }
 }

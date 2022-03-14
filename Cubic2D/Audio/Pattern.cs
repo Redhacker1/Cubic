@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Timers;
 
 namespace Cubic2D.Audio;
@@ -19,5 +20,28 @@ internal struct Pattern
     public void SetNote(int index, int channel, Note note)
     {
         Notes[channel, index] = note;
+    }
+
+    public override string ToString()
+    {
+        StringBuilder builder = new StringBuilder("|");
+        for (int c = 0; c < NumChannels; c++)
+        {
+            for (int r = 0; r < Length; r++)
+            {
+                Note n = Notes[c, r];
+                string key = n.Key.ToString();
+                if (n.Key == PianoKey.NoteCut)
+                    key = "^^";
+                else if (n.Key == PianoKey.None)
+                    key = "..";
+                string octave = n.Octave.ToString().Replace("Octave", "");
+                builder.Append($"{key}{octave} {n.SampleNum} {n.Volume} ...|");
+            }
+
+            builder.AppendLine();
+        }
+
+        return builder.ToString();
     }
 }
