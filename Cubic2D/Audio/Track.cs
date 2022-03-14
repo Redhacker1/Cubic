@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Threading;
 using System.Timers;
 using Cubic2D.Scenes;
+using Cubic2D.Utilities;
 using OpenTK.Audio.OpenAL;
 using Timer = System.Timers.Timer;
 
@@ -47,7 +48,7 @@ public struct Track
     private byte _currentRow;
     private byte _currentPattern;
 
-    internal Track(Sample[] samples, Pattern[] patterns, byte[] orders, byte initialTempo, byte initialSpeed)
+    private Track(Sample[] samples, Pattern[] patterns, byte[] orders, byte initialTempo, byte initialSpeed)
     {
         _title = "";
         _author = "";
@@ -109,8 +110,10 @@ public struct Track
         for (int i = 0; i < instrumentCount; i++)
         {
             reader.BaseStream.Position = ptrInstruments[i] * 16;
-            //Console.WriteLine(reader.BaseStream.Position);
-            if (reader.ReadByte() != 1)
+            byte type = reader.ReadByte();
+            if (type == 0)
+                continue;
+            if (type != 1)
                 throw new CubicException("OPL instruments are not supported, sorry.");
             reader.ReadBytes(12);
 
@@ -122,15 +125,22 @@ public struct Track
             samples[i].LoopEnd = reader.ReadUInt32();
             samples[i].Volume = reader.ReadByte();
             reader.ReadBytes(2); // pack, not used
-            samples[i].Flags = reader.ReadByte();
+            byte flags = reader.ReadByte();
+            if ((flags & 1) == 1)
+                samples[i].Loop = true;
+            if ((flags & 2) == 2) { } // for now ignore
+            samples[i].Type = (flags & 4) == 4 ? SampleType.SixteenBit : SampleType.EightBit;
+            
+            //samples[i].Flags = reader.ReadByte();
             samples[i].SampleRate = reader.ReadUInt32();
             reader.ReadBytes(12); // Unused data & stuff we don't need. No soundblaster or GUS here!
-            Console.WriteLine(reader.ReadChars(28)); // We also don't need sample name either.
+            reader.ReadChars(28); // We also don't need sample name either.
             if (new string(reader.ReadChars(4)) != "SCRS")
                 throw new CubicException("Instrument header has not been read correctly.");
             reader.BaseStream.Position = pData * 16;
-            //Console.WriteLine(reader.BaseStream.Position);
             samples[i].Data = reader.ReadBytes((int) samples[i].Length);
+            UnsignedToSigned(samples[i].Type, ref samples[i].Data);
+            samples[i].Type = SampleType.SixteenBit;
         }
 
         //dev.PlaySound(new Sound(samples[0].Data, 2, (int) samples[0].SampleRate, 4, true));
@@ -139,49 +149,68 @@ public struct Track
         for (int i = 0; i < patternPtrCount; i++)
         {
             reader.BaseStream.Position = ptrPatterns[i] * 16;
-            Console.WriteLine(reader.BaseStream.Position);
             reader.ReadUInt16();
             patterns[i] = new Pattern(32);
             for (int r = 0; r < patterns[i].Length; r++)
             {
-                byte flag = reader.ReadByte();
-                if (flag == 0)
-                    continue;
-
-                byte channel = (byte) (flag & 31);
-                byte note = 255;
-                byte instrument = 0;
-                byte volume = 64;
-                byte specialCommand = 255;
-                byte commandInfo = 0;
-                
-                if ((flag & 32) == 32)
+                byte flag;
+                do
                 {
-                    note = reader.ReadByte();
-                    instrument = reader.ReadByte();
-                }
+                    flag = reader.ReadByte();
+                    if (flag == 0)
+                        break;
 
-                if ((flag & 64) == 64)
-                    volume = reader.ReadByte();
+                    byte channel = (byte) (flag & 31);
+                    byte note = 255;
+                    byte instrument = 0;
+                    byte volume = 64;
+                    byte specialCommand = 255;
+                    byte commandInfo = 0;
 
-                if ((flag & 128) == 128)
-                {
-                    specialCommand = reader.ReadByte();
-                    commandInfo = reader.ReadByte();
-                }
+                    if ((flag & 32) == 32)
+                    {
+                        note = reader.ReadByte();
+                        instrument = (byte) (reader.ReadByte() - 1);
+                    }
 
-                PianoKey key = PianoKey.None;
-                if (note == 254)
-                    key = PianoKey.NoteCut;
-                else
-                    key = (PianoKey) (note & 0xF) + 2;
+                    if ((flag & 64) == 64)
+                        volume = reader.ReadByte();
 
-                Octave octave = (Octave) (note >> 4);
+                    if ((flag & 128) == 128)
+                    {
+                        specialCommand = reader.ReadByte();
+                        commandInfo = reader.ReadByte();
+                    }
+                    
 
-                //Console.WriteLine(
-                //    $"Row: {r}, Channel: {channel}, Key: {key}, Octave: {octave}, Instrument: {instrument}, Volume: {volume}");
+                    PianoKey key = PianoKey.None;
+                    Octave octave = Octave.Octave0;
+                    if (note != 255)
+                    {
+                        if (note == 254)
+                            key = PianoKey.NoteCut;
+                        else
+                            key = (PianoKey) (note & 0xF) + 2;
+                        
+                        octave = (Octave) (note >> 4);
+                    }
 
-                patterns[i].SetNote(r, channel, new Note(key, octave, instrument, volume));
+                    Effect effect = Effect.None;
+                    switch (specialCommand)
+                    {
+                        case 1:
+                            effect = Effect.SetSpeed;
+                            break;
+                        case 3:
+                            effect = Effect.PatternBreak;
+                            break;
+                    }
+
+                    Console.WriteLine(
+                        $"Pattern: {i}, Row: {r}, Channel: {channel}, Key: {key}, Octave: {octave}, Instrument: {instrument}, Volume: {volume}, SpecialCMD: {specialCommand}, SpecialParam: {commandInfo}");
+
+                    patterns[i].SetNote(r, channel, new Note(key, octave, instrument, volume, effect, commandInfo));
+                } while (flag != 0);
             }
         }
 
@@ -193,7 +222,8 @@ public struct Track
     {
         int tempo = Tempo;
         int speed = Speed;
-
+        int dataPos = 0;
+        
         Channel[] chn = new Channel[32];
         
         int rowDurationInMs = (2500 / tempo) * speed;
@@ -201,43 +231,144 @@ public struct Track
         byte[] data = Array.Empty<byte>();
         for (int p = 0; p < _orders.Length; p++)
         {
-            Pattern pattern = _patterns[_orders[p]];
-            Array.Resize(ref data,
-                data.Length + (int) ((sampleRate * rowDurationInMs) / 1000) * (bitsPerSample / 8) * channels);
-            for (int c = 0; c < chn.Length; c++)
-            {
-                Note n = pattern.Notes[c, _currentRow];
-                if (!n.Initialized)
-                    continue;
+            if (_orders[p] == 255)
+                continue;
 
-                if (n.Key != PianoKey.None)
-                {
-                    PitchNote pn = new PitchNote(n.Key, n.Octave, n.Volume);
-                    chn[c].SampleRate = (uint) (_samples[n.SampleNum].SampleRate * pn.Pitch);
-                    chn[c].Volume = pn.Volume;
-                    chn[c].Ratio = sampleRate / (float) chn[c].SampleRate;
-                    chn[c].SamplePos = 0;
-                }
-            }
-            for (int i = 0; i < (sampleRate * rowDurationInMs) / 1000; i++)
+            bool shouldIncreasePattern = false;
+            Pattern pattern = _patterns[_orders[p]];
+            for (int r = 0; r < pattern.Length; r++)
             {
                 for (int c = 0; c < chn.Length; c++)
                 {
-                    
+                    Note n = pattern.Notes[c, r];
+                    if (!n.Initialized)
+                        continue;
+
+                    if (n.Key == PianoKey.NoteCut)
+                    {
+                        chn[c].SampleRate = 0;
+                        chn[c].Ratio = 0;
+                        chn[c].Volume = 0;
+                        continue;
+                    }
+                    if (n.Key != PianoKey.None)
+                    {
+                        PitchNote pn = new PitchNote(n.Key, n.Octave, n.Volume);
+                        chn[c].SampleID = (byte) n.SampleNum;
+                        chn[c].SampleRate = (uint) (_samples[chn[c].SampleID].SampleRate * pn.Pitch);
+                        chn[c].Volume = pn.Volume;
+                        chn[c].Ratio = sampleRate / (float) chn[c].SampleRate;
+                        chn[c].SamplePos = 0;
+                    }
+                    else
+                    {
+                        chn[c].Volume = n.Volume * PitchNote.RefVolume;
+                    }
+
+                    switch (n.Effect)
+                    {
+                        case Effect.PatternBreak:
+                            shouldIncreasePattern = true;
+                            break;
+                        case Effect.SetSpeed:
+                            speed = n.EffectParam;
+                            rowDurationInMs = (2500 / tempo) * speed;
+                            break;
+                    }
                 }
+                
+                Array.Resize(ref data,
+                    data.Length + (int) ((sampleRate * rowDurationInMs) / 1000) * (bitsPerSample / 8) * channels);
+
+                for (int i = 0; i < (sampleRate * rowDurationInMs) / 1000; i++)
+                {
+                    for (int c = 0; c < chn.Length; c++)
+                    {
+                        if (chn[c].Volume == 0)
+                            continue;
+                        chn[c].SamplePos += (1 / chn[c].Ratio) * 2;
+                        if (_samples[chn[c].SampleID].Loop && chn[c].SamplePos >= _samples[chn[c].SampleID].LoopEnd * 2)
+                        {
+                            chn[c].SamplePos = _samples[chn[c].SampleID].LoopBegin * 2;
+                        }
+
+                        if (chn[c].SamplePos + 4 < _samples[chn[c].SampleID].Data.Length)
+                        {
+                            for (int a = 0; a < 4; a += 2)
+                            {
+                                short sample = (short) (data[dataPos + a] | data[dataPos + 1 + a] << 8);
+                                short newSample = (short) (_samples[chn[c].SampleID].Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + a] |
+                                                           _samples[chn[c].SampleID].Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + 1 + a] << 8);
+
+                                short finalSample = (short) (sample + (newSample / 8) * chn[c].Volume);
+
+                                finalSample = finalSample >= short.MaxValue ? short.MaxValue :
+                                    finalSample <= short.MinValue ? short.MinValue : finalSample;
+
+                                data[dataPos + a] = (byte) (finalSample & 0xFF);
+                                data[dataPos + 1 + a] = (byte) (finalSample >> 8);
+                            }
+                        }
+                    }
+
+                    dataPos += 4;
+                }
+
+                if (shouldIncreasePattern)
+                    break;
             }
+        }
+
+        beginLoopPoint = 0;
+        endLoopPoint = -1;
+        return data;
+    }
+
+    private static void UnsignedToSigned(SampleType type, ref byte[] data)
+    {
+        switch (type)
+        {
+            case SampleType.EightBit:
+                byte[] dat = data;
+                Array.Resize(ref data, data.Length << 1);
+                for (int i = 0; i < dat.Length; i++)
+                {
+                    ushort sample = (ushort) (dat[i] << 8);
+                    short signedSample = (short) (sample - short.MaxValue);
+                    data[i * 2] = (byte) (signedSample & 0xFF);
+                    data[i * 2 + 1] = (byte) (signedSample >> 8);
+                }
+                break;
+            case SampleType.SixteenBit:
+                for (int i = 0; i < data.Length - 1; i += 2)
+                {
+                    ushort sample = (ushort) (data[i] | data[i + 1] << 8);
+                    short signedSample = (short) (sample - short.MaxValue);
+                    data[i] = (byte) (signedSample & 0xFF);
+                    data[i + 1] = (byte) (signedSample >> 8);
+                }
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(type), type, null);
         }
     }
 
-    internal struct Sample
+    private struct Sample
     {
         public uint Length;
+        public bool Loop;
         public uint LoopBegin;
         public uint LoopEnd;
         public byte Volume;
-        public byte Flags;
         public uint SampleRate;
         public byte[] Data;
+        public SampleType Type;
+    }
+
+    private enum SampleType
+    {
+        EightBit,
+        SixteenBit
     }
 
     private struct Channel
@@ -245,7 +376,8 @@ public struct Track
         public float Ratio;
         public float Volume;
         public uint SampleRate;
-        public uint SamplePos;
+        public float SamplePos;
         public byte SampleID;
+        public Effect Effect;
     }
 }

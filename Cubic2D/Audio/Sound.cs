@@ -61,6 +61,7 @@ public partial struct Sound : IDisposable
             ".wav" => LoadWav(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample),
             ".ctra" => LoadCtra(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample, out beginLoopPoint, out endLoopPoint),
             ".ogg" => LoadOgg(File.ReadAllBytes(path), out Channels, out SampleRate, out BitsPerSample),
+            ".s3m" => LoadS3M(File.ReadAllBytes(path), out Channels, out SampleRate, out BitsPerSample, out beginLoopPoint, out endLoopPoint),
             _ => throw new Exception("Given file is not a valid type.")
         };
 
