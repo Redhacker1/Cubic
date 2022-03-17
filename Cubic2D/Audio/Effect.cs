@@ -5,5 +5,7 @@ internal enum Effect
     None,
     PositionJump,
     PatternBreak,
-    SetSpeed
+    SetSpeed,
+    SetTempo,
+    PortamentoUp
 }

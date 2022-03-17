@@ -13,18 +13,18 @@ internal ref struct PitchNote
     // maths that needs to be done for each instrument! Before, I was doing this:
     // Pitch = MathF.Pow(2, (key - 49) / 12f) * 440 * Tuning;
     // Which is way slower!
-    private const float C = 261.6256f * Tuning;
-    private const float CSharp = 277.1826f * Tuning;
-    private const float D = 293.6648f * Tuning;
-    private const float DSharp = 311.1270f * Tuning;
-    private const float E = 329.6276f * Tuning;
-    private const float F = 349.2282f * Tuning;
-    private const float FSharp = 369.9944f * Tuning;
-    private const float G = 391.9954f * Tuning;
-    private const float GSharp = 415.3047f * Tuning;
-    private const float A = 440.0000f * Tuning;
-    private const float ASharp = 466.1638f * Tuning;
-    private const float B = 493.8833f * Tuning;
+    private const float C = 261.6256f;
+    private const float CSharp = 277.1826f;
+    private const float D = 293.6648f;
+    private const float DSharp = 311.1270f;
+    private const float E = 329.6276f;
+    private const float F = 349.2282f;
+    private const float FSharp = 369.9944f;
+    private const float G = 391.9954f;
+    private const float GSharp = 415.3047f;
+    private const float A = 440.0000f;
+    private const float ASharp = 466.1638f;
+    private const float B = 493.8833f;
 
     private const float Octave0 = 1 / 16f;
     private const float Octave1 = 1 / 8f;
@@ -42,9 +42,12 @@ internal ref struct PitchNote
     public float Pitch;
     public float Volume;
 
+    public float InverseKey;
+    public float InverseOctave;
+
     public PitchNote(PianoKey pianoKey, Octave octave, int volume)
     {
-        Pitch = pianoKey switch
+        InverseKey = pianoKey switch
         {
             PianoKey.C => C,
             PianoKey.CSharp => CSharp,
@@ -61,7 +64,7 @@ internal ref struct PitchNote
             _ => throw new ArgumentOutOfRangeException(nameof(pianoKey), pianoKey, null)
         };
 
-        Pitch *= octave switch
+        InverseOctave = octave switch
         {
             Octave.Octave0 => Octave0,
             Octave.Octave1 => Octave1,
@@ -75,6 +78,8 @@ internal ref struct PitchNote
             Octave.Octave9 => Octave9,
             _ => throw new ArgumentOutOfRangeException(nameof(octave), octave, null)
         };
+
+        Pitch = InverseKey * Tuning * InverseOctave;
 
         Volume = volume * RefVolume;
     }
