@@ -123,28 +123,28 @@ public struct Track
                 throw new CubicException("OPL instruments are not supported, sorry.");
             reader.ReadBytes(12);
 
-            // Apparently for this data, it is 24 bits, but they only use the last 16 bits. This arrangement seems to
-            // work fine.
-            reader.ReadByte();
-            uint pData = (uint) (reader.ReadByte() | reader.ReadByte() << 8);
+            // I have no idea why this works, I just got this from the OpenMPT source code:
+            // https://github.com/OpenMPT/openmpt/blob/master/soundlib/S3MTools.cpp#L141
+            byte[] dataPointer = reader.ReadBytes(3);
+            uint pData = (uint) ((dataPointer[1] << 4) | (dataPointer[2] << 12) | (dataPointer[0] << 20));
             samples[i].Length = reader.ReadUInt32();
             samples[i].LoopBegin = reader.ReadUInt32();
             samples[i].LoopEnd = reader.ReadUInt32();
             samples[i].Volume = reader.ReadByte();
             reader.ReadBytes(2); // pack, not used
             byte flags = reader.ReadByte();
-            if ((flags & 1) == 1)
-                samples[i].Loop = true;
-            if ((flags & 2) == 2) { } // for now ignore
-            samples[i].Type = (flags & 4) == 4 ? SampleType.SixteenBit : SampleType.EightBit;
+            samples[i].Loop = (flags & 1) != 0;
+            samples[i].Stereo = (flags & 2) != 0;
+            samples[i].Type = (flags & 4) != 0 ? SampleType.SixteenBit : SampleType.EightBit;
             
             samples[i].SampleRate = reader.ReadUInt32();
             reader.ReadBytes(12); // Unused data & stuff we don't need. No soundblaster or GUS here!
-            reader.ReadChars(28); // We also don't need sample name either.
+            Console.WriteLine(reader.ReadChars(28)); // We also don't need sample name either.
             if (new string(reader.ReadChars(4)) != "SCRS")
                 throw new CubicException("Instrument header has not been read correctly.");
-            reader.BaseStream.Position = pData * 16;
-            samples[i].Data = reader.ReadBytes((int) samples[i].Length);
+            reader.BaseStream.Position = pData;
+            Console.WriteLine(reader.BaseStream.Position);
+            samples[i].Data = reader.ReadBytes(!samples[i].Stereo ? (int) samples[i].Length : (int) samples[i].Length * 2);
             UnsignedToSigned(samples[i].Type, ref samples[i].Data);
             samples[i].Type = SampleType.SixteenBit;
         }
@@ -370,14 +370,13 @@ public struct Track
                     perTickEffect = false;
                 }
 
-                if (shouldIncreasePattern)
-                    break;
-
                 tick++;
                 if (tick >= speed)
                 {
                     tickChanged = true;
                     row++;
+                    if (shouldIncreasePattern)
+                        break;
                 }
             }
         }
@@ -429,6 +428,7 @@ public struct Track
         public byte Volume;
         public uint SampleRate;
         public byte[] Data;
+        public bool Stereo;
         public SampleType Type;
     }
 
