@@ -389,7 +389,7 @@ public partial struct Sound
         sampleRate = 44100;
         bitsPerSample = 16;
 
-        return Track.FromS3M(data).ToPCM((byte) channels, (uint) sampleRate, (byte) bitsPerSample, out beginLoopPoint,
-            out endLoopPoint);
+        return Track.FromS3M(null, data).ToPCM((byte) channels, (uint) sampleRate, (byte) bitsPerSample,
+            out beginLoopPoint, out endLoopPoint);
     }
 }

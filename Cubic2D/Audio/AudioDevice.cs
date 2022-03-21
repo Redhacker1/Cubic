@@ -6,6 +6,8 @@ namespace Cubic2D.Audio;
 
 public sealed class AudioDevice : IDisposable
 {
+    public event OnBufferFinished BufferFinished;
+    
     private readonly ALDevice _device;
     private readonly ALContext _context;
     
@@ -282,6 +284,7 @@ public sealed class AudioDevice : IDisposable
             if (buffProcessed > 0)
             {
                 AL.SourceUnqueueBuffers(_sources[i], buffProcessed);
+                BufferFinished?.Invoke(i);
                 AL.GetSource(source, ALGetSourcei.BuffersQueued, out int buffQueued);
                 if (buffQueued <= 1)
                     AL.Source(_sources[i], ALSourceb.Looping, true);
@@ -298,4 +301,6 @@ public sealed class AudioDevice : IDisposable
         ALC.DestroyContext(_context);
         ALC.CloseDevice(_device);
     }
+
+    public delegate void OnBufferFinished(int channel);
 }

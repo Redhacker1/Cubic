@@ -1,32 +1,11 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
-using System.Threading;
-using System.Timers;
-using Cubic2D.Scenes;
-using Cubic2D.Utilities;
 using OpenTK.Audio.OpenAL;
-using Timer = System.Timers.Timer;
 
 namespace Cubic2D.Audio;
 
 public struct Track
 {
-    private string _title;
-    private string _author;
-
-    /// <summary>
-    /// This track's title, if any. Limited to 25 characters.
-    /// </summary>
-    public string Title => _title;
-
-    /// <summary>
-    /// This track's author, if any. Limited to 25 characters.
-    /// </summary>
-    public string Author => _author;
-
     /// <summary>
     /// The tempo of this track, in bpm.
     /// </summary>
@@ -51,14 +30,15 @@ public struct Track
     private const int NumBuffers = 3;
     private const int BufferLengthInSamples = 44100 * 5;
 
-    //private int[] _buffers;
-    //private int _currentBuffer;
+    private byte[] _audioBuffer;
+    private int[] _buffers;
+    private int _currentBuffer;
+    private AudioDevice _audioDevice;
+    private int _activeChannel;
 
-    private Track(Sample[] samples, Pattern[] patterns, byte[] orders, byte initialTempo, byte initialSpeed)
+    private Track(AudioDevice device, Sample[] samples, Pattern[] patterns, byte[] orders, byte initialTempo,
+        byte initialSpeed)
     {
-        _title = "";
-        _author = "";
-
         _samples = samples;
         _patterns = patterns;
         _orders = orders;
@@ -69,14 +49,53 @@ public struct Track
         _currentRow = 0;
         _currentPattern = 0;
         _trackVolume = 1;
+
+        _currentBuffer = 0;
+        _activeChannel = 0;
+
+        _audioDevice = device;
+        if (device != null)
+        {
+            _buffers = AL.GenBuffers(NumBuffers);
+            _audioBuffer = new byte[BufferLengthInSamples];
+            _activeChannel = -1;
+            device.BufferFinished += DeviceOnBufferFinished;
+            for (int i = 0; i < NumBuffers; i++)
+            {
+                FillBuffer();
+                AL.BufferData(_buffers[i], ALFormat.Stereo16, _audioBuffer, 44100);
+            }
+        }
+        else
+        {
+            _buffers = null;
+            _audioBuffer = null;
+        }
     }
 
-    internal static Track FromS3M(byte[] data)
+    private void DeviceOnBufferFinished(int channel)
+    {
+        if (channel == _activeChannel)
+        {
+            FillBuffer();
+            AL.BufferData(_buffers[_currentBuffer], ALFormat.Stereo16, _audioBuffer, 44100);
+            _currentBuffer++;
+            if (_currentBuffer >= NumBuffers)
+                _currentBuffer = 0;
+        }
+    }
+
+    public static Track Load(AudioDevice device, string path)
+    {
+        return FromS3M(device, File.ReadAllBytes(path));
+    }
+
+    internal static Track FromS3M(AudioDevice device, byte[] data)
     {
         using MemoryStream memStream = new MemoryStream(data);
         using BinaryReader reader = new BinaryReader(memStream);
 
-        Console.WriteLine(new string(reader.ReadChars(28))); // title
+        reader.ReadChars(28); // title
         if (reader.ReadByte() != 0x1A) // sig1
             throw new CubicException("Invalid s3m");
         reader.ReadByte(); // type
@@ -139,11 +158,10 @@ public struct Track
             
             samples[i].SampleRate = reader.ReadUInt32();
             reader.ReadBytes(12); // Unused data & stuff we don't need. No soundblaster or GUS here!
-            Console.WriteLine(reader.ReadChars(28)); // We also don't need sample name either.
+            reader.ReadChars(28); // We also don't need sample name either.
             if (new string(reader.ReadChars(4)) != "SCRS")
                 throw new CubicException("Instrument header has not been read correctly.");
             reader.BaseStream.Position = pData;
-            Console.WriteLine(reader.BaseStream.Position);
             samples[i].Data = reader.ReadBytes(!samples[i].Stereo ? (int) samples[i].Length : (int) samples[i].Length * 2);
             UnsignedToSigned(samples[i].Type, ref samples[i].Data);
             samples[i].Type = SampleType.SixteenBit;
@@ -218,18 +236,18 @@ public struct Track
                             break;
                     }
 
-                    Console.WriteLine(
-                        $"Pattern: {i}, Row: {r}, Channel: {channel}, Key: {key}, Octave: {octave}, Instrument: {instrument}, Volume: {volume}, SpecialCMD: {specialCommand}, SpecialParam: {commandInfo}");
+                    //Console.WriteLine(
+                    //    $"Pattern: {i}, Row: {r}, Channel: {channel}, Key: {key}, Octave: {octave}, Instrument: {instrument}, Volume: {volume}, SpecialCMD: {specialCommand}, SpecialParam: {commandInfo}");
 
                     patterns[i].SetNote(r, channel, new Note(key, octave, instrument, volume, effect, commandInfo));
                 } while (flag != 0);
             }
         }
 
-        return new Track(samples, patterns, orderList, initialTempo, initialSpeed);
+        return new Track(device, samples, patterns, orderList, initialTempo, initialSpeed);
     }
 
-    internal byte[] ToPCM(byte channels, uint sampleRate, byte bitsPerSample, out int beginLoopPoint,
+    internal unsafe byte[] ToPCM(byte channels, uint sampleRate, byte bitsPerSample, out int beginLoopPoint,
         out int endLoopPoint)
     {
         int tempo = Tempo;
@@ -241,7 +259,8 @@ public struct Track
         int rowDurationInMs = (2500 / tempo) * speed;
         int tickDurationInMs = (2500 / tempo);
 
-        byte[] data = Array.Empty<byte>();
+        byte[] data = new byte[(int) ((1024 * sampleRate * rowDurationInMs) / 1000) * (bitsPerSample / 8) * channels];
+        int length = data.Length;
         for (int p = 0; p < _orders.Length; p++)
         {
             if (_orders[p] == 255)
@@ -256,6 +275,7 @@ public struct Track
             {
                 if (tickChanged)
                 {
+                    //Console.WriteLine($"Processing row {row}/64 in pattern {p}/{_orders.Length}");
                     tickChanged = false;
                     tick = 0;
                     for (int c = 0; c < chn.Length; c++)
@@ -289,7 +309,7 @@ public struct Track
                         }
 
                         chn[c].Effect = Effect.None;
-                        
+
                         switch (n.Effect)
                         {
                             case Effect.PatternBreak:
@@ -310,16 +330,14 @@ public struct Track
                                 {
                                     chn[c].EffectParam = (byte) n.EffectParam;
                                     PitchNote pn = new PitchNote(chn[c].Key, chn[c].Octave, 64);
-                                    chn[c].Period = (pn.InverseKey * pn.InverseOctave) * (3546895f / (pn.InverseKey * pn.InverseOctave));
+                                    chn[c].Period = (pn.InverseKey * pn.InverseOctave) *
+                                                    (3546895f / (pn.InverseKey * pn.InverseOctave));
                                     Console.WriteLine(chn[c].Period * PitchNote.Tuning);
                                 }
 
                                 break;
                         }
                     }
-
-                    Array.Resize(ref data,
-                        data.Length + (int) ((sampleRate * rowDurationInMs) / 1000) * (bitsPerSample / 8) * channels);
                 }
 
                 bool perTickEffect = false;
@@ -341,7 +359,8 @@ public struct Track
                         if (chn[c].Volume == 0)
                             continue;
                         chn[c].SamplePos += (1 / chn[c].Ratio) * 2;
-                        if (_samples[chn[c].SampleID].Loop && chn[c].SamplePos >= _samples[chn[c].SampleID].LoopEnd * 2)
+                        if (_samples[chn[c].SampleID].Loop &&
+                            chn[c].SamplePos >= _samples[chn[c].SampleID].LoopEnd * 2)
                         {
                             chn[c].SamplePos = _samples[chn[c].SampleID].LoopBegin * 2;
                         }
@@ -351,8 +370,13 @@ public struct Track
                             for (int a = 0; a < 4; a += 2)
                             {
                                 short sample = (short) (data[dataPos + a] | data[dataPos + 1 + a] << 8);
-                                short newSample = (short) (_samples[chn[c].SampleID].Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + a] |
-                                                           _samples[chn[c].SampleID].Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + 1 + a] << 8);
+                                short newSample =
+                                    (short) (_samples[chn[c].SampleID]
+                                                 .Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + a] |
+                                             _samples[chn[c].SampleID]
+                                                 .Data[
+                                                     (int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + 1 + a] <<
+                                             8);
 
                                 short finalSample = (short) (sample + (newSample / 8) * chn[c].Volume);
 
@@ -366,6 +390,15 @@ public struct Track
                     }
 
                     dataPos += 4;
+                    
+                    if (dataPos >= length)
+                    {
+                        Console.WriteLine("RESIZE");
+                        Array.Resize(ref data,
+                            data.Length + (int) ((200 * sampleRate * rowDurationInMs) / 1000) * (bitsPerSample / 8) *
+                            channels);
+                        length = data.Length;
+                    }
 
                     perTickEffect = false;
                 }
@@ -380,6 +413,8 @@ public struct Track
                 }
             }
         }
+        
+        Array.Resize(ref data, dataPos);
 
         beginLoopPoint = 0;
         endLoopPoint = -1;
@@ -417,6 +452,11 @@ public struct Track
             default:
                 throw new ArgumentOutOfRangeException(nameof(type), type, null);
         }
+    }
+
+    private void FillBuffer()
+    {
+        
     }
 
     private struct Sample
