@@ -300,7 +300,7 @@ public struct Track
                             chn[c].SampleID = (byte) n.SampleNum;
                             chn[c].SampleRate = (uint) (_samples[chn[c].SampleID].SampleRate * pn.Pitch);
                             chn[c].Volume = pn.Volume;
-                            chn[c].Ratio = sampleRate / (float) chn[c].SampleRate;
+                            chn[c].Ratio = chn[c].SampleRate / (float) sampleRate;
                             chn[c].SamplePos = 0;
                         }
                         else
@@ -351,14 +351,14 @@ public struct Track
                             {
                                 case Effect.PortamentoUp:
                                     chn[c].SampleRate += (uint) (chn[c].Period * chn[c].EffectParam);
-                                    chn[c].Ratio = sampleRate / (float) chn[c].SampleRate;
+                                    chn[c].Ratio = chn[c].SampleRate / (float) sampleRate;
                                     break;
                             }
                         }
 
                         if (chn[c].Volume == 0)
                             continue;
-                        chn[c].SamplePos += (1 / chn[c].Ratio) * 2;
+                        chn[c].SamplePos += chn[c].Ratio * 2;
                         if (_samples[chn[c].SampleID].Loop &&
                             chn[c].SamplePos >= _samples[chn[c].SampleID].LoopEnd * 2)
                         {
