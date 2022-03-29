@@ -92,6 +92,12 @@ public struct Track
 
     internal static Track FromS3M(AudioDevice device, byte[] data)
     {
+        // Load the S3M.
+        // The supposedly official reference doc used extensively for this:
+        // https://github.com/lclevy/unmo3/blob/master/spec/s3m.txt
+        // .. As well as the OpenMPT source for reading the samples
+        // https://github.com/OpenMPT/openmpt
+        
         using MemoryStream memStream = new MemoryStream(data);
         using BinaryReader reader = new BinaryReader(memStream);
 
@@ -162,12 +168,18 @@ public struct Track
             if (new string(reader.ReadChars(4)) != "SCRS")
                 throw new CubicException("Instrument header has not been read correctly.");
             reader.BaseStream.Position = pData;
+            // A stereo sample will use two bytes per sample for 8-bit, and four bytes per sample for 16-bit.
+            // Think of the data arrays as looking like such:
+            // [255, 38, 147, 0, ....] - 16 bit stereo sound
+            // These 4 bytes represent one "sample". That means with a sampling rate of 44.1khz there will be 4 * 44100
+            // of these for each second of audio. The first two bytes represent the left channel, and the last two represent
+            // the right channel. To combine each set of bytes into a single value we can do:
+            // short sample = data[i] | data[i] << 8
+            // The data is little endian, so the second byte needs to go up top. (I've not met a PCM format with big endian yet..)
+            // S3M uses signed samples however, so during playback all we need to do is use a ushort for our sample instead,
+            // then subtract short.MaxValue from it to get the signed sample the resampler expects!
             samples[i].Data = reader.ReadBytes(!samples[i].Stereo ? (int) samples[i].Length : (int) samples[i].Length * 2);
-            UnsignedToSigned(samples[i].Type, ref samples[i].Data);
-            samples[i].Type = SampleType.SixteenBit;
         }
-
-        //dev.PlaySound(new Sound(samples[0].Data, 2, (int) samples[0].SampleRate, 4, true));
 
         Pattern[] patterns = new Pattern[patternPtrCount];
         for (int i = 0; i < patternPtrCount; i++)
@@ -184,6 +196,9 @@ public struct Track
                     if (flag == 0)
                         break;
 
+                    // ALl this data is stored in ONE byte! Mad!
+                    // We do a bitwise AND of 31 here as the max number of channels supported is 32 (although the S3M
+                    // spec only allows 16 PCM channels..)
                     byte channel = (byte) (flag & 31);
                     byte note = 255;
                     byte instrument = 0;
@@ -191,16 +206,18 @@ public struct Track
                     byte specialCommand = 255;
                     byte commandInfo = 0;
 
-                    if ((flag & 32) == 32)
+                    // Check each of our flags here to set each value.
+                    // To learn more, read the S3M format doc I linked further up.
+                    if ((flag & 32) != 0)
                     {
                         note = reader.ReadByte();
                         instrument = (byte) (reader.ReadByte() - 1);
                     }
 
-                    if ((flag & 64) == 64)
+                    if ((flag & 64) != 0)
                         volume = reader.ReadByte();
 
-                    if ((flag & 128) == 128)
+                    if ((flag & 128) != 0)
                     {
                         specialCommand = reader.ReadByte();
                         commandInfo = reader.ReadByte();
@@ -247,43 +264,54 @@ public struct Track
         return new Track(device, samples, patterns, orderList, initialTempo, initialSpeed);
     }
 
-    internal unsafe byte[] ToPCM(byte channels, uint sampleRate, byte bitsPerSample, out int beginLoopPoint,
+    internal byte[] ToPCM(byte channels, uint sampleRate, byte bitsPerSample, out int beginLoopPoint,
         out int endLoopPoint)
     {
         int tempo = Tempo;
         int speed = Speed;
         int dataPos = 0;
         
+        // TODO: Change to allow arbitrary number of channels.
         Channel[] chn = new Channel[32];
         
+        // For more info: https://wiki.openmpt.org/Manual:_Song_Properties#Overview
+        // (Classic tempo is being used here)
         int rowDurationInMs = (2500 / tempo) * speed;
         int tickDurationInMs = (2500 / tempo);
 
+        // Really I need to change this to be not a random value but if I change this it crashes :(
+        // Leaving it alone for safety. Lol!
+        // TODO: Change this to be a better value than just random whatever.
         byte[] data = new byte[(int) ((1024 * sampleRate * rowDurationInMs) / 1000) * (bitsPerSample / 8) * channels];
         int length = data.Length;
         for (int p = 0; p < _orders.Length; p++)
         {
+            // I found that sometimes the order length returns an incorrect value and so will return orders with a value
+            // of 255. Not sure what that's about, there's probably some reason for it. Anyway, if it's 255 we just
+            // ignore it. Fairly sure most stuff doesn't have 255 orders anyway.
             if (_orders[p] == 255)
                 continue;
 
+            // Used for the "Pattern break" commands - if this value is set it will jump to the next pattern on the next
+            // row change.
             bool shouldIncreasePattern = false;
             Pattern pattern = _patterns[_orders[p]];
             int row = 0;
             int tick = 0;
-            bool tickChanged = true;
+            bool rowChanged = true;
             while (row < pattern.Length)
             {
-                if (tickChanged)
+                // We should only look for new commands once the row changes, not when the tick changes.
+                if (rowChanged)
                 {
-                    //Console.WriteLine($"Processing row {row}/64 in pattern {p}/{_orders.Length}");
-                    tickChanged = false;
+                    rowChanged = false;
                     tick = 0;
                     for (int c = 0; c < chn.Length; c++)
                     {
                         Note n = pattern.Notes[c, row];
                         if (!n.Initialized)
                             continue;
-
+                        
                         if (n.Key == PianoKey.NoteCut)
                         {
                             chn[c].SampleRate = 0;
@@ -305,11 +333,14 @@ public struct Track
                         }
                         else
                         {
+                            // TODO: Fix to allow effect commands that don't set volume to max (might not be caused by this bit of code though)
                             chn[c].Volume = n.Volume * PitchNote.RefVolume;
                         }
 
                         chn[c].Effect = Effect.None;
 
+                        // Process various effects.
+                        // Some can be processed in row, some are processed per tick.
                         switch (n.Effect)
                         {
                             case Effect.PatternBreak:
@@ -328,6 +359,7 @@ public struct Track
                                 chn[c].Effect = Effect.PortamentoUp;
                                 if (n.EffectParam != 0)
                                 {
+                                    // TODO: Fix pitch bending, it does NOT work at all, it's almost comical
                                     chn[c].EffectParam = (byte) n.EffectParam;
                                     PitchNote pn = new PitchNote(chn[c].Key, chn[c].Octave, 64);
                                     chn[c].Period = (pn.InverseKey * pn.InverseOctave) *
@@ -345,6 +377,8 @@ public struct Track
                 {
                     for (int c = 0; c < chn.Length; c++)
                     {
+                        // Process any per tick effects.
+                        // TODO: Improve this bullcrap system of doing things, the code is messy!!
                         if (perTickEffect)
                         {
                             switch (chn[c].Effect)
@@ -355,47 +389,88 @@ public struct Track
                                     break;
                             }
                         }
-
+                        
+                        // Since above we are working in samples it doesn't count for the stereo-ness of the sample.
+                        // However since below we are working with array values we now need to account for this.
+                        // Stereo samples need to be advanced twice as fast to account for the second "channel" of audio.
+                        int multiplier = _samples[chn[c].SampleID].Stereo ? 2 : 1;
+                        chn[c].SamplePos += chn[c].Ratio * multiplier;
+                        if (_samples[chn[c].SampleID].Loop &&
+                            chn[c].SamplePos >= _samples[chn[c].SampleID].LoopEnd * multiplier)
+                        {
+                            chn[c].SamplePos = _samples[chn[c].SampleID].LoopBegin * multiplier;
+                        }
+                        
+                        // No need to calculate the stuff below, it would just be wasted computing time.
                         if (chn[c].Volume == 0)
                             continue;
-                        chn[c].SamplePos += chn[c].Ratio * 2;
-                        if (_samples[chn[c].SampleID].Loop &&
-                            chn[c].SamplePos >= _samples[chn[c].SampleID].LoopEnd * 2)
+                        
+                        // The value +4 was chosen because it stopped crashing.
+                        // At some point I'll look to properly do this. It works for now.
+                        // Sometimes songs do a bad and tell it to use a null sample. Check for this and ignore.
+                        // Also don't process audio outside the sample's data range.
+                        // TODO: Check for null during loading?
+                        if (_samples[chn[c].SampleID].Data != null && chn[c].SamplePos + 4 < _samples[chn[c].SampleID].Data.Length)
                         {
-                            chn[c].SamplePos = _samples[chn[c].SampleID].LoopBegin * 2;
-                        }
-
-                        if (chn[c].SamplePos + 4 < _samples[chn[c].SampleID].Data.Length)
-                        {
+                            // Resampler and mix algorithm.
+                            // Since our output audio is 16-bit stereo we must loop through the code twice to convert
+                            // to stereo.
                             for (int a = 0; a < 4; a += 2)
                             {
+                                // Get our already existing sample in the array.
+                                // Again, since we are working with 16-bit, we convert to a signed short value.
                                 short sample = (short) (data[dataPos + a] | data[dataPos + 1 + a] << 8);
-                                short newSample =
-                                    (short) (_samples[chn[c].SampleID]
-                                                 .Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + a] |
-                                             _samples[chn[c].SampleID]
-                                                 .Data[
-                                                     (int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + 1 + a] <<
-                                             8);
+                                short newSample;
 
-                                short finalSample = (short) (sample + (newSample / 8) * chn[c].Volume);
+                                // 8-bit values must be converted to 16-bit before the resampler can mix it together.
+                                // Earlier versions of this code preprocessed the samples up to stereo and 16-bit because
+                                // I didn't know how to do it during actual playback.
+                                // The rest of this code just gets the sample at the correct position, by clamping our
+                                // sample position to an integer value, and aligning it to the correct position if need
+                                // be (so 16-bit samples will always be aligned at the start of the sample)
+                                // TODO: This code assumes 8-bit samples are mono.
+                                if (_samples[chn[c].SampleID].Type == SampleType.EightBit)
+                                    newSample = (short) (((_samples[chn[c].SampleID].Data[(int) chn[c].SamplePos] << 8) - short.MaxValue));
+                                else
+                                    newSample = (short) ((_samples[chn[c].SampleID].Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + a] | _samples[chn[c].SampleID].Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + 1 + a] << 8) - short.MaxValue);
 
-                                finalSample = finalSample >= short.MaxValue ? short.MaxValue :
-                                    finalSample <= short.MinValue ? short.MinValue : finalSample;
+                                // Mix our sample together, using an integer in case the values overflow.
+                                // The value 8 was chosen here because it prevents clipping.
+                                // TODO: Divide by the total number of channels, not by 8.
+                                int intSample = (int) (sample + (newSample / 8) * chn[c].Volume);
+                                
+                                // Clamp our integer to a 16-bit value to prevent over or underflowing.
+                                intSample = intSample >= short.MaxValue ? short.MaxValue :
+                                    intSample <= short.MinValue ? short.MinValue : intSample;
+                                
+                                short finalSample = (short) (intSample);
 
+                                // Convert to our PCM data.
+                                // Keep in mind here this data is 16-bit.
+                                // The first byte must be our low byte so we do a bitwise AND of 255 to get the low
+                                // part of the byte.
+                                // The second byte must be our high byte, so we just shift down by 8 to get the high
+                                // part of the byte.
                                 data[dataPos + a] = (byte) (finalSample & 0xFF);
                                 data[dataPos + 1 + a] = (byte) (finalSample >> 8);
+                                
+                                // And that's the resampler and mixer done! Quite simple, actually.
+                                // Still remember when I was trying to work out how to do it and spent literally hours
+                                // trying to get it to work!
                             }
                         }
                     }
 
+                    // Increase our data position by 4 (as 16-bit stereo) so the next sample will be in the right place.
                     dataPos += 4;
                     
+                    // Resize our array to yet another arbitrary value if our data is too large.
+                    // While not idea, this is far better than the way it used to do it, resized every row!
+                    // That became real slow real quick, could take up to a minute to process tracks.
                     if (dataPos >= length)
                     {
-                        Console.WriteLine("RESIZE");
                         Array.Resize(ref data,
-                            data.Length + (int) ((200 * sampleRate * rowDurationInMs) / 1000) * (bitsPerSample / 8) *
+                            data.Length + (int) ((1024 * sampleRate * rowDurationInMs) / 1000) * (bitsPerSample / 8) *
                             channels);
                         length = data.Length;
                     }
@@ -403,10 +478,11 @@ public struct Track
                     perTickEffect = false;
                 }
 
+                // Increase our tick and row if need be.
                 tick++;
                 if (tick >= speed)
                 {
-                    tickChanged = true;
+                    rowChanged = true;
                     row++;
                     if (shouldIncreasePattern)
                         break;
@@ -414,44 +490,13 @@ public struct Track
             }
         }
         
+        // Our array is probably larger than the data needed, so we resize here so we don't have 30 seconds of empty
+        // array sitting around in our audio.
         Array.Resize(ref data, dataPos);
 
         beginLoopPoint = 0;
         endLoopPoint = -1;
         return data;
-    }
-
-    private static void UnsignedToSigned(SampleType type, ref byte[] data)
-    {
-        switch (type)
-        {
-            // For now, the sampler cannot handle 8-bit samples correctly.
-            // To deal with this, we convert any 8-bit samples to 16-bit, then perform the same unsigned to signed
-            // process a regular 16-bit sample would go through.
-            case SampleType.EightBit:
-                byte[] dat = data;
-                // The data is twice as long now since it is 16-bit.
-                Array.Resize(ref data, data.Length << 1);
-                for (int i = 0; i < dat.Length; i++)
-                {
-                    ushort sample = (ushort) (dat[i] << 8);
-                    short signedSample = (short) (sample - short.MaxValue);
-                    data[i * 2] = (byte) (signedSample & 0xFF);
-                    data[i * 2 + 1] = (byte) (signedSample >> 8);
-                }
-                break;
-            case SampleType.SixteenBit:
-                for (int i = 0; i < data.Length - 1; i += 2)
-                {
-                    ushort sample = (ushort) (data[i] | data[i + 1] << 8);
-                    short signedSample = (short) (sample - short.MaxValue);
-                    data[i] = (byte) (signedSample & 0xFF);
-                    data[i + 1] = (byte) (signedSample >> 8);
-                }
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(type), type, null);
-        }
     }
 
     private void FillBuffer()
