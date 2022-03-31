@@ -11,7 +11,9 @@ public class CubicGame : IDisposable
     private GameSettings _settings;
 
     private ImGuiRenderer _imGuiRenderer;
-    
+
+    public ImGuiRenderer ImGui => _imGuiRenderer;
+
     public readonly GameWindow Window;
     internal Graphics GraphicsInternal;
 

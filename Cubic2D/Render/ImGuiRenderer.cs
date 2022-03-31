@@ -9,7 +9,7 @@ using OpenTK.Graphics.OpenGL4;
 
 namespace Cubic2D.Render;
 
-internal class ImGuiRenderer : IDisposable
+public class ImGuiRenderer : IDisposable
 {
     private int _windowWidth;
     private int _windowHeight;
@@ -27,15 +27,18 @@ internal class ImGuiRenderer : IDisposable
 
     private Texture2D _fontTexture;
 
-    public Vector2 ScaleFactor;
+    public Vector2 Scale;
 
     private readonly List<char> _pressedChars;
 
     private Keys[] _keysList;
 
-    public ImGuiRenderer(Graphics graphics)
+    private Dictionary<string, ImFontPtr> _fonts;
+
+    internal ImGuiRenderer(Graphics graphics)
     {
-        ScaleFactor = Vector2.One;
+        Scale = Vector2.One;
+        _fonts = new Dictionary<string, ImFontPtr>();
 
         _windowWidth = graphics.Viewport.Width;
         _windowHeight = graphics.Viewport.Height;
@@ -67,12 +70,7 @@ internal class ImGuiRenderer : IDisposable
         _windowHeight = size.Height;
     }
 
-    public void DestroyDeviceObjects()
-    {
-        Dispose();
-    }
-
-    public void CreateDeviceResources()
+    private void CreateDeviceResources()
     {
         _vao = GL.GenVertexArray();
         
@@ -148,7 +146,7 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
     }
 
-    public void RecreateFontDeviceTexture()
+    private void RecreateFontDeviceTexture()
     {
         ImGuiIOPtr io = ImGui.GetIO();
         io.Fonts.GetTexDataAsRGBA32(out IntPtr pixels, out int width, out int height, out _);
@@ -161,7 +159,7 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
         io.Fonts.ClearTexData();
     }
 
-    public void Render()
+    internal void Render()
     {
         if (_frameBegun)
         {
@@ -171,7 +169,7 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
         }
     }
 
-    public void Update(float deltaSeconds)
+    internal void Update(float deltaSeconds)
     {
         if (_frameBegun)
             ImGui.Render();
@@ -187,8 +185,8 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
     private void SetPerFrameImGuiData(float deltaSeconds)
     {
         ImGuiIOPtr io = ImGui.GetIO();
-        io.DisplaySize = new Vector2(_windowWidth / ScaleFactor.X, _windowHeight / ScaleFactor.Y);
-        io.DisplayFramebufferScale = ScaleFactor;
+        io.DisplaySize = new Vector2(_windowWidth / Scale.X, _windowHeight / Scale.Y);
+        io.DisplayFramebufferScale = Scale;
         io.DeltaTime = deltaSeconds;
     }
 
@@ -200,7 +198,7 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
         io.MouseDown[1] = Input.MouseButtonDown(MouseButtons.Right);
         io.MouseDown[2] = Input.MouseButtonDown(MouseButtons.Middle);
 
-        io.MousePos = Input.MousePosition / ScaleFactor;
+        io.MousePos = Input.MousePosition / Scale;
 
         io.MouseWheel = Input.ScrollWheelDelta.Y;
         io.MouseWheelH = Input.ScrollWheelDelta.X;
@@ -370,5 +368,21 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
         _fontTexture.Dispose();
         _shader.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    public void AddFont(string name, string path, int size)
+    {
+        _fonts.Add(name, ImGui.GetIO().Fonts.AddFontFromFileTTF(path, size));
+        RecreateFontDeviceTexture();
+    }
+
+    public void SetFont(string name)
+    {
+        ImGui.PushFont(_fonts[name]);
+    }
+
+    public void ResetFont()
+    {
+        ImGui.PopFont();
     }
 }

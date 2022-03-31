@@ -24,7 +24,7 @@ public static partial class UI
 
         // Calculate the correct position of the element based on its anchor point.
         CalculatePos(anchor, ref pos);
-        
+
         if (MouseHovering(pos))
         {
             buttonColor = Theme.HoverColor;
