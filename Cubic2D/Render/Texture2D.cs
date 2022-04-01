@@ -41,10 +41,18 @@ public class Texture2D : Texture
         Size = bitmap.Size;
     }
 
-    public void SetData(IntPtr data, uint x, uint y, uint width, uint height)
+    public void SetData(IntPtr data, int x, int y, int width, int height)
     {
         GL.BindTexture(TextureTarget.Texture2D, Handle);
-        GL.TexSubImage2D(TextureTarget.Texture2D, 0, (int) x, (int) y, (int) width, (int) height, PixelFormat.Rgba,
+        GL.TexSubImage2D(TextureTarget.Texture2D, 0, x, y, width, height, PixelFormat.Rgba,
+            PixelType.UnsignedByte, data);
+        GL.BindTexture(TextureTarget.Texture2D, 0);
+    }
+
+    public void SetData(byte[] data, int x, int y, int width, int height)
+    {
+        GL.BindTexture(TextureTarget.Texture2D, Handle);
+        GL.TexSubImage2D(TextureTarget.Texture2D, 0, x, y, width, height, PixelFormat.Rgba,
             PixelType.UnsignedByte, data);
         GL.BindTexture(TextureTarget.Texture2D, 0);
     }

@@ -70,6 +70,8 @@ public class Graphics : IDisposable
         VSync = settings.VSync;
 
         //GL.Enable(EnableCap.ScissorTest);
+
+        Viewport = new Rectangle(0, 0, window.Size.Width, window.Size.Height);
         
         SpriteRenderer = new SpriteRenderer(this);
     }

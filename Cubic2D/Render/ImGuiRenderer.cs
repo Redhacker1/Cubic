@@ -152,7 +152,7 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
         io.Fonts.GetTexDataAsRGBA32(out IntPtr pixels, out int width, out int height, out _);
 
         _fontTexture = new Texture2D(width, height, false);
-        _fontTexture.SetData(pixels, 0, 0, (uint) width, (uint) height);
+        _fontTexture.SetData(pixels, 0, 0, width, height);
         
         io.Fonts.SetTexID((IntPtr) _fontTexture.Handle);
         
