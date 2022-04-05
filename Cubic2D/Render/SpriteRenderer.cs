@@ -236,6 +236,19 @@ void main()
         _currentSprite++;
         Metrics.SpritesDrawnInternal++;
     }
+
+    public void DrawRectangle(Vector2 position, Vector2 size, Color color, float rotation, Vector2 origin)
+    {
+        Draw(Texture2D.Blank, position, null, color, rotation, origin, size, SpriteFlipMode.None);
+    }
+
+    public void DrawBorder(Vector2 position, Vector2 size, int borderWidth, Color color, float rotation, Vector2 origin)
+    {
+        Draw(Texture2D.Blank, position, null, color, rotation, origin, new Vector2(size.X, borderWidth), SpriteFlipMode.None);
+        Draw(Texture2D.Blank, new Vector2(position.X, position.Y + size.Y - borderWidth), null, color, rotation, origin, new Vector2(size.X, borderWidth), SpriteFlipMode.None);
+        Draw(Texture2D.Blank, position, null, color, rotation, origin, new Vector2(borderWidth, size.Y), SpriteFlipMode.None);
+        Draw(Texture2D.Blank, new Vector2(position.X + size.X - borderWidth, position.Y), null, color, rotation, origin, new Vector2(borderWidth, size.Y), SpriteFlipMode.None);
+    }
     
     private void DrawSprite(Sprite sprite)
     {
