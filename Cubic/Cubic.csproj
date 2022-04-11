@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>disable</ImplicitUsings>
+        <Nullable>disable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="FreeTypeSharp" Version="2.0.0.8-ci" />
+      <PackageReference Include="ImGui.NET" Version="1.87.2" />
+      <PackageReference Include="OpenTK" Version="4.7.1" />
+      <PackageReference Include="StbImageSharp" Version="2.27.7" />
+      <PackageReference Include="StbImageWriteSharp" Version="1.13.5" />
+      <PackageReference Include="StbVorbisSharp" Version="1.16.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="openal32.dll" />
+      <Content Include="openal32.dll">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        <Pack>true</Pack>
+      </Content>
+    </ItemGroup>
+
+</Project>
