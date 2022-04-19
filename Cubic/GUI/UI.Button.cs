@@ -13,7 +13,7 @@ public static partial class UI
     /// <param name="text">The text (if any) the button will display.</param>
     /// <param name="textSize">The font size (default: 24) of the text on the button.</param>
     /// <returns>True if the button is clicked.</returns>
-    public static bool Button(Anchor anchor, Rectangle pos, string text = "", uint textSize = 24)
+    public static bool Button(Anchor anchor, Rectangle pos, string text = "", uint textSize = 24, bool ignoreReferenceResolution = false)
     {
         // Get the current UI theme...
         int borderThickness = Theme.BorderWidth;
@@ -21,7 +21,7 @@ public static partial class UI
         Color buttonColor = Theme.RectColor;
 
         // Calculate the correct position of the element based on its anchor point.
-        CalculatePos(anchor, ref pos);
+        CalculatePos(anchor, ref pos, ignoreReferenceResolution);
 
         float scale = GetReferenceMultiplier();
         textSize = (uint) (textSize * scale);

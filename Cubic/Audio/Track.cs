@@ -362,8 +362,8 @@ public struct Track
                                     // TODO: Fix pitch bending, it does NOT work at all, it's almost comical
                                     chn[c].EffectParam = (byte) n.EffectParam;
                                     PitchNote pn = new PitchNote(chn[c].Key, chn[c].Octave, 64);
-                                    chn[c].Period = (pn.InverseKey * pn.InverseOctave) *
-                                                    (3546895f / (pn.InverseKey * pn.InverseOctave));
+                                    chn[c].Period = (float) ((pn.InverseKey * pn.InverseOctave) *
+                                                    (3546895f / (pn.InverseKey * pn.InverseOctave)));
                                     Console.WriteLine(chn[c].Period * PitchNote.Tuning);
                                 }
 
@@ -410,7 +410,7 @@ public struct Track
                         // Sometimes songs do a bad and tell it to use a null sample. Check for this and ignore.
                         // Also don't process audio outside the sample's data range.
                         // TODO: Check for null during loading?
-                        if (_samples[chn[c].SampleID].Data != null && chn[c].SamplePos + 4 < _samples[chn[c].SampleID].Data.Length)
+                        if (_samples[chn[c].SampleID].Data != null && chn[c].SamplePos < _samples[chn[c].SampleID].Data.Length)
                         {
                             // Resampler and mix algorithm.
                             // Since our output audio is 16-bit stereo we must loop through the code twice to convert

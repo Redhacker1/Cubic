@@ -7,43 +7,57 @@ namespace Cubic.Windowing;
 
 public static unsafe class Monitors
 {
-    public static int Count => GLFW.GetMonitors().Length;
+    /// <summary>
+    /// Get the total number of monitors attached to the system.
+    /// </summary>
+    public static readonly int Count;
+
+    /// <summary>
+    /// The primary monitor attached to this system.
+    /// </summary>
+    public static readonly Monitor PrimaryMonitor;
+
+    /// <summary>
+    /// Get all monitors attached to the system. AttachedMonitors[0] == PrimaryMonitor.
+    /// </summary>
+    public static readonly Monitor[] AttachedMonitors;
     
-    public static Monitor GetPrimaryMonitor() => GetMonitor(0);
-
-    public static Monitor GetMonitor(int index)
+    static Monitors()
     {
-        GMonitor* m = GLFW.GetMonitors()[index];
-        VideoMode* mode = GLFW.GetVideoMode(m);
-        GLFW.GetMonitorPos(m, out int x, out int y);
+        Count = GLFW.GetMonitors().Length;
 
-        Monitor monitor = new Monitor()
-        {
-            Position = new Point(x, y),
-            Resolution = new Size(mode->Width, mode->Height)
-        };
-        
-        return monitor;
-    }
-
-    public static Monitor[] GetMonitors()
-    {
         List<Monitor> monitors = new List<Monitor>();
-
-        foreach (GMonitor* m in GLFW.GetMonitors())
+        for (int i = 0; i < Count; i++)
         {
+            GMonitor* m = GLFW.GetMonitors()[i];
             VideoMode* mode = GLFW.GetVideoMode(m);
             GLFW.GetMonitorPos(m, out int x, out int y);
+
+            List<DisplayMode> displayModes = new List<DisplayMode>();
+            foreach (VideoMode md in GLFW.GetVideoModes(m))
+            {
+                displayModes.Add(new DisplayMode()
+                {
+                    Resolution = new Size(md.Width, md.Height),
+                    RefreshRate = md.RefreshRate
+                });
+            }
 
             Monitor monitor = new Monitor()
             {
                 Position = new Point(x, y),
-                Resolution = new Size(mode->Width, mode->Height)
+                CurrentDisplayMode = new DisplayMode()
+                {
+                    Resolution = new Size(mode->Width, mode->Height),
+                    RefreshRate = mode->RefreshRate
+                },
+                AvailableDisplayModes = displayModes.ToArray()
             };
-            
             monitors.Add(monitor);
         }
 
-        return monitors.ToArray();
+        AttachedMonitors = monitors.ToArray();
+
+        PrimaryMonitor = monitors[0];
     }
 }

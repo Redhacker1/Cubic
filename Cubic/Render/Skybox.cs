@@ -87,33 +87,11 @@ void main()
     private int _vbo;
     private int _ebo;
     private Shader _shader;
-    private int _texture;
+    private CubeMap _cubeMap;
 
-    public unsafe Skybox(params Bitmap[] textures)
+    public unsafe Skybox(CubeMap cubeMap)
     {
-        _texture = GL.GenTexture();
-        GL.ActiveTexture(TextureUnit.Texture0);
-        GL.BindTexture(TextureTarget.TextureCubeMap, _texture);
-
-        for (int i = 0; i < textures.Length; i++)
-        {
-            GL.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, PixelInternalFormat.Rgba,
-                textures[i].Size.Width, textures[i].Size.Height, 0, PixelFormat.Rgb, PixelType.UnsignedByte,
-                textures[i].Data);
-        }
-
-        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter,
-            (int) TextureMinFilter.Linear);
-        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter,
-            (int) TextureMagFilter.Linear);
-        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS,
-            (int) TextureWrapMode.ClampToEdge);
-        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT,
-            (int) TextureWrapMode.ClampToEdge);
-        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR,
-            (int) TextureWrapMode.ClampToEdge);
-        
-        GL.BindTexture(TextureTarget.TextureCubeMap, 0);
+        _cubeMap = cubeMap;
 
         _vao = GL.GenVertexArray();
         GL.BindVertexArray(_vao);
@@ -149,7 +127,7 @@ void main()
         _shader.Set("uView", camera.ViewMatrix.To3x3Matrix());
         
         GL.BindVertexArray(_vao);
-        GL.BindTexture(TextureTarget.TextureCubeMap, _texture);
+        _cubeMap.Bind();
         GL.DrawElements(PrimitiveType.Triangles, _indices.Length, DrawElementsType.UnsignedInt, 0);
         
         GL.BindTexture(TextureTarget.TextureCubeMap, 0);
@@ -160,7 +138,7 @@ void main()
 
     public void Dispose()
     {
-        GL.DeleteTexture(_texture);
+        _cubeMap.Dispose();
         GL.DeleteVertexArray(_vao);
         GL.DeleteBuffer(_vbo);
         GL.DeleteBuffer(_ebo);

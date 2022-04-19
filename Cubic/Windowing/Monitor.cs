@@ -8,9 +8,11 @@ namespace Cubic.Windowing;
 public struct Monitor
 {
     /// <summary>
-    /// The resolution, in pixels, of this monitor.
+    /// The current display mode of this monitor.
     /// </summary>
-    public Size Resolution;
+    public DisplayMode CurrentDisplayMode;
+
+    public DisplayMode[] AvailableDisplayModes;
     
     /// <summary>
     /// The position, in pixels, of this monitor. This value is decided by the operating system.
@@ -19,6 +21,6 @@ public struct Monitor
 
     public override string ToString()
     {
-        return $"Resolution: {Resolution.Width}x{Resolution.Height}, Position: (X: {Position.X}, Y: {Position.Y})";
+        return $"Resolution: {CurrentDisplayMode.Resolution.Width}x{CurrentDisplayMode.Resolution.Height}@{CurrentDisplayMode.RefreshRate}Hz, Position: (X: {Position.X}, Y: {Position.Y})";
     }
 }

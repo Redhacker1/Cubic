@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using Cubic.Utilities;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using GMonitor = OpenTK.Windowing.GraphicsLibraryFramework.Monitor;
 
@@ -101,8 +102,10 @@ public sealed unsafe class GameWindow : IDisposable
                     CenterWindow();
                     break;
                 case WindowMode.Fullscreen:
-                    GLFW.SetWindowMonitor(Handle, GLFW.GetPrimaryMonitor(), 0, 0, Size.Width, Size.Height,
-                        GLFW.DontCare);
+                    GMonitor* monitor = GLFW.GetPrimaryMonitor();
+                    VideoMode* mode = GLFW.GetVideoMode(monitor);
+                    GLFW.SetWindowMonitor(Handle, monitor, 0, 0, Size.Width, Size.Height,
+                        mode->RefreshRate);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(value), value, null);
@@ -119,22 +122,22 @@ public sealed unsafe class GameWindow : IDisposable
     /// </summary>
     public void CenterWindow(int display = 0)
     {
-        GMonitor* monitor = GLFW.GetMonitors()[display];
-        VideoMode* mode = GLFW.GetVideoMode(monitor);
-        GLFW.GetMonitorPos(monitor, out int x, out int y);
-        GLFW.SetWindowPos(Handle, x + mode->Width / 2 - Size.Width / 2, y + mode->Height / 2 - Size.Height / 2);
+        Monitor disp = Monitors.AttachedMonitors[display];
+        DisplayMode mode = disp.CurrentDisplayMode;
+        GLFW.SetWindowPos(Handle, disp.Position.X + mode.Resolution.Width / 2 - Size.Width / 2,
+            disp.Position.Y + mode.Resolution.Height / 2 - Size.Height / 2);
     }
 
-    public void SetWindowFullscreen(bool fullscreen, Size resolution)
+    public void SetWindowFullscreen(bool fullscreen, Size resolution, int refreshRate = 0)
     {
-        VideoMode* mode = GLFW.GetVideoMode(GLFW.GetPrimaryMonitor());
-        GLFW.SetWindowMonitor(Handle, fullscreen ? GLFW.GetPrimaryMonitor() : null, 0, 0, resolution.Width,
-            resolution.Height, fullscreen ? mode->RefreshRate : GLFW.DontCare);
+        Monitor monitor = Monitors.PrimaryMonitor;
+        DisplayMode mode = monitor.CurrentDisplayMode;
+        int posX = fullscreen ? 0 : monitor.Position.X + mode.Resolution.Width / 2 - resolution.Width / 2;
+        int posY = fullscreen ? 0 : monitor.Position.Y + mode.Resolution.Height / 2 - resolution.Height / 2;
+        GLFW.SetWindowMonitor(Handle, fullscreen ? GLFW.GetPrimaryMonitor() : null, posX, posY, resolution.Width,
+            resolution.Height, fullscreen ? refreshRate > 0 ? refreshRate : mode.RefreshRate : GLFW.DontCare);
         if (!fullscreen)
-        {
             AutoCenter = true;
-            CenterWindow();
-        }
     }
     
     #endregion
@@ -167,6 +170,7 @@ public sealed unsafe class GameWindow : IDisposable
         GLFW.WindowHint(WindowHintInt.ContextVersionMajor, 3);
         GLFW.WindowHint(WindowHintInt.ContextVersionMinor, 3);
         GLFW.WindowHint(WindowHintBool.OpenGLForwardCompat, true);
+        GLFW.WindowHint(WindowHintInt.Samples, (int) _settings.MsaaSamples);
 
         GMonitor* monitor = GLFW.GetPrimaryMonitor();
         VideoMode* mode = GLFW.GetVideoMode(monitor);
@@ -185,6 +189,9 @@ public sealed unsafe class GameWindow : IDisposable
 
         if (_settings.Icon != default)
         {
+            // The icon must be an RGBA image otherwise it won't work - we convert it if it is not in RGBA colour space.
+            if (_settings.Icon.ColorSpace != ColorSpace.RGBA)
+                _settings.Icon = Bitmap.ConvertToColorSpace(_settings.Icon, ColorSpace.RGBA);
             fixed (byte* p = _settings.Icon.Data)
             {
                 GLFW.SetWindowIcon(Handle,

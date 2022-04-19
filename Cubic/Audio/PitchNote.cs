@@ -39,47 +39,50 @@ internal ref struct PitchNote
 
     #endregion
     
-    public float Pitch;
+    public double Pitch;
     public float Volume;
 
-    public float InverseKey;
-    public float InverseOctave;
+    public double InverseKey;
+    public double InverseOctave;
 
     public PitchNote(PianoKey pianoKey, Octave octave, int volume)
     {
+        int num = 0;
         InverseKey = pianoKey switch
         {
-            PianoKey.C => C,
-            PianoKey.CSharp => CSharp,
-            PianoKey.D => D,
-            PianoKey.DSharp => DSharp,
-            PianoKey.E => E,
-            PianoKey.F => F,
-            PianoKey.FSharp => FSharp,
-            PianoKey.G => G,
-            PianoKey.GSharp => GSharp,
-            PianoKey.A => A,
-            PianoKey.ASharp => ASharp,
-            PianoKey.B => B,
+            PianoKey.C => 0,
+            PianoKey.CSharp => 1,
+            PianoKey.D => 2,
+            PianoKey.DSharp => 3,
+            PianoKey.E => 4,
+            PianoKey.F => 5,
+            PianoKey.FSharp => 6,
+            PianoKey.G => 7,
+            PianoKey.GSharp => 8,
+            PianoKey.A => 9,
+            PianoKey.ASharp => 10,
+            PianoKey.B => 11,
             _ => throw new ArgumentOutOfRangeException(nameof(pianoKey), pianoKey, null)
         };
 
         InverseOctave = octave switch
         {
-            Octave.Octave0 => Octave0,
-            Octave.Octave1 => Octave1,
-            Octave.Octave2 => Octave2,
-            Octave.Octave3 => Octave3,
-            Octave.Octave4 => Octave4,
-            Octave.Octave5 => Octave5,
-            Octave.Octave6 => Octave6,
-            Octave.Octave7 => Octave7,
-            Octave.Octave8 => Octave8,
-            Octave.Octave9 => Octave9,
+            Octave.Octave0 => -48,
+            Octave.Octave1 => -36,
+            Octave.Octave2 => -24,
+            Octave.Octave3 => -12,
+            Octave.Octave4 => 0,
+            Octave.Octave5 => 12,
+            Octave.Octave6 => 24,
+            Octave.Octave7 => 36,
+            Octave.Octave8 => 48,
+            Octave.Octave9 => 60,
             _ => throw new ArgumentOutOfRangeException(nameof(octave), octave, null)
         };
+        
+        InverseKey = 440d * Math.Pow(Math.Pow(2, 1 / 12d), (InverseKey + InverseOctave) - 9);
 
-        Pitch = InverseKey * Tuning * InverseOctave;
+        Pitch = InverseKey * 1d / (440d * Math.Pow(Math.Pow(2, 1 / 12d), -9));
 
         Volume = volume * RefVolume;
     }

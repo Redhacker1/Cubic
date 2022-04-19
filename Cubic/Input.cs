@@ -21,7 +21,7 @@ public static class Input
     private static readonly HashSet<MouseButtons> _buttonsHeld = new HashSet<MouseButtons>();
     private static readonly HashSet<MouseButtons> _frameButtons = new HashSet<MouseButtons>();
 
-    private static CursorState _cursorState;
+    private static MouseMode _mouseMode;
     private static bool _cursorStateChanged;
 
     /// <summary>
@@ -172,12 +172,12 @@ public static class Input
     /// </summary>
     public static Vector2 ScrollWheelDelta { get; private set; }
 
-    public static CursorState CursorState
+    public static MouseMode MouseMode
     {
-        get => _cursorState;
+        get => _mouseMode;
         set
         {
-            _cursorState = value;
+            _mouseMode = value;
             _cursorStateChanged = true;
         }
     }
@@ -245,11 +245,11 @@ public static class Input
         if (_cursorStateChanged)
         {
             _cursorStateChanged = false;
-            CursorModeValue val = _cursorState switch
+            CursorModeValue val = _mouseMode switch
             {
-                CursorState.Visible => CursorModeValue.CursorNormal,
-                CursorState.Hidden => CursorModeValue.CursorHidden,
-                CursorState.Locked => CursorModeValue.CursorDisabled,
+                MouseMode.Visible => CursorModeValue.CursorNormal,
+                MouseMode.Hidden => CursorModeValue.CursorHidden,
+                MouseMode.Locked => CursorModeValue.CursorDisabled,
                 _ => throw new ArgumentOutOfRangeException()
             };
             GLFW.SetInputMode(window.Handle, CursorStateAttribute.Cursor, val);
@@ -450,7 +450,7 @@ public enum MouseButtons
     Button8
 }
 
-public enum CursorState
+public enum MouseMode
 {
     Visible,
     Hidden,

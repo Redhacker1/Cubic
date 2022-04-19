@@ -25,15 +25,15 @@ public static partial class UI
     public static UITheme Theme;
     public static Size ReferenceResolution;
 
-    static UI()
+    internal static void Initialize(Size viewportSize)
     {
+        _framebufferSize = viewportSize;
         _rectangles = new List<(Rectangle, Color, int)>();
         _texts = new List<(string, uint, Vector2, Color, bool, bool, int)>();
         _elementPositions = new List<Rectangle>();
         Theme = new UITheme();
         _charBuffer = new List<char>();
         _textCursorPos = Point.Empty;
-        _framebufferSize = new Size(100, 100);
         ReferenceResolution = Size.Empty;
         Input.TextInput += TextEntered;
     }
@@ -74,10 +74,10 @@ public static partial class UI
             : ReferenceResolution.Width);
     }
 
-    private static void CalculatePos(Anchor anchor, ref Rectangle rect)
+    private static void CalculatePos(Anchor anchor, ref Rectangle rect, bool ignoreReference)
     {
         Vector2 origin;
-        float scale = GetReferenceMultiplier();
+        float scale = ignoreReference ? 1 : GetReferenceMultiplier();
         
         switch (anchor)
         {

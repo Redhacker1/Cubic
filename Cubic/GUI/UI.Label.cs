@@ -13,10 +13,10 @@ public static partial class UI
     /// <param name="text">The text for this label.</param>
     /// <param name="size">The font size of this label.</param>
     /// <param name="captureMouse">If true, (default: false), this label will behave like other UI elements and prevent the item behind it from being clicked.</param>
-    public static void Label(Anchor anchor, Point pos, string text, uint size, bool captureMouse = false)
+    public static void Label(Anchor anchor, Point pos, string text, uint size, bool captureMouse = false, bool ignoreReferenceResolution = false)
     {
         Rectangle rect = new Rectangle(pos, Theme.Font.MeasureString(size, text));
-        CalculatePos(anchor, ref rect);
+        CalculatePos(anchor, ref rect, ignoreReferenceResolution);
         AddElement(rect, captureMouse);
         _texts.Add((text, size, new Vector2(rect.X, rect.Y), Theme.TextColor, false, false, _currentID));
     }

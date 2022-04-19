@@ -22,9 +22,23 @@ public class RenderTarget : Texture
         GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0,
             TextureTarget.Texture2D, Handle, 0);
         
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int) TextureWrapMode.Repeat);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int) TextureWrapMode.Repeat);
+
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
         Size = size;
+    }
+    
+    internal override void Bind(TextureUnit textureUnit = TextureUnit.Texture0)
+    {
+        GL.ActiveTexture(textureUnit);
+        GL.BindTexture(TextureTarget.Texture2D, Handle);
+    }
+    
+    internal override void Unbind()
+    {
+        GL.BindTexture(TextureTarget.Texture2D, 0);
     }
 
     public override void Dispose()

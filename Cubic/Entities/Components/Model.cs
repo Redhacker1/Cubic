@@ -21,7 +21,7 @@ public class Model : Component
     private static Shader _shader;
     private static bool _shaderDisposed;
 
-    private Material _material;
+    public Material Material;
 
     public const string VertexShader = @"
 #version 330 core
@@ -93,7 +93,7 @@ vec3 CalculateDirectional(DirectionalLight light, vec3 normal, vec3 viewDir)
     float diff = max(dot(normal, lightDir), 0.0);
     
     vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), uMaterial.shininess);
 
     vec3 ambient = light.ambient * vec3(texture(uMaterial.albedo, frag_texCoords));
     vec3 diffuse = light.diffuse * diff * vec3(texture(uMaterial.albedo, frag_texCoords));
@@ -116,7 +116,7 @@ vec3 CalculateDirectional(DirectionalLight light, vec3 normal, vec3 viewDir)
     {
         Vertices = primitive.Vertices;
         Indices = primitive.Indices;
-        _material = material;
+        Material = material;
     }
 
     protected internal override unsafe void Initialize()
@@ -164,8 +164,8 @@ vec3 CalculateDirectional(DirectionalLight light, vec3 normal, vec3 viewDir)
         _shader.Set("uCameraPos", Camera.Main.Transform.Position);
         _shader.Set("uMaterial.albedo", 0);
         _shader.Set("uMaterial.specular", 1);
-        _shader.Set("uMaterial.color", _material.Color);
-        _shader.Set("uMaterial.shininess", _material.Shininess);
+        _shader.Set("uMaterial.color", Material.Color);
+        _shader.Set("uMaterial.shininess", Material.Shininess);
         DirectionalLight sun = SceneManager.Active.World.Sun;
         Vector3 sunColor = sun.Color.Normalize().ToVector3();
         float sunDegX = CubicMath.ToRadians(sun.Direction.X);
@@ -177,17 +177,16 @@ vec3 CalculateDirectional(DirectionalLight light, vec3 normal, vec3 viewDir)
         _shader.Set("uSun.diffuse", sunColor * sun.DiffuseMultiplier);
         _shader.Set("uSun.specular", sunColor * sun.SpecularMultiplier);
 
-        GL.ActiveTexture(TextureUnit.Texture0);
-        GL.BindTexture(TextureTarget.Texture2D, _material.Albedo.Handle);
-        GL.ActiveTexture(TextureUnit.Texture1);
-        GL.BindTexture(TextureTarget.Texture2D, _material.Specular.Handle);
-
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) TextureMinFilter.Linear);
+        Material.Albedo.Bind(TextureUnit.Texture0);
+        Material.Specular.Bind(TextureUnit.Texture1);
+        
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) TextureMinFilter.LinearMipmapLinear);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Linear);
         
         GL.DrawElements(PrimitiveType.Triangles, Indices.Length, DrawElementsType.UnsignedInt, 0);
         
-        GL.ActiveTexture(TextureUnit.Texture0);
+        Material.Albedo.Unbind();
+        Material.Specular.Unbind();
     }
 
     protected internal override void Unload()

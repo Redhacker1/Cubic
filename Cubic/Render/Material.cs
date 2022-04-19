@@ -5,12 +5,12 @@ namespace Cubic.Render;
 
 public class Material
 {
-    public Texture2D Albedo;
-    public Texture2D Specular;
+    public Texture Albedo;
+    public Texture Specular;
     public Color Color;
     public int Shininess;
 
-    public Material(Texture2D albedo, Texture2D specular, Color color, int shininess)
+    public Material(Texture albedo, Texture specular, Color color, int shininess)
     {
         Albedo = albedo;
         Specular = specular;
@@ -18,5 +18,5 @@ public class Material
         Shininess = shininess;
     }
 
-    public Material(Texture2D albedo) : this(albedo, albedo, Color.White, 1) { }
+    public Material(Texture albedo) : this(albedo, albedo, Color.White, 1) { }
 }

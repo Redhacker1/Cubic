@@ -8,13 +8,13 @@ public static partial class UI
     private static Point _textCursorPos;
     private static int _textOffset;
     
-    public static bool TextBox(Anchor anchor, Rectangle pos, ref string text, uint size = 24, int maxLength = -1)
+    public static bool TextBox(Anchor anchor, Rectangle pos, ref string text, uint size = 24, int maxLength = -1, bool ignoreReferenceResolution = false)
     {
         int borderThickness = Theme.BorderWidth;
         Color borderColor = Theme.BorderColor;
         Color buttonColor = Theme.RectColor;
         
-        CalculatePos(anchor, ref pos);
+        CalculatePos(anchor, ref pos, ignoreReferenceResolution);
         AddElement(pos);
 
         if (ElementClicked(pos))

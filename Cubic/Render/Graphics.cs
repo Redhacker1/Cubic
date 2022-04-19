@@ -70,8 +70,6 @@ public class Graphics : IDisposable
 
         VSync = settings.VSync;
 
-        //GL.Enable(EnableCap.ScissorTest);
-
         Viewport = new Rectangle(0, 0, window.Size.Width, window.Size.Height);
         
         SpriteRenderer = new SpriteRenderer(this);
@@ -85,13 +83,19 @@ public class Graphics : IDisposable
         
         GL.Enable(EnableCap.DepthTest);
         GL.DepthFunc(DepthFunction.Lequal);
+        
+        GL.Enable(EnableCap.ScissorTest);
+        SetScissor(Viewport);
+        
+        if (settings.MsaaSamples > 0)
+            GL.Enable(EnableCap.Multisample);
     }
     
 
     internal void PrepareFrame(Vector4 clearColor)
     {
         Clear(clearColor);
-        //ResetScissor();
+        SetScissor(Viewport);
     }
 
     internal unsafe void PresentFrame()
@@ -107,18 +111,19 @@ public class Graphics : IDisposable
 
     public Bitmap Capture(Rectangle region)
     {
-        byte[] upsideDownData = new byte[region.Width * region.Height * 4];
-        GL.ReadPixels(0, 0, region.Width, region.Height, PixelFormat.Rgba, PixelType.UnsignedByte, upsideDownData);
+        byte[] upsideDownData = new byte[region.Width * region.Height * 3];
+        GL.ReadPixels(0, 0, region.Width, region.Height, PixelFormat.Rgb, PixelType.UnsignedByte, upsideDownData);
         // We need to reverse the data as it's stored upside down because OpenGL
+        // We also convert from RGB to RGBA too.
         byte[] data = new byte[region.Width * region.Height * 4];
         for (int x = 0; x < region.Width; x++)
         {
             for (int y = 0; y < region.Height; y++)
             {
-                data[(y * region.Width + x) * 4] = upsideDownData[((region.Height - 1 - y) * region.Width + x) * 4];
-                data[(y * region.Width + x) * 4 + 1] = upsideDownData[((region.Height - 1 - y) * region.Width + x) * 4 + 1];
-                data[(y * region.Width + x) * 4 + 2] = upsideDownData[((region.Height - 1 - y) * region.Width + x) * 4 + 2];
-                data[(y * region.Width + x) * 4 + 3] = upsideDownData[((region.Height - 1 - y) * region.Width + x) * 4 + 3];
+                data[(y * region.Width + x) * 4] = upsideDownData[((region.Height - 1 - y) * region.Width + x) * 3];
+                data[(y * region.Width + x) * 4 + 1] = upsideDownData[((region.Height - 1 - y) * region.Width + x) * 3 + 1];
+                data[(y * region.Width + x) * 4 + 2] = upsideDownData[((region.Height - 1 - y) * region.Width + x) * 3 + 2];
+                data[(y * region.Width + x) * 4 + 3] = 255;
             }
         }
         return new Bitmap(region.Width, region.Height, data);
@@ -126,15 +131,10 @@ public class Graphics : IDisposable
 
     public Bitmap Capture() => Capture(Viewport);
 
-    /*public void SetScissor(Rectangle rectangle)
+    public void SetScissor(Rectangle rectangle)
     {
-        GL.Scissor(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
+        GL.Scissor(rectangle.X, Viewport.Height - rectangle.Height - rectangle.Y, rectangle.Width, rectangle.Height);
     }
-
-    public void ResetScissor()
-    {
-        GL.Scissor(0, 0, FramebufferSize.Width, FramebufferSize.Height);
-    }*/
 
     /*public RenderObject CreateRenderObject()
     {

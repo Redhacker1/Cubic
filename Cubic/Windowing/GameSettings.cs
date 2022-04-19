@@ -65,9 +65,14 @@ public struct GameSettings
     public int AudioChannels;
 
     /// <summary>
-    /// The icon the game will use on startup.
+    /// The icon the game will use on startup. (Default: None)
     /// </summary>
     public Bitmap Icon;
+
+    /// <summary>
+    /// If greater than 0, MSAA anti-aliasing will be enabled. (Default: 0)
+    /// </summary>
+    public uint MsaaSamples;
 
     public GameSettings()
     {
@@ -82,5 +87,6 @@ public struct GameSettings
         //Api = GraphicsApi.Default;
         AudioChannels = 32;
         Icon = default;
+        MsaaSamples = 0;
     }
 }

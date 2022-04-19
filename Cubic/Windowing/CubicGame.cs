@@ -1,4 +1,5 @@
 using System;
+using BepuPhysics;
 using Cubic.Audio;
 using Cubic.GUI;
 using Cubic.Render;
@@ -16,6 +17,7 @@ public class CubicGame : IDisposable
 
     public readonly GameWindow Window;
     internal Graphics GraphicsInternal;
+    internal Simulation Simulation;
 
     protected Graphics Graphics => GraphicsInternal;
     public AudioDevice AudioDevice { get; private set; }
@@ -65,12 +67,14 @@ public class CubicGame : IDisposable
 
         Window.WindowMode = _settings.WindowMode;
         
-        Initialize();
-        
         Input.Start(Window);
 
         Time.Start();
         
+        UI.Initialize(Graphics.Viewport.Size);
+        
+        Initialize();
+
         while (!Window.ShouldClose)
         {
             if (Time.Stopwatch.Elapsed.TotalSeconds - Time.LastTime < _targetFrameDelta && _lockFps)
@@ -118,5 +122,6 @@ public class CubicGame : IDisposable
     private void SetValues()
     {
         Texture2D.Blank = new Texture2D(1, 1, new byte[] { 255, 255, 255, 255 }, false);
+        Texture2D.Void = new Texture2D(1, 1, new byte[] { 0, 0, 0, 255 }, false);
     }
 }

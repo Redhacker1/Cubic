@@ -371,6 +371,8 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
 
     public void AddFont(string name, string path, int size)
     {
+        if (_fonts.ContainsKey(name))
+            return;
         _fonts.Add(name, ImGui.GetIO().Fonts.AddFontFromFileTTF(path, size));
         RecreateFontDeviceTexture();
     }

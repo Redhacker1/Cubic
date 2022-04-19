@@ -15,6 +15,10 @@ public abstract class Texture : IDisposable
         if (autoDispose)
              SceneManager.Active.CreatedResources.Add(this);
     }
+
+    internal abstract void Bind(TextureUnit textureUnit = TextureUnit.Texture0);
+
+    internal abstract void Unbind();
     
     public virtual void Dispose()
     {

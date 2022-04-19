@@ -66,10 +66,25 @@ public class Texture2D : Texture
         
         GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
         
+        GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName) All.TextureMaxAnisotropy, 16);
+        
         GL.BindTexture(TextureTarget.Texture2D, 0);
 
         return texture;
     }
+    
+    internal override void Bind(TextureUnit textureUnit = TextureUnit.Texture0)
+    {
+        GL.ActiveTexture(textureUnit);
+        GL.BindTexture(TextureTarget.Texture2D, Handle);
+    }
+
+    internal override void Unbind()
+    {
+        GL.BindTexture(TextureTarget.Texture2D, 0);
+    }
 
     public static Texture2D Blank { get; internal set; }
+
+    public static Texture2D Void { get; internal set; }
 }
