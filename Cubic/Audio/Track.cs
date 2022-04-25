@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Cubic.Utilities;
 using OpenTK.Audio.OpenAL;
 
 namespace Cubic.Audio;
@@ -264,7 +265,7 @@ public struct Track
         return new Track(device, samples, patterns, orderList, initialTempo, initialSpeed);
     }
 
-    internal byte[] ToPCM(byte channels, uint sampleRate, byte bitsPerSample, out int beginLoopPoint,
+    internal byte[] ToPCM(byte channels, bool interpolation, uint sampleRate, byte bitsPerSample, out int beginLoopPoint,
         out int endLoopPoint)
     {
         int tempo = Tempo;
@@ -326,7 +327,10 @@ public struct Track
                             chn[c].Key = n.Key;
                             chn[c].Octave = n.Octave;
                             chn[c].SampleID = (byte) n.SampleNum;
-                            chn[c].SampleRate = (uint) (_samples[chn[c].SampleID].SampleRate * pn.Pitch);
+                            if (chn[c].SampleID >= _samples.Length)
+                                chn[c].SampleRate = 0;
+                            else
+                                chn[c].SampleRate = (uint) (_samples[chn[c].SampleID].SampleRate * pn.Pitch);
                             chn[c].Volume = pn.Volume;
                             chn[c].Ratio = chn[c].SampleRate / (float) sampleRate;
                             chn[c].SamplePos = 0;
@@ -390,6 +394,9 @@ public struct Track
                             }
                         }
                         
+                        if (chn[c].SampleRate == 0)
+                            continue;
+                        
                         // Since above we are working in samples it doesn't count for the stereo-ness of the sample.
                         // However since below we are working with array values we now need to account for this.
                         // Stereo samples need to be advanced twice as fast to account for the second "channel" of audio.
@@ -430,14 +437,23 @@ public struct Track
                                 // be (so 16-bit samples will always be aligned at the start of the sample)
                                 // TODO: This code assumes 8-bit samples are mono.
                                 if (_samples[chn[c].SampleID].Type == SampleType.EightBit)
+                                {
                                     newSample = (short) (((_samples[chn[c].SampleID].Data[(int) chn[c].SamplePos] << 8) - short.MaxValue));
+                                    if (interpolation)
+                                    {
+                                        int nextPos = chn[c].Ratio <= 1 ? (int) chn[c].SamplePos + 1 : (int) (chn[c].SamplePos + chn[c].Ratio);
+                                        short nextSample = (short) ((_samples[chn[c].SampleID].Data[nextPos >= _samples[chn[c].SampleID].Data.Length ? (int) chn[c].SamplePos : nextPos] << 8) - short.MaxValue);
+                                        newSample = (short) CubicMath.Lerp(newSample, nextSample,
+                                            (chn[c].SamplePos - (int) chn[c].SamplePos) / 1);
+                                    }
+                                }
                                 else
                                     newSample = (short) ((_samples[chn[c].SampleID].Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + a] | _samples[chn[c].SampleID].Data[(int) chn[c].SamplePos - (int) chn[c].SamplePos % 2 + 1 + a] << 8) - short.MaxValue);
 
                                 // Mix our sample together, using an integer in case the values overflow.
                                 // The value 8 was chosen here because it prevents clipping.
                                 // TODO: Divide by the total number of channels, not by 8.
-                                int intSample = (int) (sample + (newSample / 8) * chn[c].Volume);
+                                int intSample = (int) (sample + newSample / 4 * chn[c].Volume);
                                 
                                 // Clamp our integer to a 16-bit value to prevent over or underflowing.
                                 intSample = intSample >= short.MaxValue ? short.MaxValue :

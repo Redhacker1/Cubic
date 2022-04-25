@@ -45,25 +45,33 @@ public partial struct Sound : IDisposable
     /// Accepts the following file types:
     /// <list type="bullet">
     ///     <item>.wav</item>
+    ///     <item>.ogg</item>
+    ///     <item>.ctra</item>
+    ///     <item>.s3m</item>
     /// </list>
     /// </summary>
     /// <param name="path">The path to the sound file.</param>
     /// <param name="loop">Does this sound loop?</param>
     /// <param name="beginLoopPoint">The sample number the loop starts at.</param>
     /// <param name="endLoopPoint">The sample number the loop ends at. Set to -1 for the loop point to be placed at the end of the sound.</param>
+    /// <param name="interpolation">If true, linear interpolation will be used. This option is <b>only</b> valid for modules.</param>
     /// <exception cref="Exception">Thrown if the given file is not an accepted file type, or if the given file is invalid/corrupt.</exception>
     /// <remarks><paramref name="beginLoopPoint"/> and <paramref name="endLoopPoint"/> are only used if <paramref name="loop"/> is set.</remarks>
-    public Sound(string path, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1)
+    public Sound(string path, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1, bool interpolation = true)
     {
+        int soundLoopPoint =0;
         string ext = Path.GetExtension(path).ToLower();
         Data = ext switch
         {
             ".wav" => LoadWav(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample),
-            ".ctra" => LoadCtra(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample, out beginLoopPoint, out endLoopPoint),
+            ".ctra" => LoadCtra(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample, out soundLoopPoint, out endLoopPoint),
             ".ogg" => LoadOgg(File.ReadAllBytes(path), out Channels, out SampleRate, out BitsPerSample),
-            ".s3m" => LoadS3M(File.ReadAllBytes(path), out Channels, out SampleRate, out BitsPerSample, out beginLoopPoint, out endLoopPoint),
+            ".s3m" => LoadS3M(File.ReadAllBytes(path), interpolation, out Channels, out SampleRate, out BitsPerSample, out soundLoopPoint, out endLoopPoint),
             _ => throw new Exception("Given file is not a valid type.")
         };
+
+        if (beginLoopPoint == 0 && soundLoopPoint != 0)
+            beginLoopPoint = soundLoopPoint;
 
         Loop = loop;
         // sampleToBytes calculates the correct multiplier to convert the given sample number in begin and endLoopPoint,

@@ -381,14 +381,14 @@ public partial struct Sound
 
         data = newData;
     }
-    public static byte[] LoadS3M(byte[] data, out int channels, out int sampleRate, out int bitsPerSample,
-        out int beginLoopPoint, out int endLoopPoint)
+    public static byte[] LoadS3M(byte[] data, bool interpolation, out int channels, out int sampleRate,
+        out int bitsPerSample, out int beginLoopPoint, out int endLoopPoint)
     {
         channels = 2;
         sampleRate = 44100;
         bitsPerSample = 16;
 
-        return Track.FromS3M(null, data).ToPCM((byte) channels, (uint) sampleRate, (byte) bitsPerSample,
+        return Track.FromS3M(null, data).ToPCM((byte) channels, interpolation, (uint) sampleRate, (byte) bitsPerSample,
             out beginLoopPoint, out endLoopPoint);
     }
 }
