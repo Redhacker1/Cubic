@@ -84,8 +84,8 @@ public class Graphics : IDisposable
         GL.Enable(EnableCap.DepthTest);
         GL.DepthFunc(DepthFunction.Lequal);
         
-        GL.Enable(EnableCap.ScissorTest);
-        SetScissor(Viewport);
+        //GL.Enable(EnableCap.ScissorTest);
+        //SetScissor(Viewport);
         
         if (settings.MsaaSamples > 0)
             GL.Enable(EnableCap.Multisample);

@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using OpenTK.Audio.OpenAL;
 
 namespace Cubic.Audio;
@@ -11,7 +12,7 @@ public sealed class AudioDevice : IDisposable
     private readonly ALContext _context;
     
     private readonly int[] _sources;
-    private readonly bool[] _persistentSources;
+    private readonly (bool persist, bool loop)[] _channels;
 
     private float _masterVolume;
 
@@ -46,11 +47,27 @@ public sealed class AudioDevice : IDisposable
         _context = ALC.CreateContext(_device, (int*) null);
         ALC.MakeContextCurrent(_context);
         _sources = new int[numChannels];
-        _persistentSources = new bool[numChannels];
+        _channels = new (bool persist, bool loop)[numChannels];
         AL.GenSources(numChannels, _sources);
         MasterVolume = 1;
         NumChannels = numChannels;
         _channelCount = -1;
+    }
+
+    public Vector3 CameraPosition
+    {
+        set => AL.Listener(ALListener3f.Position, value.X, value.Y, value.Z);
+    }
+
+    public Quaternion CameraOrientation
+    {
+        set
+        {
+            OpenTK.Mathematics.Quaternion quat = new OpenTK.Mathematics.Quaternion(value.X, value.Y, value.Z, value.W);
+            OpenTK.Mathematics.Vector3 direction = OpenTK.Mathematics.Vector3.Transform(OpenTK.Mathematics.Vector3.UnitZ, quat);
+            OpenTK.Mathematics.Vector3 up = OpenTK.Mathematics.Vector3.Transform(OpenTK.Mathematics.Vector3.UnitY, quat);
+            AL.Listener(ALListenerfv.Orientation, ref direction, ref up);
+        }
     }
 
     /// <summary>
@@ -61,19 +78,19 @@ public sealed class AudioDevice : IDisposable
     /// <param name="sound">The sound to play.</param>
     /// <param name="pitch">The pitch the sound should play at.</param>
     /// <param name="volume">The volume the sound should play at.</param>
-    /// <param name="persistent">If persistent is enabled, the sound cannot be overriden by <see cref="PlaySound(Cubic.Audio.Sound,float,float,bool)"/> even if it runs out of channels.</param>
-    public void PlaySound(int channel, Sound sound, float pitch = 1, float volume = 1, bool persistent = false)
+    /// <param name="persistent">If persistent is enabled, the sound cannot be overriden by <see cref="PlayBuffer(Cubic.Audio.Sound,float,float,bool)"/> even if it runs out of channels.</param>
+    public void PlayBuffer(int channel, AudioBuffer buffer, float pitch = 1, float volume = 1, bool loop = false, bool persistent = false, Vector3 position = default, bool relative = false)
     {
-        _persistentSources[channel] = persistent;
+        _channels[channel].persist = persistent;
         int source = _sources[channel];
         AL.SourceStop(source);
         AL.Source(source, ALSourcei.Buffer, 0);
-        AL.SourceQueueBuffer(source, sound.Buffer);
-        if (sound.Loop && sound.BeginLoopPoint > 0)
-            AL.SourceQueueBuffer(source, sound.LoopBuffer);
+        AL.SourceQueueBuffer(source, buffer.Handle);
         AL.Source(source, ALSourcef.Pitch, pitch);
         AL.Source(source, ALSourcef.Gain, volume);
-        AL.Source(source, ALSourceb.Looping, sound.Loop && sound.BeginLoopPoint == 0);
+        AL.Source(source, ALSourceb.Looping, loop);
+        AL.Source(source, ALSource3f.Position, position.X, position.Y, position.Z);
+        AL.Source(source, ALSourceb.SourceRelative, relative);
         AL.SourcePlay(source);
     }
 
@@ -85,10 +102,10 @@ public sealed class AudioDevice : IDisposable
     /// <param name="volume">The volume the sound should play at.</param>
     /// <param name="persistent">If persistent is enabled, the sound will not be overriden even if the number of available channels runs out.</param>
     /// <returns>The channel this sound is playing on.</returns>
-    public int PlaySound(Sound sound, float pitch = 1, float volume = 1, bool persistent = false)
+    public int PlayBuffer(AudioBuffer buffer, float pitch = 1, float volume = 1, bool loop = false, bool persistent = false, Vector3 position = default, bool relative = false)
     {
         IncrementChannelCount(TrackChannels, NumChannels);
-        PlaySound(_channelCount, sound, pitch, volume, persistent);
+        PlayBuffer(_channelCount, buffer, pitch, volume, loop, persistent, position, relative);
         return _channelCount;
     }
 
@@ -104,11 +121,11 @@ public sealed class AudioDevice : IDisposable
     /// <param name="volume">The volume the sound should play at.</param>
     /// <param name="persistent">If persistent is enabled, the sound will not be overriden even if the number of available channels runs out.</param>
     /// <returns>The channel this sound is playing on.</returns>
-    public int PlaySound(int minChannel, int maxChannel, Sound sound, float pitch = 1, float volume = 1,
-        bool persistent = false)
+    public int PlayBuffer(int minChannel, int maxChannel, AudioBuffer buffer, float pitch = 1, float volume = 1,
+        bool loop = false, bool persistent = false)
     {
         IncrementChannelCount(minChannel, maxChannel);
-        PlaySound(_channelCount, sound, pitch, volume, persistent);
+        PlayBuffer(_channelCount, buffer, pitch, volume, loop, persistent);
         return _channelCount;
     }
 
@@ -119,12 +136,11 @@ public sealed class AudioDevice : IDisposable
     /// </summary>
     /// <param name="channel">The channel to queue the sound.</param>
     /// <param name="sound">The sound itself.</param>
-    public void QueueSound(int channel, Sound sound)
+    public void QueueBuffer(int channel, AudioBuffer buffer, bool loop = false)
     {
         int source = _sources[channel];
-        AL.SourceQueueBuffer(source, sound.Buffer);
-        if (sound.Loop && sound.BeginLoopPoint > 0)
-            AL.SourceQueueBuffer(source, sound.LoopBuffer);
+        AL.SourceQueueBuffer(source, buffer.Handle);
+        _channels[channel].loop = loop;
     }
 
     private void IncrementChannelCount(int minChannel, int maxChannel)
@@ -157,7 +173,7 @@ public sealed class AudioDevice : IDisposable
                         _channelCount = minChannel;
                     if (numIterations >= maxChannel - minChannel)
                         throw new Exception("Too many persistent sounds, new sound effect cannot be created.");
-                } while (_persistentSources[_channelCount]);
+                } while (_channels[_channelCount].persist);
 
                 break;
             }
@@ -177,8 +193,8 @@ public sealed class AudioDevice : IDisposable
         bool playing = false;
         if (AL.GetSourceState(_sources[channel]) == ALSourceState.Playing)
             playing = true;
-        else if (_persistentSources[channel])
-            _persistentSources[channel] = false;
+        else if (_channels[channel].persist)
+            _channels[channel].persist = false;
 
         return playing;
     }
@@ -190,7 +206,7 @@ public sealed class AudioDevice : IDisposable
     /// <param name="pitch">The pitch the sound should play at.</param>
     /// <param name="volume">The volume the sound should play at.</param>
     /// <param name="loop">Should the sound loop?</param>
-    /// <param name="persistent">If persistent is enabled, the sound cannot be overriden by <see cref="PlaySound(Cubic.Audio.Sound,float,float,bool)"/> even if it runs out of channels.</param>
+    /// <param name="persistent">If persistent is enabled, the sound cannot be overriden by <see cref="PlayBuffer(Cubic.Audio.Sound,float,float,bool)"/> even if it runs out of channels.</param>
     public void SetSoundProperties(int channel, float pitch = 1, float volume = 1, bool loop = false,
         bool persistent = false)
     {
@@ -198,7 +214,7 @@ public sealed class AudioDevice : IDisposable
         AL.Source(source, ALSourcef.Pitch, pitch);
         AL.Source(source, ALSourcef.Gain, volume);
         AL.Source(source, ALSourceb.Looping, loop);
-        _persistentSources[channel] = persistent;
+        _channels[channel].persist = persistent;
     }
 
     /// <summary>
@@ -208,7 +224,7 @@ public sealed class AudioDevice : IDisposable
     public void Stop(int channel)
     {
         // As the sound effect is no longer playing we set its persistence to false.
-        _persistentSources[channel] = false;
+        _channels[channel].persist = false;
         AL.SourceStop(_sources[channel]);
     }
 
@@ -267,8 +283,28 @@ public sealed class AudioDevice : IDisposable
     /// <param name="persistent">Persistent?</param>
     public void SetPersistent(int channel, bool persistent)
     {
-        _persistentSources[channel] = persistent;
+        _channels[channel].persist = persistent;
     }
+
+    public AudioBuffer CreateBuffer()
+    {
+        return new AudioBuffer(AL.GenBuffer());
+    }
+
+    public void UpdateBuffer<T>(AudioBuffer buffer, AudioFormat format, T[] data, int sampleFrequency) where T : unmanaged
+    {
+        ALFormat alFormat = format switch
+        {
+            AudioFormat.Mono8 => ALFormat.Mono8,
+            AudioFormat.Mono16 => ALFormat.Mono16,
+            AudioFormat.Stereo8 => ALFormat.Stereo8,
+            AudioFormat.Stereo16 => ALFormat.Stereo16,
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
+        };
+        
+        AL.BufferData(buffer.Handle, alFormat, data, sampleFrequency);
+    }
+    
 
     internal void Update()
     {
@@ -286,7 +322,7 @@ public sealed class AudioDevice : IDisposable
                 BufferFinished?.Invoke(i);
                 AL.GetSource(source, ALGetSourcei.BuffersQueued, out int buffQueued);
                 if (buffQueued <= 1)
-                    AL.Source(_sources[i], ALSourceb.Looping, true);
+                    AL.Source(_sources[i], ALSourceb.Looping, _channels[i].loop);
             }
         }
     }
@@ -302,4 +338,12 @@ public sealed class AudioDevice : IDisposable
     }
 
     public delegate void OnBufferFinished(int channel);
+}
+
+public enum AudioFormat
+{
+    Mono8,
+    Mono16,
+    Stereo8,
+    Stereo16
 }

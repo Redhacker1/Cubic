@@ -6,79 +6,44 @@ using StbVorbisSharp;
 
 namespace Cubic.Audio;
 
-public partial struct Sound
+public partial class Sound
 {
-    public static byte[] LoadWav(Stream stream, out int channels, out int sampleRate, out int bitsPerSample)
+    public static byte[] LoadWav(byte[] data, out int channels, out int sampleRate, out int bitsPerSample)
     {
-        using (BinaryReader reader = new BinaryReader(stream))
-        {
-            // Header
-            
-            if (new string(reader.ReadChars(4)) != "RIFF") // ChunkID
-                throw new Exception("Given file is not a wave file.");
-            
-            reader.ReadInt32(); // ChunkSize
-            
-            if (new string(reader.ReadChars(4)) != "WAVE") // Format
-                throw new Exception("Given wave file is not valid.");
-            
-            if (new string(reader.ReadChars(4)) != "fmt ") // Subchunk1ID
-                throw new Exception("Given wave file is not valid.");
-
-            reader.ReadInt32(); // Subchunk1Size
-            
-            if (reader.ReadInt16() != 1) // AudioFormat
-                throw new Exception("Compressed wave files cannot be loaded.");
-
-            channels = reader.ReadInt16();
-            sampleRate = reader.ReadInt32();
-
-            reader.ReadInt32(); // ByteRate, we just calculate this when needed.
-            reader.ReadInt16(); // BlockAlign
-
-            bitsPerSample = reader.ReadInt16();
-            
-            // Data
-            
-            if (new string(reader.ReadChars(4)) != "data") // Subchunk2ID
-                throw new Exception("Given wave file is not valid.");
-
-            int size = reader.ReadInt32(); // Subchunk2Size
-            return reader.ReadBytes(size);
-        }
-    }
-
-    // Decompresses ogg file into full memory.
-    public static byte[] LoadOgg(byte[] data, out int channels, out int sampleRate, out int bitsPerSample)
-    {
-        Vorbis vorbis = Vorbis.FromMemory(data);
-        byte[] pcm = new byte[(int) (vorbis.LengthInSeconds * vorbis.SampleRate * vorbis.Channels * 2)];
-        int offset = 0;
-        vorbis.SubmitBuffer();
-        while (vorbis.Decoded != 0)
-        {
-            for (int i = 0; i < vorbis.Decoded * vorbis.Channels; i++)
-            {
-                if (i * 2 + offset >= pcm.Length)
-                    goto STOP;
-                short pcmShort = vorbis.SongBuffer[i];
-
-                pcm[i * 2 + 0 + offset] = (byte) (pcmShort & 255);
-                pcm[i * 2 + 1 + offset] = (byte) (pcmShort >> 8);
-            }
-            
-            vorbis.SubmitBuffer();
-
-            offset += vorbis.Decoded * vorbis.Channels * 2;
-        }
+        using MemoryStream memStream = new MemoryStream(data);
+        using BinaryReader reader = new BinaryReader(memStream);
+        // Header
+        if (new string(reader.ReadChars(4)) != "RIFF") // ChunkID
+            throw new Exception("Given file is not a wave file.");
         
-        STOP: ;
+        reader.ReadInt32(); // ChunkSize
+        
+        if (new string(reader.ReadChars(4)) != "WAVE") // Format
+            throw new Exception("Given wave file is not valid.");
+        
+        if (new string(reader.ReadChars(4)) != "fmt ") // Subchunk1ID
+            throw new Exception("Given wave file is not valid.");
 
-        channels = vorbis.Channels;
-        sampleRate = vorbis.SampleRate;
-        bitsPerSample = 4;
+        reader.ReadInt32(); // Subchunk1Size
+        
+        if (reader.ReadInt16() != 1) // AudioFormat
+            throw new Exception("Compressed wave files cannot be loaded.");
 
-        return pcm;
+        channels = reader.ReadInt16();
+        sampleRate = reader.ReadInt32();
+
+        reader.ReadInt32(); // ByteRate, we just calculate this when needed.
+        reader.ReadInt16(); // BlockAlign
+
+        bitsPerSample = reader.ReadInt16();
+        
+        // Data
+        
+        if (new string(reader.ReadChars(4)) != "data") // Subchunk2ID
+            throw new Exception("Given wave file is not valid.");
+
+        int size = reader.ReadInt32(); // Subchunk2Size
+        return reader.ReadBytes(size);
     }
 
     public static byte[] LoadCtra(Stream stream, out int channels, out int sampleRate, out int bitsPerSample, 

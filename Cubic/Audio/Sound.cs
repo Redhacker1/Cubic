@@ -2,29 +2,40 @@ using System;
 using System.IO;
 using Cubic.Scenes;
 using OpenTK.Audio.OpenAL;
+using StbVorbisSharp;
 
 namespace Cubic.Audio;
 
 /// <summary>
 /// Represents a sound sample that can be played by an <see cref="AudioDevice"/>.
 /// </summary>
-public partial struct Sound : IDisposable
+public partial class Sound : IDisposable
 {
     public byte[] Data;
     public readonly int Channels;
     public readonly int SampleRate;
     public readonly int BitsPerSample;
 
-    internal readonly ALFormat Format;
-    internal readonly int Buffer;
-    internal readonly int LoopBuffer;
-
     public readonly bool Loop;
     public int BeginLoopPoint;
     public int EndLoopPoint;
 
-    public Sound(byte[] data, int channels, int sampleRate, int bitsPerSample, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1)
+    private AudioBuffer[] _buffers;
+
+    private AudioDevice _device;
+
+    private SoundType _type;
+
+    private Vorbis _vorbis;
+
+    private int _activeChannel;
+    private int _currentBuffer;
+
+    private int _requests;
+
+    public Sound(AudioDevice device, byte[] data, int channels, int sampleRate, int bitsPerSample, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1)
     {
+        _device = device;
         Data = data;
         Channels = channels;
         SampleRate = sampleRate;
@@ -32,11 +43,15 @@ public partial struct Sound : IDisposable
         Loop = loop;
         BeginLoopPoint = beginLoopPoint;
         EndLoopPoint = endLoopPoint == -1 ? Data.Length : endLoopPoint;
-        Buffer = 0;
-        LoopBuffer = -1;
-        Format = ALFormat.Mono8;
-        Format = GetFormat(channels, bitsPerSample);
-        CreateBuffers(out Buffer, out LoopBuffer);
+
+        _buffers = null;
+        _type = SoundType.PCM;
+
+        _vorbis = null;
+        _activeChannel = -1;
+        _currentBuffer = 0;
+        Load();
+
         SceneManager.Active.CreatedResources.Add(this);
     }
 
@@ -57,18 +72,50 @@ public partial struct Sound : IDisposable
     /// <param name="interpolation">If true, linear interpolation will be used. This option is <b>only</b> valid for modules.</param>
     /// <exception cref="Exception">Thrown if the given file is not an accepted file type, or if the given file is invalid/corrupt.</exception>
     /// <remarks><paramref name="beginLoopPoint"/> and <paramref name="endLoopPoint"/> are only used if <paramref name="loop"/> is set.</remarks>
-    public Sound(string path, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1, bool interpolation = true)
+    public Sound(AudioDevice device, string path, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1, bool interpolation = true)
     {
-        int soundLoopPoint =0;
+        _device = device;
+        int soundLoopPoint = 0;
+
+        _vorbis = null;
+        
         string ext = Path.GetExtension(path).ToLower();
-        Data = ext switch
+        switch (ext)
         {
-            ".wav" => LoadWav(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample),
-            ".ctra" => LoadCtra(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample, out soundLoopPoint, out endLoopPoint),
-            ".ogg" => LoadOgg(File.ReadAllBytes(path), out Channels, out SampleRate, out BitsPerSample),
-            ".s3m" => LoadS3M(File.ReadAllBytes(path), interpolation, out Channels, out SampleRate, out BitsPerSample, out soundLoopPoint, out endLoopPoint),
-            _ => throw new Exception("Given file is not a valid type.")
-        };
+            case ".wav":
+                Data = LoadWav(File.ReadAllBytes(path), out Channels, out SampleRate, out BitsPerSample);
+                _type = SoundType.PCM;
+                break;
+            case ".ctra":
+                Data = LoadCtra(File.OpenRead(path), out Channels, out SampleRate, out BitsPerSample,
+                    out soundLoopPoint, out endLoopPoint);
+                _type = SoundType.Track;
+                break;
+            case ".ogg":
+                _vorbis = Vorbis.FromMemory(File.ReadAllBytes(path));
+                Data = null;
+                Channels = _vorbis.Channels;
+                SampleRate = _vorbis.SampleRate;
+                BitsPerSample = 16;
+                _type = SoundType.Vorbis;
+                break;
+            case ".s3m":
+                Data = null;
+                Channels = 2;
+                SampleRate = 44100;
+                BitsPerSample = 2;
+                
+                // The new way! Immediately loads!
+                _type = SoundType.Track;
+                LoadS3M(File.ReadAllBytes(path));
+                
+                // THE OLD WAY - This is how a track used to be generated - look at how long it takes!
+                //_type = SoundType.PCM;
+                //Data = Track.FromS3M(device, File.ReadAllBytes(path)).ToPCM(2, true, 44100, 16, out _, out _);
+                break;
+            default:
+                    throw new Exception("Given file is not a valid type.");
+        }
 
         if (beginLoopPoint == 0 && soundLoopPoint != 0)
             beginLoopPoint = soundLoopPoint;
@@ -79,80 +126,175 @@ public partial struct Sound : IDisposable
         // This ensures that no matter the format of the data, the loop points will always be consistent.
         int sampleToBytes = (Channels * BitsPerSample) / 8;
         BeginLoopPoint = beginLoopPoint * sampleToBytes;
-        EndLoopPoint = endLoopPoint == -1 ? Data.Length : endLoopPoint * sampleToBytes;
+        if (Data == null)
+            EndLoopPoint = 0;
+        else
+            EndLoopPoint = endLoopPoint == -1 ? Data.Length : endLoopPoint * sampleToBytes;
+
+        _buffers = null;
+        _activeChannel = -1;
+        _currentBuffer = 0;
+
+        _interpolation = interpolation;
         
-        Buffer = 0;
-        LoopBuffer = -1;
-        Format = ALFormat.Mono8;
-        Format = GetFormat(Channels, BitsPerSample);
-        CreateBuffers(out Buffer, out LoopBuffer);
+        Load();
+        
+        _device.BufferFinished += DeviceOnBufferFinished;
         
         SceneManager.Active.CreatedResources.Add(this);
     }
 
-    private ALFormat GetFormat(int channels, int bits)
+    public static AudioFormat GetFormat(int channels, int bits)
     {
         return channels switch
         {
-            1 => bits == 8 ? ALFormat.Mono8 : ALFormat.Mono16,
-            2 => bits == 8 ? ALFormat.Stereo8 : ALFormat.Stereo16,
-            _ => throw new Exception("Not valid file")
+            1 => bits == 8 ? AudioFormat.Mono8 : AudioFormat.Mono16,
+            2 => bits == 8 ? AudioFormat.Stereo8 : AudioFormat.Stereo16,
+            _ => throw new Exception("Unsupported audio format provided.")
         };
     }
 
-    private void CreateBuffers(out int buffer1, out int buffer2)
+    private void Load()
     {
-        /*const int newSampleRate = 11025;
-        // Calculate our alignment for the number of bytes we need.
-        int alignment = (Channels * BitsPerSample) / 8;
-        // This will help us determine (a) How many bytes our new data array should be, (b) the section of data we copy
-        // across to this new array from the old array for any given value of i.
-        float ratio = SampleRate / (float) newSampleRate;
-        byte[] data = new byte[(int) ((Data.Length * ratio) - (Data.Length * ratio) % alignment)];
-        for (int i = 0; i < data.Length; i += alignment)
+        switch (_type)
         {
-            // dataPoint calculates the exact starting array index for any given value of i, based on our computed
-            // ratio. It is aligned to the correct byte, so dataPoint + alignment will always be the next sample in the
-            // array.
-            int dataPoint = (int) ((i * 1 / ratio) - (i * 1 / ratio) % alignment);
-            // Append the data for the alignment we need. Typically, alignment will be 4.
-            // (16 bits per sample * 2 channels) / sizeof(byte) = 4. The first two bytes will be the first channel and
-            // the last two bytes will be the second channel.
-            if (dataPoint >= Data.Length)
+            case SoundType.PCM:
+                _buffers = new AudioBuffer[2];
+                AudioFormat format = GetFormat(Channels, BitsPerSample);
+                _buffers[0] = _device.CreateBuffer();
+                if (Loop)
+                {
+                    if (BeginLoopPoint > 0)
+                    {
+                        _device.UpdateBuffer(_buffers[0], format, Data[..BeginLoopPoint], SampleRate);
+                        _buffers[1] = _device.CreateBuffer();
+                        _device.UpdateBuffer(_buffers[1], format, Data[BeginLoopPoint..EndLoopPoint], SampleRate);
+                    }
+                    else
+                        _device.UpdateBuffer(_buffers[0], format, Data[..EndLoopPoint], SampleRate);
+                }
+                else
+                    _device.UpdateBuffer(_buffers[0], format, Data, SampleRate);
+
                 break;
-            for (int a = 0; a < alignment; a++)
-                data[i + a] = Data[dataPoint + a];
+            case SoundType.Vorbis:
+                _buffers = new AudioBuffer[2];
+                for (int i = 0; i < _buffers.Length; i++)
+                {
+                    _buffers[i] = _device.CreateBuffer();
+                    GetVorbisData();
+                    IncrementBuffer();
+                }
+                break;
+            case SoundType.Track:
+                _trackBuffer = new short[SampleRate];
+                _buffers = new AudioBuffer[2];
+                for (int i = 0; i < _buffers.Length; i++)
+                {
+                    _buffers[i] = _device.CreateBuffer();
+                    GetTrackData();
+                    IncrementBuffer();
+                }
+
+                break;
+        }
+    }
+    
+    private void DeviceOnBufferFinished(int channel)
+    {
+        if (channel != _activeChannel)
+            return;
+        
+        Console.WriteLine($"Requesting new buffer data! Request {_requests++}");
+
+        switch (_type)
+        {
+            case SoundType.Vorbis:
+                GetVorbisData();
+                break;
+            case SoundType.Track:
+                GetTrackData();
+                break;
+        }
+        
+        _device.QueueBuffer(_activeChannel, _buffers[_currentBuffer]);
+        IncrementBuffer();
+    }
+
+    private void GetVorbisData()
+    {
+        _vorbis.SubmitBuffer();
+
+        if (_vorbis.Decoded == 0)
+        {
+            _vorbis.Restart();
+            _vorbis.SubmitBuffer();
         }
 
-        Data = data;*/
-        
-        buffer1 = AL.GenBuffer();
-        buffer2 = -1;
-        if (Loop)
+        short[] data = _vorbis.SongBuffer;
+        _device.UpdateBuffer(_buffers[_currentBuffer], AudioFormat.Stereo16, data, _vorbis.SampleRate);
+    }
+
+    private void IncrementBuffer()
+    {
+        _currentBuffer++;
+        if (_currentBuffer >= _buffers.Length)
+            _currentBuffer = 0;
+    }
+
+    public int Play(int channel = -1, float pitch = 1, float volume = 1, bool persistent = false)
+    {
+        switch (_type)
         {
-            //BeginLoopPoint = (int) ((BeginLoopPoint * ratio) - (BeginLoopPoint * ratio) % alignment);
-            //EndLoopPoint = (int) ((EndLoopPoint * ratio) - (EndLoopPoint * ratio) % alignment);
-            if (BeginLoopPoint > 0)
-            {
-                AL.BufferData(buffer1, Format, Data[..BeginLoopPoint], SampleRate);
-                buffer2 = AL.GenBuffer();
-                AL.BufferData(buffer2, Format, Data[BeginLoopPoint..EndLoopPoint], SampleRate);
-            }
-            else
-                AL.BufferData(buffer1, Format, Data[..EndLoopPoint], SampleRate);
+            case SoundType.PCM:
+                if (_buffers[1].Exists)
+                {
+                    if (channel == -1)
+                        channel = _device.PlayBuffer(_buffers[0], pitch, volume, persistent: persistent);
+                    else
+                        _device.PlayBuffer(channel, _buffers[0], pitch, volume, persistent: persistent);
+                    _device.QueueBuffer(channel, _buffers[1], Loop);
+                }
+                else if (channel == -1)
+                    channel = _device.PlayBuffer(_buffers[0], pitch, volume, persistent: persistent);
+                else
+                    _device.PlayBuffer(channel, _buffers[0], pitch, volume, persistent: persistent);
+
+                break;
+            default:
+                if (channel == -1)
+                    channel = _device.PlayBuffer(_buffers[0], pitch, volume, persistent: persistent);
+                else
+                    _device.PlayBuffer(channel, _buffers[0], pitch, volume, persistent: persistent);
+                
+                for (int i = 1; i < _buffers.Length; i++)
+                    _device.QueueBuffer(channel, _buffers[i]);
+                break;
         }
-        else
-            AL.BufferData(buffer1, Format, Data, SampleRate);
+        
+        _activeChannel = channel;
+        return channel;
     }
 
     public void Dispose()
     {
-        AL.DeleteBuffer(Buffer);
-        if (AL.IsBuffer(LoopBuffer))
-            AL.DeleteBuffer(LoopBuffer);
+        foreach (AudioBuffer buffer in _buffers)
+            if (buffer.Exists)
+                buffer.Dispose();
+        
+        _vorbis?.Dispose();
+
+        _device.BufferFinished -= DeviceOnBufferFinished;
         
 #if DEBUG
         Console.WriteLine("Sound disposed.");
 #endif
     }
+}
+
+public enum SoundType
+{
+    PCM,
+    Vorbis,
+    Track
 }
