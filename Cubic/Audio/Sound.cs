@@ -31,7 +31,7 @@ public partial class Sound : IDisposable
     private int _activeChannel;
     private int _currentBuffer;
 
-    private int _requests;
+    private int _count;
 
     public Sound(AudioDevice device, byte[] data, int channels, int sampleRate, int bitsPerSample, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1)
     {
@@ -202,10 +202,8 @@ public partial class Sound : IDisposable
     
     private void DeviceOnBufferFinished(int channel)
     {
-        if (channel != _activeChannel)
+        if (channel != _activeChannel || _type == SoundType.PCM)
             return;
-        
-        Console.WriteLine($"Requesting new buffer data! Request {_requests++}");
 
         switch (_type)
         {
@@ -225,10 +223,9 @@ public partial class Sound : IDisposable
     {
         _vorbis.SubmitBuffer();
 
-        if (_vorbis.Decoded == 0)
+        if (_vorbis.Decoded < _vorbis.SampleRate / 2)
         {
-            _vorbis.Restart();
-            _vorbis.SubmitBuffer();
+            StbVorbis.stb_vorbis_seek(_vorbis.StbVorbis, 125197);
         }
 
         short[] data = _vorbis.SongBuffer;

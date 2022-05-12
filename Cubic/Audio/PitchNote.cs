@@ -2,7 +2,7 @@ using System;
 
 namespace Cubic.Audio;
 
-internal ref struct PitchNote
+public ref struct PitchNote
 {
     #region Constants
     

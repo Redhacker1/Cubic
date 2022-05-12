@@ -7,5 +7,6 @@ internal enum Effect
     PatternBreak,
     SetSpeed,
     SetTempo,
-    PortamentoUp
+    PortamentoUp,
+    VolumeSlide
 }

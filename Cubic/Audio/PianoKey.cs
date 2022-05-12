@@ -1,6 +1,6 @@
 namespace Cubic.Audio;
 
-internal enum PianoKey
+public enum PianoKey
 {
     None,
     NoteCut,

@@ -77,11 +77,11 @@ public class CubicGame : IDisposable
 
         while (!Window.ShouldClose)
         {
+            AudioDevice.Update();
             if (Time.Stopwatch.Elapsed.TotalSeconds - Time.LastTime < _targetFrameDelta && _lockFps)
                 continue;
             Input.Update(Window);
             Time.Update();
-            AudioDevice.Update();
             Update();
             Metrics.Update();
             GraphicsInternal.PrepareFrame(SceneManager.Active.World.ClearColorInternal);

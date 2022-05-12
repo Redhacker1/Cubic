@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Threading;
 using OpenTK.Audio.OpenAL;
 
 namespace Cubic.Audio;
@@ -304,7 +305,6 @@ public sealed class AudioDevice : IDisposable
         
         AL.BufferData(buffer.Handle, alFormat, data, sampleFrequency);
     }
-    
 
     internal void Update()
     {

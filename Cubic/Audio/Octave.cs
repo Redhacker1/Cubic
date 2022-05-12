@@ -1,6 +1,6 @@
 namespace Cubic.Audio;
 
-internal enum Octave
+public enum Octave
 {
     Octave0,
     Octave1,

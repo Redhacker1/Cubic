@@ -118,7 +118,7 @@ public partial class Sound
                     byte channel = (byte) (flag & 31);
                     byte note = 255;
                     byte instrument = 0;
-                    byte volume = 64;
+                    byte volume = 65;
                     byte specialCommand = 255;
                     byte commandInfo = 0;
 
@@ -128,6 +128,7 @@ public partial class Sound
                     {
                         note = reader.ReadByte();
                         instrument = (byte) (reader.ReadByte() - 1);
+                        volume = 64;
                     }
 
                     if ((flag & 64) != 0)
@@ -164,6 +165,9 @@ public partial class Sound
                         case 3:
                             effect = Effect.PatternBreak;
                             break;
+                        case 4:
+                            effect = Effect.VolumeSlide;
+                            break;
                         case 6:
                             effect = Effect.PortamentoUp;
                             break;
@@ -183,7 +187,7 @@ public partial class Sound
         _channels = new Channel[16];
         _tickDurationInSamples = CalculateTickDurationInSamples(initialTempo);
         _currentRow = 0;
-        _currentOrder = _orders[0];
+        _currentOrder = 0;
         _rowChanged = true;
 
         _speed = initialSpeed;
@@ -219,7 +223,11 @@ public partial class Sound
                 {
                     Note n = pattern.Notes[c, _currentRow];
                     if (!n.Initialized)
+                    {
+                        _channels[c].Effect = Effect.None;
+                        _channels[c].EffectParam = 0;
                         continue;
+                    }
 
                     if (n.Key == PianoKey.NoteCut)
                     {
@@ -233,16 +241,21 @@ public partial class Sound
                     {
                         PitchNote pn = new PitchNote(n.Key, n.Octave, n.Volume);
                         _channels[c].SampleId = (uint) n.SampleNum;
-                        _channels[c].SampleRate = (uint) (_samples[_channels[c].SampleId].SampleRate * pn.Pitch);
-                        _channels[c].Ratio = _channels[c].SampleRate / (float) SampleRate;
+                        _channels[c].SampleRate = (float) (_samples[_channels[c].SampleId].SampleRate * pn.Pitch);
+                            //CalculateSampleRate(n.Key, n.Octave, _samples[_channels[c].SampleId].SampleRate);
+                            _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
                         _channels[c].SamplePos = 0;
-                        _channels[c].Volume = pn.Volume;
                     }
-                    else
+
+                    if (n.Volume != 65)
+                    {
                         _channels[c].Volume = n.Volume * PitchNote.RefVolume;
+                        _channels[c].NoteVolume = n.Volume;
+                    }
 
                     _channels[c].Effect = n.Effect;
-                    _channels[c].EffectParam = (byte) n.EffectParam;
+                    if (n.EffectParam != 0)
+                        _channels[c].EffectParam = (byte) n.EffectParam;
                 }
             }
 
@@ -251,7 +264,7 @@ public partial class Sound
                 if (_channels[c].SampleRate == 0)
                     continue;
 
-                int multiplier = _samples[_channels[c].SampleId].Stereo ? 2 : 1;
+                int multiplier = _samples[_channels[c].SampleId].SixteenBit ? 2 : 1;
                 _channels[c].SamplePos += _channels[c].Ratio * multiplier;
                 if (_samples[_channels[c].SampleId].Loop &&
                     _channels[c].SamplePos >= _samples[_channels[c].SampleId].LoopEnd * multiplier)
@@ -276,13 +289,23 @@ public partial class Sound
                         }
                         else
                         {
-                            newSample = (short) ((_samples[_channels[c].SampleId].Data[(int) _channels[c].SamplePos] << 8) - short.MaxValue);
-                            if (_interpolation)
+                            /*if (_samples[_channels[c].SampleId].Stereo)
                             {
-                                int nextPos = _channels[c].Ratio <= 1 ? (int) _channels[c].SamplePos + 1 : (int) (_channels[c].SamplePos + _channels[c].Ratio);
-                                short nextSample = (short) ((_samples[_channels[c].SampleId].Data[nextPos >= _samples[_channels[c].SampleId].Data.Length ? (int) _channels[c].SamplePos : nextPos] << 8) - short.MaxValue);
-                                newSample = (short) CubicMath.Lerp(newSample, nextSample, (_channels[c].SamplePos - (int) _channels[c].SamplePos) / 1);
+                                // s3m files store samples weirdly - the first half of the data is the left channel, and
+                                // the second half of the data is the right channel (i was expecting [l, r, l, r] etc.)
+                                // therefore, we need to add the datalength / 2 every time a is 1 to get stereo.
+                                newSample = (short) ((_samples[_channels[c].SampleId].Data[(a == 1 ? _samples[_channels[c].SampleId].Data.Length / 2 : 0) + ((int) _channels[c].SamplePos - (int) _channels[c].SamplePos % 2)] << 8) - short.MaxValue);
                             }
+                            else
+                            {*/
+                            newSample = (short) ((_samples[_channels[c].SampleId].Data[(a == 1 && _samples[_channels[c].SampleId].Stereo ? _samples[_channels[c].SampleId].Data.Length / 2 : 0) + (int) _channels[c].SamplePos - (_samples[_channels[c].SampleId].Stereo ? (int) _channels[c].SamplePos % 2 : 0)] << 8) - short.MaxValue);
+                                if (false)
+                                {
+                                    int nextPos = _channels[c].Ratio <= 1 ? (int) _channels[c].SamplePos + 1 : (int) (_channels[c].SamplePos + _channels[c].Ratio);
+                                    short nextSample = (short) ((_samples[_channels[c].SampleId].Data[nextPos >= _samples[_channels[c].SampleId].Data.Length ? (int) _channels[c].SamplePos : nextPos] << 8) - short.MaxValue);
+                                    newSample = (short) CubicMath.Lerp(newSample, nextSample, (_channels[c].SamplePos - (int) _channels[c].SamplePos) / 1);
+                                }
+                            //}
                         }
 
                         int mixedSample = (int) (sample + newSample / 4 * _channels[c].Volume);
@@ -301,6 +324,26 @@ public partial class Sound
             {
                 _sampleCount = 0;
                 _currentTick++;
+                for (int c = 0; c < _channels.Length; c++)
+                {
+                    float freqUnit = 3546895 / _channels[c].SampleRate;
+                    switch (_channels[c].Effect)
+                    {
+                        case Effect.PortamentoUp:
+                            _channels[c].SampleRate += freqUnit * _channels[c].EffectParam;
+                            _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
+                            break;
+                        case Effect.VolumeSlide:
+                            if (_channels[c].EffectParam < 16)
+                                _channels[c].NoteVolume -= _channels[c].EffectParam;
+                            else if (_channels[c].EffectParam % 16 == 0)
+                                _channels[c].NoteVolume += _channels[c].EffectParam / 16;
+
+                            _channels[c].NoteVolume = CubicMath.Clamp(_channels[c].NoteVolume, 0, 64);
+                            _channels[c].Volume = _channels[c].NoteVolume * PitchNote.RefVolume;
+                            break;
+                    }
+                }
                 if (_currentTick >= _speed)
                 {
                     _rowChanged = true;
@@ -320,10 +363,13 @@ public partial class Sound
                     }
                     if (_currentRow >= _patterns[_orders[_currentOrder]].Length)
                     {
-                        _currentRow = 0;
-                        _currentOrder++;
-                        if (_currentOrder >= _orders.Length)
-                            _currentOrder = 0;
+                        do
+                        {
+                            _currentRow = 0;
+                            _currentOrder++;
+                            if (_currentOrder >= _orders.Length)
+                                _currentOrder = 0;
+                        } while (_orders[_currentOrder] >= _patterns.Length);
                     }
                 }
             }
@@ -336,6 +382,13 @@ public partial class Sound
     {
         int tickDurationInMs = 2500 / tempo;
         return (int) ((tickDurationInMs / 1000f) * SampleRate);
+    }
+
+    private static int[] _periodTableS3M = { 1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 0960, 0907 };
+    
+    private float CalculateSampleRate(PianoKey key, Octave octave, float cRate)
+    {
+        return 14317456f / (8363f * 16f * ((_periodTableS3M[(int) key - 2]) >> ((int) octave)) / cRate);
     }
     
     private struct Sample
@@ -356,10 +409,12 @@ public partial class Sound
         public float SamplePos;
         public float Volume;
         public float Ratio;
-        public uint SampleRate;
+        public float SampleRate;
         public uint SampleId;
 
         public Effect Effect;
         public byte EffectParam;
+
+        public int NoteVolume;
     }
 }
