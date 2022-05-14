@@ -5,7 +5,8 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Cubic.Utilities;
-using OpenTK.Graphics.OpenGL4;
+using static Cubic.Render.Graphics;
+using Silk.NET.OpenGL;
 using Rectangle = System.Drawing.Rectangle;
 
 namespace Cubic.Render;
@@ -83,9 +84,9 @@ void main()
 
     private Graphics _graphics;
 
-    private int _vao;
-    private int _vbo;
-    private int _ebo;
+    private uint _vao;
+    private uint _vbo;
+    private uint _ebo;
     private Shader _shader;
     private Shader _shaderToUse;
 
@@ -120,21 +121,21 @@ void main()
         _spriteVertices = new SpriteVertex[MaxSprites * NumVertices];
         _spriteIndices = new uint[MaxSprites * NumIndices];
 
-        _vao = GL.GenVertexArray();
-        GL.BindVertexArray(_vao);
+        _vao = Gl.GenVertexArray();
+        Gl.BindVertexArray(_vao);
 
-        _vbo = GL.GenBuffer();
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-        GL.BufferData(BufferTarget.ArrayBuffer, (int) (MaxSprites * VertexSizeInBytes), IntPtr.Zero,
-            BufferUsageHint.DynamicDraw);
+        _vbo = Gl.GenBuffer();
+        Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+        Gl.BufferData(BufferTargetARB.ArrayBuffer, (int) (MaxSprites * VertexSizeInBytes), IntPtr.Zero,
+            BufferUsageARB.DynamicDraw);
 
-        _ebo = GL.GenBuffer();
-        GL.BindBuffer(BufferTarget.ElementArrayBuffer, _ebo);
-        GL.BufferData(BufferTarget.ElementArrayBuffer, (int) (MaxSprites * IndexSizeInBytes), IntPtr.Zero,
-            BufferUsageHint.DynamicDraw);
+        _ebo = Gl.GenBuffer();
+        Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
+        Gl.BufferData(BufferTargetARB.ElementArrayBuffer, (int) (MaxSprites * IndexSizeInBytes), IntPtr.Zero,
+            BufferUsageARB.DynamicDraw);
 
         _shader = new Shader(VertexShader, FragmentShader);
-        GL.UseProgram(_shader.Handle);
+        Gl.UseProgram(_shader.Handle);
 
         RenderUtils.VertexAttribs(typeof(SpriteVertex));
 
@@ -143,9 +144,9 @@ void main()
 
         FramebufferSize = _graphics.Viewport.Size;
         
-        GL.BindVertexArray(0);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-        GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
+        Gl.BindVertexArray(0);
+        Gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+        Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
 
         _graphics.ViewportResized += GraphicsOnViewportResized;
     }
@@ -173,7 +174,7 @@ void main()
         
         Matrix4x4 tMatrix = transform ?? Matrix4x4.Identity;
         _shaderToUse = shader ?? _shader;
-        GL.UseProgram(_shaderToUse.Handle);
+        Gl.UseProgram(_shaderToUse.Handle);
         _shaderToUse.Set("uProjectionView", tMatrix * _projectionMatrix);
 
         _sample = sample;
@@ -321,35 +322,37 @@ void main()
         _begun = false;
     }
 
-    private void Flush()
+    private unsafe void Flush()
     {
         if (_currentSpriteIndex == 0)
             return;
 
-        GL.FrontFace(FrontFaceDirection.Ccw);
-        GL.DepthMask(false);
+        Gl.FrontFace(FrontFaceDirection.Ccw);
+        Gl.DepthMask(false);
         
-        GL.BindVertexArray(_vao);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-        GL.BindBuffer(BufferTarget.ElementArrayBuffer, _ebo);
-        GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, (int) (_currentSpriteIndex * VertexSizeInBytes), _spriteVertices);
-        GL.BufferSubData(BufferTarget.ElementArrayBuffer, IntPtr.Zero, (int) (_currentSpriteIndex * IndexSizeInBytes), _spriteIndices);
+        Gl.BindVertexArray(_vao);
+        Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+        Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
+        fixed (SpriteVertex* p = _spriteVertices)
+            Gl.BufferSubData(BufferTargetARB.ArrayBuffer, IntPtr.Zero, _currentSpriteIndex * VertexSizeInBytes, p);
+        fixed (uint* p = _spriteIndices)
+            Gl.BufferSubData(BufferTargetARB.ElementArrayBuffer, IntPtr.Zero, _currentSpriteIndex * IndexSizeInBytes, p);
         
-        GL.ActiveTexture(TextureUnit.Texture0);
-        GL.BindTexture(TextureTarget.Texture2D, _currentTexture.Handle);
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter,
+        Gl.ActiveTexture(TextureUnit.Texture0);
+        Gl.BindTexture(TextureTarget.Texture2D, _currentTexture.Handle);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter,
             (int) (_sample == TextureSample.Nearest ? TextureMinFilter.Nearest : TextureMinFilter.Linear));
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter,
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter,
             (int) (_sample == TextureSample.Nearest ? TextureMinFilter.Nearest : TextureMinFilter.Linear));
         
-        GL.UseProgram(_shaderToUse.Handle);
-        GL.BindVertexArray(_vao);
-        GL.DrawElements(PrimitiveType.Triangles, (int) (_currentSpriteIndex * NumIndices), DrawElementsType.UnsignedInt, 0);
-        GL.BindVertexArray(0);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-        GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
-        GL.FrontFace(FrontFaceDirection.Cw);
-        GL.DepthMask(true);
+        Gl.UseProgram(_shaderToUse.Handle);
+        Gl.BindVertexArray(_vao);
+        Gl.DrawElements(PrimitiveType.Triangles, _currentSpriteIndex * NumIndices, DrawElementsType.UnsignedInt, null);
+        Gl.BindVertexArray(0);
+        Gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+        Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
+        Gl.FrontFace(FrontFaceDirection.CW);
+        Gl.DepthMask(true);
 
         Metrics.DrawCallsInternal++;
         
@@ -358,9 +361,9 @@ void main()
 
     public void Dispose()
     {
-        GL.DeleteVertexArray(_vao);
-        GL.DeleteBuffer(_vbo);
-        GL.DeleteBuffer(_ebo);
+        Gl.DeleteVertexArray(_vao);
+        Gl.DeleteBuffer(_vbo);
+        Gl.DeleteBuffer(_ebo);
         _shader.Dispose();
         _graphics.ViewportResized -= GraphicsOnViewportResized;
     }

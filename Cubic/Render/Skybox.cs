@@ -3,8 +3,8 @@ using System.IO;
 using System.Numerics;
 using Cubic.Entities;
 using Cubic.Utilities;
-using OpenTK.Graphics.OpenGL4;
-using StbImageSharp;
+using Silk.NET.OpenGL;
+using static Cubic.Render.Graphics;
 
 namespace Cubic.Render;
 
@@ -83,9 +83,9 @@ void main()
     out_color = texture(uSkybox, frag_texCoords);
 }";
     
-    private int _vao;
-    private int _vbo;
-    private int _ebo;
+    private uint _vao;
+    private uint _vbo;
+    private uint _ebo;
     private Shader _shader;
     private CubeMap _cubeMap;
 
@@ -93,55 +93,55 @@ void main()
     {
         _cubeMap = cubeMap;
 
-        _vao = GL.GenVertexArray();
-        GL.BindVertexArray(_vao);
+        _vao = Gl.GenVertexArray();
+        Gl.BindVertexArray(_vao);
 
-        _vbo = GL.GenBuffer();
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-        GL.BufferData(BufferTarget.ArrayBuffer, _vertices.Length * sizeof(VertexPosition), _vertices,
-            BufferUsageHint.StaticDraw);
+        _vbo = Gl.GenBuffer();
+        Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+        fixed (VertexPosition* vp = _vertices)
+            Gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint) (_vertices.Length * sizeof(VertexPosition)), vp, BufferUsageARB.StaticDraw);
 
-        _ebo = GL.GenBuffer();
-        GL.BindBuffer(BufferTarget.ElementArrayBuffer, _ebo);
-        GL.BufferData(BufferTarget.ElementArrayBuffer, _indices.Length * sizeof(uint), _indices,
-            BufferUsageHint.StaticDraw);
+        _ebo = Gl.GenBuffer();
+        Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
+        fixed (uint* p = _indices)
+            Gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint) (_indices.Length * sizeof(uint)), p, BufferUsageARB.StaticDraw);
 
         _shader = new Shader(VertexShader, FragmentShader);
-        GL.UseProgram(_shader.Handle);
+        Gl.UseProgram(_shader.Handle);
         
         RenderUtils.VertexAttribs(typeof(VertexPosition));
         
-        GL.BindVertexArray(0);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-        GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
+        Gl.BindVertexArray(0);
+        Gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+        Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
     }
 
-    internal void Draw(Camera camera)
+    internal unsafe void Draw(Camera camera)
     {
-        GL.CullFace(CullFaceMode.Front);
-        GL.DepthMask(false);
-        GL.UseProgram(_shader.Handle);
+        Gl.CullFace(CullFaceMode.Front);
+        Gl.DepthMask(false);
+        Gl.UseProgram(_shader.Handle);
         Matrix4x4 view = camera.ViewMatrix;
         _shader.Set("uProjection", camera.ProjectionMatrix);
         // Convert the camera's 4x4 view matrix to a 3x3 rotation matrix - we only need rotation, not translation.
         _shader.Set("uView", camera.ViewMatrix.To3x3Matrix());
         
-        GL.BindVertexArray(_vao);
+        Gl.BindVertexArray(_vao);
         _cubeMap.Bind();
-        GL.DrawElements(PrimitiveType.Triangles, _indices.Length, DrawElementsType.UnsignedInt, 0);
+        Gl.DrawElements(PrimitiveType.Triangles, (uint) _indices.Length, DrawElementsType.UnsignedInt, null);
         
-        GL.BindTexture(TextureTarget.TextureCubeMap, 0);
-        GL.BindVertexArray(0);
-        GL.CullFace(CullFaceMode.Back);
-        GL.DepthMask(true);
+        Gl.BindTexture(TextureTarget.TextureCubeMap, 0);
+        Gl.BindVertexArray(0);
+        Gl.CullFace(CullFaceMode.Back);
+        Gl.DepthMask(true);
     }
 
     public void Dispose()
     {
         _cubeMap.Dispose();
-        GL.DeleteVertexArray(_vao);
-        GL.DeleteBuffer(_vbo);
-        GL.DeleteBuffer(_ebo);
+        Gl.DeleteVertexArray(_vao);
+        Gl.DeleteBuffer(_vbo);
+        Gl.DeleteBuffer(_ebo);
         _shader.Dispose();
     }
 }

@@ -5,7 +5,9 @@ using Cubic.Render;
 using Cubic.Render.Lighting;
 using Cubic.Scenes;
 using Cubic.Utilities;
-using OpenTK.Graphics.OpenGL4;
+using Silk.NET.OpenGL;
+using static Cubic.Render.Graphics;
+using Shader = Cubic.Render.Shader;
 
 namespace Cubic.Entities.Components;
 
@@ -14,9 +16,9 @@ public class Model : Component
     public readonly VertexPositionTextureNormal[] Vertices;
     public readonly uint[] Indices;
 
-    private int _vao;
-    private int _vbo;
-    private int _ebo;
+    private uint _vao;
+    private uint _vbo;
+    private uint _ebo;
 
     private static Shader _shader;
     private static bool _shaderDisposed;
@@ -129,34 +131,34 @@ vec3 CalculateDirectional(DirectionalLight light, vec3 normal, vec3 viewDir)
             _shaderDisposed = false;
         }
 
-        _vao = GL.GenVertexArray();
-        GL.BindVertexArray(_vao);
+        _vao = Gl.GenVertexArray();
+        Gl.BindVertexArray(_vao);
 
-        _vbo = GL.GenBuffer();
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-        GL.BufferData(BufferTarget.ArrayBuffer, Vertices.Length * sizeof(VertexPositionTextureNormal), Vertices,
-            BufferUsageHint.StaticDraw);
+        _vbo = Gl.GenBuffer();
+        Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+        fixed (VertexPositionTextureNormal* vptn = Vertices)
+            Gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint) (Vertices.Length * sizeof(VertexPositionTextureNormal)), vptn, BufferUsageARB.StaticDraw);
 
-        _ebo = GL.GenBuffer();
-        GL.BindBuffer(BufferTarget.ElementArrayBuffer, _ebo);
-        GL.BufferData(BufferTarget.ElementArrayBuffer, Indices.Length * sizeof(uint), Indices,
-            BufferUsageHint.StaticDraw);
+        _ebo = Gl.GenBuffer();
+        Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
+        fixed (uint* p = Indices)
+            Gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint) (Indices.Length * sizeof(uint)), p, BufferUsageARB.StaticDraw);
         
-        GL.UseProgram(_shader.Handle);
+        Gl.UseProgram(_shader.Handle);
         
         RenderUtils.VertexAttribs(typeof(VertexPositionTextureNormal));
 
-        GL.BindVertexArray(0);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-        GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
+        Gl.BindVertexArray(0);
+        Gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+        Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
     }
 
-    protected internal override void Draw()
+    protected internal override unsafe void Draw()
     {
         base.Draw();
         
-        GL.BindVertexArray(_vao);
-        GL.UseProgram(_shader.Handle);
+        Gl.BindVertexArray(_vao);
+        Gl.UseProgram(_shader.Handle);
         _shader.Set("uProjection", Camera.Main.ProjectionMatrix);
         _shader.Set("uView", Camera.Main.ViewMatrix);
         _shader.Set("uModel", Matrix4x4.CreateFromQuaternion(Transform.Rotation) * Matrix4x4.CreateTranslation(Transform.Position));
@@ -180,10 +182,10 @@ vec3 CalculateDirectional(DirectionalLight light, vec3 normal, vec3 viewDir)
         Material.Albedo.Bind(TextureUnit.Texture0);
         Material.Specular.Bind(TextureUnit.Texture1);
         
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) TextureMinFilter.LinearMipmapLinear);
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Linear);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) TextureMinFilter.LinearMipmapLinear);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Linear);
         
-        GL.DrawElements(PrimitiveType.Triangles, Indices.Length, DrawElementsType.UnsignedInt, 0);
+        Gl.DrawElements(PrimitiveType.Triangles, (uint) Indices.Length, DrawElementsType.UnsignedInt, null);
         
         Material.Albedo.Unbind();
         Material.Specular.Unbind();

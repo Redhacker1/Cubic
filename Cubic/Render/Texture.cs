@@ -1,13 +1,14 @@
 using System;
 using System.Drawing;
 using Cubic.Scenes;
-using OpenTK.Graphics.OpenGL4;
+using Silk.NET.OpenGL;
+using static Cubic.Render.Graphics;
 
 namespace Cubic.Render;
 
 public abstract class Texture : IDisposable
 {
-    internal int Handle;
+    internal uint Handle;
     public Size Size { get; protected set; }
 
     public Texture(bool autoDispose)
@@ -22,7 +23,7 @@ public abstract class Texture : IDisposable
     
     public virtual void Dispose()
     {
-        GL.DeleteTexture(Handle);
+        Gl.DeleteTexture(Handle);
 #if DEBUG
         Console.WriteLine("Texture disposed");
 #endif

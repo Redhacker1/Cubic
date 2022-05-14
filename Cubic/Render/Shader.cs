@@ -3,28 +3,29 @@ using System.Drawing;
 using System.IO;
 using System.Numerics;
 using Cubic.Utilities;
-using OpenTK.Graphics.OpenGL4;
+using static Cubic.Render.Graphics;
+using Silk.NET.OpenGL;
 
 namespace Cubic.Render;
 
 public class Shader : IDisposable
 {
-    internal int Handle;
+    internal uint Handle;
     
     public Shader(string vertex, string fragment, ShaderLoadType loadType = ShaderLoadType.String)
     {
-        int vertexShader = GL.CreateShader(ShaderType.VertexShader);
-        int fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
+        uint vertexShader = Gl.CreateShader(ShaderType.VertexShader);
+        uint fragmentShader = Gl.CreateShader(ShaderType.FragmentShader);
 
         switch (loadType)
         {
             case ShaderLoadType.File:
-                GL.ShaderSource(vertexShader, File.ReadAllText(vertex));
-                GL.ShaderSource(fragmentShader, File.ReadAllText(fragment));
+                Gl.ShaderSource(vertexShader, File.ReadAllText(vertex));
+                Gl.ShaderSource(fragmentShader, File.ReadAllText(fragment));
                 break;
             case ShaderLoadType.String:
-                GL.ShaderSource(vertexShader, vertex);
-                GL.ShaderSource(fragmentShader, fragment);
+                Gl.ShaderSource(vertexShader, vertex);
+                Gl.ShaderSource(fragmentShader, fragment);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(loadType), loadType, null);
@@ -33,75 +34,75 @@ public class Shader : IDisposable
         Compile(vertexShader);
         Compile(fragmentShader);
 
-        Handle = GL.CreateProgram();
-        GL.AttachShader(Handle, vertexShader);
-        GL.AttachShader(Handle, fragmentShader);
+        Handle = Gl.CreateProgram();
+        Gl.AttachShader(Handle, vertexShader);
+        Gl.AttachShader(Handle, fragmentShader);
         Link(Handle);
-        GL.DetachShader(Handle, vertexShader);
-        GL.DetachShader(Handle, fragmentShader);
-        GL.DeleteShader(vertexShader);
-        GL.DeleteShader(fragmentShader);
+        Gl.DetachShader(Handle, vertexShader);
+        Gl.DetachShader(Handle, fragmentShader);
+        Gl.DeleteShader(vertexShader);
+        Gl.DeleteShader(fragmentShader);
     }
 
-    public void Set<T>(string uniformName, T value, bool transpose = true)
+    public unsafe void Set<T>(string uniformName, T value, bool transpose = true)
     {
-        GL.UseProgram(Handle);
+        Gl.UseProgram(Handle);
         
-        int location = GL.GetUniformLocation(Handle, uniformName);
+        int location = Gl.GetUniformLocation(Handle, uniformName);
 
         switch (value)
         {
             case bool bValue:
-                GL.Uniform1(location, bValue ? 1 : 0);
+                Gl.Uniform1(location, bValue ? 1 : 0);
                 break;
             case int iValue:
-                GL.Uniform1(location, iValue);
+                Gl.Uniform1(location, iValue);
                 break;
             case float fValue:
-                GL.Uniform1(location, fValue);
+                Gl.Uniform1(location, fValue);
                 break;
             case Vector2 v2Value:
-                GL.Uniform2(location, 1, ref v2Value.X);
+                Gl.Uniform2(location, 1, (float*) &v2Value);
                 break;
             case Vector3 v3Value:
-                GL.Uniform3(location, 1, ref v3Value.X);
+                Gl.Uniform3(location, 1, (float*) &v3Value);
                 break;
             case Vector4 v4Value:
-                GL.Uniform4(location, 1, ref v4Value.X);
+                Gl.Uniform4(location, 1, (float*) &v4Value);
                 break;
             case Color cValue:
                 Vector4 color = cValue.Normalize();
-                GL.Uniform4(location, 1, ref color.X);
+                Gl.Uniform4(location, 1, (float*) &color);
                 break;
             case Matrix4x4 m4Value:
-                GL.UniformMatrix4(location, 1, transpose, ref m4Value.M11);
+                Gl.UniformMatrix4(location, 1, transpose, (float*) &m4Value);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(value), value, "Invalid type");
         }
     }
 
-    private static void Compile(int shader)
+    private static void Compile(uint shader)
     {
-        GL.CompileShader(shader);
+        Gl.CompileShader(shader);
         
-        GL.GetShader(shader, ShaderParameter.CompileStatus, out int status);
+        Gl.GetShader(shader, ShaderParameterName.CompileStatus, out int status);
         if (status != 1)
-            throw new CubicException($"Shader '{shader}' failed to compile: {GL.GetShaderInfoLog(shader)}");
+            throw new CubicException($"Shader '{shader}' failed to compile: {Gl.GetShaderInfoLog(shader)}");
     }
 
-    private static void Link(int program)
+    private static void Link(uint program)
     {
-        GL.LinkProgram(program);
+        Gl.LinkProgram(program);
         
-        GL.GetProgram(program, GetProgramParameterName.LinkStatus, out int status);
+        Gl.GetProgram(program, ProgramPropertyARB.LinkStatus, out int status);
         if (status != 1)
-            throw new CubicException($"Program '{program}' failed to link: {GL.GetProgramInfoLog(program)}");
+            throw new CubicException($"Program '{program}' failed to link: {Gl.GetProgramInfoLog(program)}");
     }
 
     public void Dispose()
     {
-        GL.DeleteProgram(Handle);
+        Gl.DeleteProgram(Handle);
         
 #if DEBUG
         Console.WriteLine("Shader disposed");

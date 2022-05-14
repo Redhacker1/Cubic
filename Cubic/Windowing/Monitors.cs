@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using System.Drawing;
-using OpenTK.Windowing.GraphicsLibraryFramework;
-using GMonitor = OpenTK.Windowing.GraphicsLibraryFramework.Monitor;
+using Silk.NET.GLFW;
+using static Cubic.Windowing.GameWindow;
+using GMonitor = Silk.NET.GLFW.Monitor;
 
 namespace Cubic.Windowing;
 
@@ -24,22 +25,23 @@ public static unsafe class Monitors
     
     static Monitors()
     {
-        Count = GLFW.GetMonitors().Length;
+        GMonitor** gMonitors = GLFW.GetMonitors(out Count);
 
         List<Monitor> monitors = new List<Monitor>();
         for (int i = 0; i < Count; i++)
         {
-            GMonitor* m = GLFW.GetMonitors()[i];
+            GMonitor* m = gMonitors[i];
             VideoMode* mode = GLFW.GetVideoMode(m);
             GLFW.GetMonitorPos(m, out int x, out int y);
 
             List<DisplayMode> displayModes = new List<DisplayMode>();
-            foreach (VideoMode md in GLFW.GetVideoModes(m))
+            VideoMode* modes = GLFW.GetVideoModes(m, out int count);
+            for (int dm = 0; dm < count; dm++)
             {
                 displayModes.Add(new DisplayMode()
                 {
-                    Resolution = new Size(md.Width, md.Height),
-                    RefreshRate = md.RefreshRate
+                    Resolution = new Size(modes[i].Width, modes[i].Height),
+                    RefreshRate = modes[i].RefreshRate
                 });
             }
 

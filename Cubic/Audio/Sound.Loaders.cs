@@ -1,8 +1,8 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using OpenTK.Audio.OpenAL;
-using StbVorbisSharp;
+using Silk.NET.OpenAL;
+using static Cubic.Audio.AudioDevice;
 
 namespace Cubic.Audio;
 
@@ -308,8 +308,8 @@ public partial class Sound
             endLoopPoint = (int) (data.Length / alignment);
 
         // So far no errors yet, hopefully this error will never happen!
-        ALError e;
-        if ((e = AL.GetError()) != ALError.NoError)
+        AudioError e;
+        if ((e = Al.GetError()) != AudioError.NoError)
             throw new CubicException($"Error while loading CTRA file: {e}");
         
         Console.WriteLine("Conversion complete!\nCTRA loaded and converted to Sound.");

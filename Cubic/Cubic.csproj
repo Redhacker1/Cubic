@@ -12,7 +12,9 @@
       <PackageReference Include="FreeTypeSharp" Version="2.0.0.8-ci" />
       <PackageReference Include="ImGui.NET" Version="1.87.2" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-      <PackageReference Include="OpenTK" Version="4.7.1" />
+      <PackageReference Include="Silk.NET.GLFW" Version="2.15.0" />
+      <PackageReference Include="Silk.NET.OpenAL" Version="2.15.0" />
+      <PackageReference Include="Silk.NET.OpenGL" Version="2.15.0" />
       <PackageReference Include="StbImageSharp" Version="2.27.7" />
       <PackageReference Include="StbImageWriteSharp" Version="1.13.5" />
       <PackageReference Include="StbVorbisSharp" Version="1.16.2" />

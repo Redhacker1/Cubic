@@ -2,7 +2,8 @@ using System;
 using System.Drawing;
 using System.IO;
 using Cubic.Utilities;
-using OpenTK.Graphics.OpenGL4;
+using Silk.NET.OpenGL;
+using static Cubic.Render.Graphics;
 using StbImageSharp;
 
 namespace Cubic.Render;
@@ -36,52 +37,52 @@ public class Texture2D : Texture
         Size = bitmap.Size;
     }
 
-    public void SetData(IntPtr data, int x, int y, int width, int height)
+    public unsafe void SetData(IntPtr data, int x, int y, int width, int height)
     {
-        GL.BindTexture(TextureTarget.Texture2D, Handle);
-        GL.TexSubImage2D(TextureTarget.Texture2D, 0, x, y, width, height, PixelFormat.Rgba,
-            PixelType.UnsignedByte, data);
-        GL.BindTexture(TextureTarget.Texture2D, 0);
+        Gl.BindTexture(TextureTarget.Texture2D, Handle);
+        Gl.TexSubImage2D(TextureTarget.Texture2D, 0, x, y, (uint) width, (uint) height, PixelFormat.Rgba,
+            PixelType.UnsignedByte, data.ToPointer());
+        Gl.BindTexture(TextureTarget.Texture2D, 0);
     }
 
-    public void SetData(byte[] data, int x, int y, int width, int height)
+    public unsafe void SetData(byte[] data, int x, int y, int width, int height)
     {
-        GL.BindTexture(TextureTarget.Texture2D, Handle);
-        GL.TexSubImage2D(TextureTarget.Texture2D, 0, x, y, width, height, PixelFormat.Rgba,
-            PixelType.UnsignedByte, data);
-        GL.BindTexture(TextureTarget.Texture2D, 0);
+        Gl.BindTexture(TextureTarget.Texture2D, Handle);
+        fixed (byte* p = data)
+            Gl.TexSubImage2D(TextureTarget.Texture2D, 0, x, y, (uint) width, (uint) height, PixelFormat.Rgba, PixelType.UnsignedByte, p);
+        Gl.BindTexture(TextureTarget.Texture2D, 0);
     }
 
-    private static int CreateTexture(int width, int height, byte[] data, PixelFormat format = PixelFormat.Rgba)
+    private static unsafe uint CreateTexture(int width, int height, byte[] data, PixelFormat format = PixelFormat.Rgba)
     {
-        int texture = GL.GenTexture();
-        GL.ActiveTexture(TextureUnit.Texture0);
-        GL.BindTexture(TextureTarget.Texture2D, texture);
+        uint texture = Gl.GenTexture();
+        Gl.ActiveTexture(TextureUnit.Texture0);
+        Gl.BindTexture(TextureTarget.Texture2D, texture);
 
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, width, height, 0, format,
-            PixelType.UnsignedByte, data);
+        fixed (byte* p = data)
+            Gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgba, (uint) width, (uint) height, 0, format, PixelType.UnsignedByte, p);
 
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int) TextureWrapMode.Repeat);
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int) TextureWrapMode.Repeat);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int) TextureWrapMode.Repeat);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int) TextureWrapMode.Repeat);
         
-        GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
+        Gl.GenerateMipmap(TextureTarget.Texture2D);
         
-        GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName) All.TextureMaxAnisotropy, 16);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxAnisotropy, 16);
         
-        GL.BindTexture(TextureTarget.Texture2D, 0);
+        Gl.BindTexture(TextureTarget.Texture2D, 0);
 
         return texture;
     }
     
     internal override void Bind(TextureUnit textureUnit = TextureUnit.Texture0)
     {
-        GL.ActiveTexture(textureUnit);
-        GL.BindTexture(TextureTarget.Texture2D, Handle);
+        Gl.ActiveTexture(textureUnit);
+        Gl.BindTexture(TextureTarget.Texture2D, Handle);
     }
 
     internal override void Unbind()
     {
-        GL.BindTexture(TextureTarget.Texture2D, 0);
+        Gl.BindTexture(TextureTarget.Texture2D, 0);
     }
 
     public static Texture2D Blank { get; internal set; }

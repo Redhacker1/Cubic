@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using Cubic.Utilities;
-using OpenTK.Audio.OpenAL;
 
 namespace Cubic.Audio;
 
@@ -31,11 +30,11 @@ public struct Track
     private const int NumBuffers = 3;
     private const int BufferLengthInSamples = 44100 * 5;
 
-    private byte[] _audioBuffer;
-    private int[] _buffers;
-    private int _currentBuffer;
-    private AudioDevice _audioDevice;
-    private int _activeChannel;
+    //private byte[] _audioBuffer;
+    //private int[] _buffers;
+    //private int _currentBuffer;
+    //private AudioDevice _audioDevice;
+    //private int _activeChannel;
 
     private Track(AudioDevice device, Sample[] samples, Pattern[] patterns, byte[] orders, byte initialTempo,
         byte initialSpeed)
@@ -51,10 +50,10 @@ public struct Track
         _currentPattern = 0;
         _trackVolume = 1;
 
-        _currentBuffer = 0;
-        _activeChannel = 0;
+        //_currentBuffer = 0;
+        //_activeChannel = 0;
 
-        _audioDevice = device;
+        /*_audioDevice = device;
         if (device != null)
         {
             _buffers = AL.GenBuffers(NumBuffers);
@@ -71,10 +70,10 @@ public struct Track
         {
             _buffers = null;
             _audioBuffer = null;
-        }
+        }*/
     }
 
-    private void DeviceOnBufferFinished(int channel)
+    /*private void DeviceOnBufferFinished(int channel)
     {
         if (channel == _activeChannel)
         {
@@ -84,7 +83,7 @@ public struct Track
             if (_currentBuffer >= NumBuffers)
                 _currentBuffer = 0;
         }
-    }
+    }*/
 
     public static Track Load(AudioDevice device, string path)
     {

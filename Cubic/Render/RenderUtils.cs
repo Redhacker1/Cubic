@@ -2,30 +2,31 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using OpenTK.Graphics.OpenGL4;
+using Silk.NET.OpenGL;
+using static Cubic.Render.Graphics;
 
 namespace Cubic.Render;
 
 internal static class RenderUtils
 {
-    public static void VertexAttribs(Type type)
+    public static unsafe void VertexAttribs(Type type)
     {
         FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
-        int location = 0;
+        uint location = 0;
         int offset = 0;
-        int totalSizeInBytes = 0;
+        uint totalSizeInBytes = 0;
         List<int> sizes = new List<int>();
         foreach (FieldInfo info in fields)
         {
             int size = Marshal.SizeOf(info.FieldType);
             sizes.Add(size);
-            totalSizeInBytes += size;
+            totalSizeInBytes += (uint) size;
         }
 
         foreach (int size in sizes)
         {
-            GL.EnableVertexAttribArray(location);
-            GL.VertexAttribPointer(location, size / 4, VertexAttribPointerType.Float, false, totalSizeInBytes, offset);
+            Gl.EnableVertexAttribArray(location);
+            Gl.VertexAttribPointer(location, size / 4, VertexAttribPointerType.Float, false, totalSizeInBytes, (void*) offset);
             offset += size;
             location += 1;
         }

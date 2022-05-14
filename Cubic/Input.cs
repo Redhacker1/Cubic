@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Cubic.Windowing;
-using OpenTK.Windowing.GraphicsLibraryFramework;
+using static Cubic.Windowing.GameWindow;
+using Silk.NET.GLFW;
 
 namespace Cubic;
 
@@ -256,16 +257,16 @@ public static class Input
         }
     }
 
-    internal static unsafe void KeyCallback(Window* window, OpenTK.Windowing.GraphicsLibraryFramework.Keys key,
+    internal static unsafe void KeyCallback(WindowHandle* windowHandle, Silk.NET.GLFW.Keys keys,
         int scanCode, InputAction action, KeyModifiers mods)
     {
         if (action == InputAction.Repeat)
-            _repeatedKeys.Add((Keys) key);
+            _repeatedKeys.Add((Keys) keys);
         else
-            _keyStates.Add(new KeyState((Keys) key, action == InputAction.Press));
+            _keyStates.Add(new KeyState((Keys) keys, action == InputAction.Press));
     }
 
-    internal static unsafe void MouseCallback(Window* window, MouseButton button, InputAction action, KeyModifiers mods)
+    internal static unsafe void MouseCallback(WindowHandle* windowHandle, MouseButton button, InputAction action, KeyModifiers mods)
     {
         if (action != InputAction.Repeat)
             _mouseStates.Add(new MouseState((MouseButtons) button, action == InputAction.Press));
@@ -295,12 +296,12 @@ public static class Input
         }
     }
 
-    public static unsafe void ScrollCallback(Window* window, double offsetx, double offsety)
+    public static unsafe void ScrollCallback(WindowHandle* windowHandle, double offsetx, double offsety)
     {
         ScrollWheelDelta += new Vector2((float) offsetx, (float) offsety);
     }
 
-    public static unsafe void CharCallback(Window* window, uint codepoint)
+    public static unsafe void CharCallback(WindowHandle* windowHandle, uint codepoint)
     {
         TextInput?.Invoke((char) codepoint);
     }

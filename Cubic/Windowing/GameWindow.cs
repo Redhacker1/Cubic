@@ -1,25 +1,27 @@
 using System;
 using System.Drawing;
 using Cubic.Utilities;
-using OpenTK.Windowing.GraphicsLibraryFramework;
-using GMonitor = OpenTK.Windowing.GraphicsLibraryFramework.Monitor;
+using Silk.NET.GLFW;
+using GMonitor = Silk.NET.GLFW.Monitor;
 
 namespace Cubic.Windowing;
 
 public sealed unsafe class GameWindow : IDisposable
 {
-    internal Window* Handle;
+    internal static Glfw GLFW;
+    
+    internal WindowHandle* Handle;
     private GameSettings _settings;
 
     private string _title;
 
     private bool _visible;
 
-    private GLFWCallbacks.KeyCallback _keyCallback;
-    private GLFWCallbacks.MouseButtonCallback _mouseCallback;
-    private GLFWCallbacks.ScrollCallback _scrollCallback;
-    private GLFWCallbacks.WindowSizeCallback _sizeCallback;
-    private GLFWCallbacks.CharCallback _charCallback;
+    private GlfwCallbacks.KeyCallback _keyCallback;
+    private GlfwCallbacks.MouseButtonCallback _mouseCallback;
+    private GlfwCallbacks.ScrollCallback _scrollCallback;
+    private GlfwCallbacks.WindowSizeCallback _sizeCallback;
+    private GlfwCallbacks.CharCallback _charCallback;
 
     public event OnResize Resize;
     
@@ -97,7 +99,7 @@ public sealed unsafe class GameWindow : IDisposable
             switch (value)
             {
                 case WindowMode.Windowed:
-                    GLFW.SetWindowMonitor(Handle, null, 0, 0, Size.Width, Size.Height, GLFW.DontCare);
+                    GLFW.SetWindowMonitor(Handle, null, 0, 0, Size.Width, Size.Height, Glfw.DontCare);
                     AutoCenter = true;
                     CenterWindow();
                     break;
@@ -135,7 +137,7 @@ public sealed unsafe class GameWindow : IDisposable
         int posX = fullscreen ? 0 : monitor.Position.X + mode.Resolution.Width / 2 - resolution.Width / 2;
         int posY = fullscreen ? 0 : monitor.Position.Y + mode.Resolution.Height / 2 - resolution.Height / 2;
         GLFW.SetWindowMonitor(Handle, fullscreen ? GLFW.GetPrimaryMonitor() : null, posX, posY, resolution.Width,
-            resolution.Height, fullscreen ? refreshRate > 0 ? refreshRate : mode.RefreshRate : GLFW.DontCare);
+            resolution.Height, fullscreen ? refreshRate > 0 ? refreshRate : mode.RefreshRate : Glfw.DontCare);
         if (!fullscreen)
             AutoCenter = true;
     }
@@ -153,7 +155,7 @@ public sealed unsafe class GameWindow : IDisposable
         _charCallback = Input.CharCallback;
     }
 
-    private void WindowSizeChanged(Window* window, int width, int height)
+    private void WindowSizeChanged(WindowHandle* window, int width, int height)
     {
         Resize?.Invoke(new Size(width, height));
     }
@@ -161,6 +163,8 @@ public sealed unsafe class GameWindow : IDisposable
     // Prepare window for running.
     internal void Prepare()
     {
+        GLFW = Glfw.GetApi();
+        
         if (!GLFW.Init())
             throw new CubicException("GLFW could not initialise.");
         
@@ -192,12 +196,12 @@ public sealed unsafe class GameWindow : IDisposable
             // The icon must be an RGBA image otherwise it won't work - we convert it if it is not in RGBA colour space.
             if (_settings.Icon.ColorSpace != ColorSpace.RGBA)
                 _settings.Icon = Bitmap.ConvertToColorSpace(_settings.Icon, ColorSpace.RGBA);
-            fixed (byte* p = _settings.Icon.Data)
-            {
-                GLFW.SetWindowIcon(Handle,
-                    new ReadOnlySpan<Image>(new Image[]
-                        { new Image(_settings.Icon.Size.Width, _settings.Icon.Size.Height, p) }));
-            }
+            //fixed (byte* p = _settings.Icon.Data)
+           // {
+            //    GLFW.SetWindowIcon(Handle,
+            //        new ReadOnlySpan<Image>(new Image[]
+            //            { new Image(_settings.Icon.Size.Width, _settings.Icon.Size.Height, p) }));
+            //}
         }
 
         GLFW.SetKeyCallback(Handle, _keyCallback);

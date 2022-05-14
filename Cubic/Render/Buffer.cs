@@ -1,13 +1,13 @@
-using OpenTK.Graphics.OpenGL4;
+using Silk.NET.OpenGL;
 
 namespace Cubic.Render;
 
 public class Buffer
 {
     internal int Handle;
-    internal BufferTarget Target;
+    internal BufferTargetARB Target;
 
-    internal Buffer(int handle, BufferTarget target)
+    internal Buffer(int handle, BufferTargetARB target)
     {
         Handle = handle;
         Target = target;

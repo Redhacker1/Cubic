@@ -1,15 +1,15 @@
 using System;
-using OpenTK.Audio.OpenAL;
+using static Cubic.Audio.AudioDevice;
 
 namespace Cubic.Audio;
 
 public struct AudioBuffer : IDisposable
 {
-    internal int Handle;
+    internal uint Handle;
 
     public readonly bool Exists;
 
-    internal AudioBuffer(int handle)
+    internal AudioBuffer(uint handle)
     {
         Handle = handle;
         Exists = true;
@@ -17,6 +17,6 @@ public struct AudioBuffer : IDisposable
     
     public void Dispose()
     {
-        AL.DeleteBuffer(Handle);
+        Al.DeleteBuffer(Handle);
     }
 }

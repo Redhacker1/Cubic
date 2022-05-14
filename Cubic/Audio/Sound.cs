@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using Cubic.Scenes;
-using OpenTK.Audio.OpenAL;
 using StbVorbisSharp;
 
 namespace Cubic.Audio;

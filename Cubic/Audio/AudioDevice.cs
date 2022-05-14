@@ -1,19 +1,22 @@
 using System;
 using System.Numerics;
 using System.Threading;
-using OpenTK.Audio.OpenAL;
+using Silk.NET.OpenAL;
 
 namespace Cubic.Audio;
 
-public sealed class AudioDevice : IDisposable
+public sealed unsafe class AudioDevice : IDisposable
 {
     public event OnBufferFinished BufferFinished;
+
+    internal static AL Al;
+
+    private readonly Device* _device;
+    private readonly Context* _context;
     
-    private readonly ALDevice _device;
-    private readonly ALContext _context;
-    
-    private readonly int[] _sources;
+    private readonly uint[] _sources;
     private readonly (bool persist, bool loop)[] _channels;
+    private float* _floatBuf;
 
     private float _masterVolume;
 
@@ -30,7 +33,7 @@ public sealed class AudioDevice : IDisposable
         set
         {
             _masterVolume = value;
-            AL.Listener(ALListenerf.Gain, value);
+            Al.SetListenerProperty(ListenerFloat.Gain, value);
         }
     }
 
@@ -44,30 +47,41 @@ public sealed class AudioDevice : IDisposable
     
     internal unsafe AudioDevice(int numChannels)
     {
-        _device = ALC.OpenDevice(null);
-        _context = ALC.CreateContext(_device, (int*) null);
-        ALC.MakeContextCurrent(_context);
-        _sources = new int[numChannels];
+        Al = AL.GetApi();
+        ALContext alc = ALContext.GetApi();
+        _device = alc.OpenDevice(null);
+        _context = alc.CreateContext(_device, null);
+        alc.MakeContextCurrent(_context);
         _channels = new (bool persist, bool loop)[numChannels];
-        AL.GenSources(numChannels, _sources);
+        _sources = Al.GenSources(numChannels);
+
         MasterVolume = 1;
         NumChannels = numChannels;
         _channelCount = -1;
+
+        fixed (float* p = new float[6])
+            _floatBuf = p;
     }
 
     public Vector3 CameraPosition
     {
-        set => AL.Listener(ALListener3f.Position, value.X, value.Y, value.Z);
+        set => Al.SetListenerProperty(ListenerVector3.Position, value.X, value.Y, value.Z);
     }
 
     public Quaternion CameraOrientation
     {
         set
         {
-            OpenTK.Mathematics.Quaternion quat = new OpenTK.Mathematics.Quaternion(value.X, value.Y, value.Z, value.W);
-            OpenTK.Mathematics.Vector3 direction = OpenTK.Mathematics.Vector3.Transform(OpenTK.Mathematics.Vector3.UnitZ, quat);
-            OpenTK.Mathematics.Vector3 up = OpenTK.Mathematics.Vector3.Transform(OpenTK.Mathematics.Vector3.UnitY, quat);
-            AL.Listener(ALListenerfv.Orientation, ref direction, ref up);
+            Quaternion quat = new Quaternion(value.X, value.Y, value.Z, value.W);
+            Vector3 direction = Vector3.Transform(Vector3.UnitZ, quat);
+            Vector3 up = Vector3.Transform(Vector3.UnitY, quat);
+            _floatBuf[0] = direction.X;
+            _floatBuf[1] = direction.Y;
+            _floatBuf[2] = direction.Z;
+            _floatBuf[3] = up.X;
+            _floatBuf[4] = up.Y;
+            _floatBuf[5] = up.Z;
+            Al.SetListenerProperty(ListenerFloatArray.Orientation, _floatBuf);
         }
     }
 
@@ -83,16 +97,16 @@ public sealed class AudioDevice : IDisposable
     public void PlayBuffer(int channel, AudioBuffer buffer, float pitch = 1, float volume = 1, bool loop = false, bool persistent = false, Vector3 position = default, bool relative = false)
     {
         _channels[channel].persist = persistent;
-        int source = _sources[channel];
-        AL.SourceStop(source);
-        AL.Source(source, ALSourcei.Buffer, 0);
-        AL.SourceQueueBuffer(source, buffer.Handle);
-        AL.Source(source, ALSourcef.Pitch, pitch);
-        AL.Source(source, ALSourcef.Gain, volume);
-        AL.Source(source, ALSourceb.Looping, loop);
-        AL.Source(source, ALSource3f.Position, position.X, position.Y, position.Z);
-        AL.Source(source, ALSourceb.SourceRelative, relative);
-        AL.SourcePlay(source);
+        uint source = _sources[channel];
+        Al.SourceStop(source);
+        Al.SetSourceProperty(source, SourceInteger.Buffer, 0);
+        Al.SourceQueueBuffers(source, 1, &buffer.Handle);
+        Al.SetSourceProperty(source, SourceFloat.Pitch, pitch);
+        Al.SetSourceProperty(source, SourceFloat.Gain, volume);
+        Al.SetSourceProperty(source, SourceBoolean.Looping, loop);
+        Al.SetSourceProperty(source, SourceVector3.Position, position.X, position.Y, position.Z);
+        Al.SetSourceProperty(source, SourceBoolean.SourceRelative, relative);
+        Al.SourcePlay(source);
     }
 
     /// <summary>
@@ -139,8 +153,8 @@ public sealed class AudioDevice : IDisposable
     /// <param name="sound">The sound itself.</param>
     public void QueueBuffer(int channel, AudioBuffer buffer, bool loop = false)
     {
-        int source = _sources[channel];
-        AL.SourceQueueBuffer(source, buffer.Handle);
+        uint source = _sources[channel];
+        Al.SourceQueueBuffers(source, 1, &buffer.Handle);
         _channels[channel].loop = loop;
     }
 
@@ -192,7 +206,8 @@ public sealed class AudioDevice : IDisposable
         // This also disables any persistent sounds that are no longer playing, as it frees up channels for the audio
         // device to use.
         bool playing = false;
-        if (AL.GetSourceState(_sources[channel]) == ALSourceState.Playing)
+        Al.GetSourceProperty(_sources[channel], GetSourceInteger.SourceState, out int value);
+        if (value == 1)
             playing = true;
         else if (_channels[channel].persist)
             _channels[channel].persist = false;
@@ -201,7 +216,7 @@ public sealed class AudioDevice : IDisposable
     }
 
     /// <summary>
-    /// Change the given sound's properties. Note: This will overwrite <b>ALL</b> properties on the sound's channel.
+    /// Change the given sound's properties. Note: This will overwrite <b>AlL</b> properties on the sound's channel.
     /// </summary>
     /// <param name="channel">The sound's channel.</param>
     /// <param name="pitch">The pitch the sound should play at.</param>
@@ -211,10 +226,10 @@ public sealed class AudioDevice : IDisposable
     public void SetSoundProperties(int channel, float pitch = 1, float volume = 1, bool loop = false,
         bool persistent = false)
     {
-        int source = _sources[channel];
-        AL.Source(source, ALSourcef.Pitch, pitch);
-        AL.Source(source, ALSourcef.Gain, volume);
-        AL.Source(source, ALSourceb.Looping, loop);
+        uint source = _sources[channel];
+        Al.SetSourceProperty(source, SourceFloat.Pitch, pitch);
+        Al.SetSourceProperty(source, SourceFloat.Gain, volume);
+        Al.SetSourceProperty(source, SourceBoolean.Looping, loop);
         _channels[channel].persist = persistent;
     }
 
@@ -226,7 +241,7 @@ public sealed class AudioDevice : IDisposable
     {
         // As the sound effect is no longer playing we set its persistence to false.
         _channels[channel].persist = false;
-        AL.SourceStop(_sources[channel]);
+        Al.SourceStop(_sources[channel]);
     }
 
     /// <summary>
@@ -235,7 +250,7 @@ public sealed class AudioDevice : IDisposable
     /// <param name="channel">The channel the sound is playing on.</param>
     public void Pause(int channel)
     {
-        AL.SourcePause(_sources[channel]);
+        Al.SourcePause(_sources[channel]);
     }
 
     /// <summary>
@@ -244,7 +259,7 @@ public sealed class AudioDevice : IDisposable
     /// <param name="channel">The channel the sound is playing on.</param>
     public void Resume(int channel)
     {
-        AL.SourcePlay(_sources[channel]);
+        Al.SourcePlay(_sources[channel]);
     }
 
     /// <summary>
@@ -254,7 +269,7 @@ public sealed class AudioDevice : IDisposable
     /// <param name="pitch">The pitch.</param>
     public void SetPitch(int channel, float pitch)
     {
-        AL.Source(_sources[channel], ALSourcef.Pitch, pitch);
+        Al.SetSourceProperty(_sources[channel], SourceFloat.Pitch, pitch);
     }
     
     /// <summary>
@@ -264,7 +279,7 @@ public sealed class AudioDevice : IDisposable
     /// <param name="volume">The volume.</param>
     public void SetVolume(int channel, float volume)
     {
-        AL.Source(_sources[channel], ALSourcef.Gain, volume);
+        Al.SetSourceProperty(_sources[channel], SourceFloat.Gain, volume);
     }
     
     /// <summary>
@@ -274,7 +289,7 @@ public sealed class AudioDevice : IDisposable
     /// <param name="loop">Loop?</param>
     public void SetLooping(int channel, bool loop)
     {
-        AL.Source(_sources[channel], ALSourceb.Looping, loop);
+        Al.SetSourceProperty(_sources[channel], SourceBoolean.Looping, loop);
     }
 
     /// <summary>
@@ -289,21 +304,21 @@ public sealed class AudioDevice : IDisposable
 
     public AudioBuffer CreateBuffer()
     {
-        return new AudioBuffer(AL.GenBuffer());
+        return new AudioBuffer(Al.GenBuffer());
     }
 
     public void UpdateBuffer<T>(AudioBuffer buffer, AudioFormat format, T[] data, int sampleFrequency) where T : unmanaged
     {
-        ALFormat alFormat = format switch
+        BufferFormat alFormat = format switch
         {
-            AudioFormat.Mono8 => ALFormat.Mono8,
-            AudioFormat.Mono16 => ALFormat.Mono16,
-            AudioFormat.Stereo8 => ALFormat.Stereo8,
-            AudioFormat.Stereo16 => ALFormat.Stereo16,
+            AudioFormat.Mono8 => BufferFormat.Mono8,
+            AudioFormat.Mono16 => BufferFormat.Mono16,
+            AudioFormat.Stereo8 => BufferFormat.Stereo8,
+            AudioFormat.Stereo16 => BufferFormat.Stereo16,
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
         };
         
-        AL.BufferData(buffer.Handle, alFormat, data, sampleFrequency);
+        Al.BufferData(buffer.Handle, alFormat, data, sampleFrequency);
     }
 
     internal void Update()
@@ -313,28 +328,32 @@ public sealed class AudioDevice : IDisposable
         // for the queue to be cleared, before it loops
         for (int i = 0; i < NumChannels; i++)
         {
-            int source = _sources[i];
-            AL.GetSource(source, ALGetSourcei.BuffersProcessed, out int buffProcessed);
+            uint source = _sources[i];
+            Al.GetSourceProperty(source, GetSourceInteger.BuffersProcessed, out int buffProcessed);
 
             if (buffProcessed > 0)
             {
-                AL.SourceUnqueueBuffers(_sources[i], buffProcessed);
+                Al.SourceUnqueueBuffers(_sources[i], 1, (uint*) &buffProcessed);
                 BufferFinished?.Invoke(i);
-                AL.GetSource(source, ALGetSourcei.BuffersQueued, out int buffQueued);
+                Al.GetSourceProperty(source, GetSourceInteger.BuffersQueued, out int buffQueued);
                 if (buffQueued <= 1)
-                    AL.Source(_sources[i], ALSourceb.Looping, _channels[i].loop);
+                    Al.SetSourceProperty(_sources[i], SourceBoolean.Looping, _channels[i].loop);
             }
         }
     }
 
     public void Dispose()
     {
-        AL.SourceStop(NumChannels, _sources);
-        AL.DeleteSources(NumChannels, ref _sources[0]);
+        fixed (uint* sources = _sources)
+        {
+            Al.SourceStop(NumChannels, sources);
+            Al.DeleteSources(NumChannels, sources);
+        }
 
-        ALC.MakeContextCurrent(ALContext.Null);
-        ALC.DestroyContext(_context);
-        ALC.CloseDevice(_device);
+        ALContext alc = ALContext.GetApi();
+        alc.MakeContextCurrent(null);
+        alc.DestroyContext(_context);
+        alc.CloseDevice(_device);
     }
 
     public delegate void OnBufferFinished(int channel);

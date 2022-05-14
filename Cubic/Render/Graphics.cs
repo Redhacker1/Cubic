@@ -4,8 +4,8 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using Cubic.Utilities;
 using Cubic.Windowing;
-using OpenTK.Graphics.OpenGL4;
-using OpenTK.Windowing.GraphicsLibraryFramework;
+using Silk.NET.GLFW;
+using Silk.NET.OpenGL;
 
 namespace Cubic.Render;
 
@@ -19,9 +19,11 @@ public class Graphics : IDisposable
 
     private Rectangle _viewport;
 
+    internal static GL Gl;
+
     public bool VSync
     {
-        set => GLFW.SwapInterval(value ? 1 : 0);
+        set => GameWindow.GLFW.SwapInterval(value ? 1 : 0);
     }
 
     public Rectangle Viewport
@@ -30,7 +32,7 @@ public class Graphics : IDisposable
         set
         {
             _viewport = value;
-            GL.Viewport(value.X, value.Y, value.Width, value.Height);
+            Gl.Viewport(value.X, value.Y, (uint) value.Width, (uint) value.Height);
             ViewportResized?.Invoke(value.Size);
         }
     }
@@ -39,34 +41,34 @@ public class Graphics : IDisposable
     {
         if (target == null)
         {
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            Gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             Viewport = new Rectangle(0, 0, _window.Size.Width, _window.Size.Height);
             return;
         }
 
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, target.Fbo);
+        Gl.BindFramebuffer(FramebufferTarget.Framebuffer, target.Fbo);
         Viewport = new Rectangle(0, 0, target.Size.Width, target.Size.Height);
     }
 
     public void Clear(Vector4 clearColor)
     {
-        GL.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
-        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        Gl.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
+        Gl.Clear((uint) ClearBufferMask.ColorBufferBit | (uint) ClearBufferMask.DepthBufferBit);
     }
 
     public void Clear(Color clearColor)
     {
-        GL.ClearColor(clearColor);
-        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        Gl.ClearColor(clearColor);
+        Gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
     }
 
-    internal Graphics(GameWindow window, GameSettings settings)
+    internal unsafe Graphics(GameWindow window, GameSettings settings)
     {
         _window = window;
 
         window.Resize += WindowResized;
         
-        GL.LoadBindings(new GLFWBindingsContext());
+        Gl = GL.GetApi(new GlfwContext(GameWindow.GLFW, window.Handle));
 
         VSync = settings.VSync;
 
@@ -74,21 +76,21 @@ public class Graphics : IDisposable
         
         SpriteRenderer = new SpriteRenderer(this);
         
-        GL.Enable(EnableCap.Blend);
-        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        Gl.Enable(EnableCap.Blend);
+        Gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
         
-        GL.Enable(EnableCap.CullFace);
-        GL.CullFace(CullFaceMode.Back);
-        GL.FrontFace(FrontFaceDirection.Cw);
+        Gl.Enable(EnableCap.CullFace);
+        Gl.CullFace(CullFaceMode.Back);
+        Gl.FrontFace(FrontFaceDirection.CW);
         
-        GL.Enable(EnableCap.DepthTest);
-        GL.DepthFunc(DepthFunction.Lequal);
+        Gl.Enable(EnableCap.DepthTest);
+        Gl.DepthFunc(DepthFunction.Lequal);
         
-        //GL.Enable(EnableCap.ScissorTest);
+        //Gl.Enable(EnableCap.ScissorTest);
         //SetScissor(Viewport);
         
         if (settings.MsaaSamples > 0)
-            GL.Enable(EnableCap.Multisample);
+            Gl.Enable(EnableCap.Multisample);
     }
     
 
@@ -100,7 +102,7 @@ public class Graphics : IDisposable
 
     internal unsafe void PresentFrame()
     {
-        GLFW.SwapBuffers(_window.Handle);
+        GameWindow.GLFW.SwapBuffers(_window.Handle);
     }
     
     private void WindowResized(Size size)
@@ -109,11 +111,11 @@ public class Graphics : IDisposable
         Viewport = new Rectangle(0, 0, size.Width, size.Height);
     }
 
-    public Bitmap Capture(Rectangle region)
+    /*public Bitmap Capture(Rectangle region)
     {
         byte[] upsideDownData = new byte[region.Width * region.Height * 3];
-        GL.ReadPixels(0, 0, region.Width, region.Height, PixelFormat.Rgb, PixelType.UnsignedByte, upsideDownData);
-        // We need to reverse the data as it's stored upside down because OpenGL
+        Gl.ReadPixels(0, 0, region.Width, region.Height, PixelFormat.Rgb, PixelType.UnsignedByte, upsideDownData);
+        // We need to reverse the data as it's stored upside down because OpenGl
         // We also convert from RGB to RGBA too.
         byte[] data = new byte[region.Width * region.Height * 4];
         for (int x = 0; x < region.Width; x++)
@@ -129,29 +131,29 @@ public class Graphics : IDisposable
         return new Bitmap(region.Width, region.Height, data);
     }
 
-    public Bitmap Capture() => Capture(Viewport);
+    public Bitmap Capture() => Capture(Viewport);*/
 
     public void SetScissor(Rectangle rectangle)
     {
-        GL.Scissor(rectangle.X, Viewport.Height - rectangle.Height - rectangle.Y, rectangle.Width, rectangle.Height);
+        Gl.Scissor(rectangle.X, Viewport.Height - rectangle.Height - rectangle.Y, (uint) rectangle.Width, (uint) rectangle.Height);
     }
 
     /*public RenderObject CreateRenderObject()
     {
-        int vao = GL.GenVertexArray();
+        int vao = Gl.GenVertexArray();
         RenderObject obj = new RenderObject(vao);
         return obj;
     }
 
     public Buffer CreateBuffer(BufferType type, int size)
     {
-        int buf = GL.GenBuffer();
+        int buf = Gl.GenBuffer();
         Buffer buffer = new Buffer(buf,
             (type & BufferType.VertexBuffer) == BufferType.VertexBuffer
                 ? BufferTarget.ArrayBuffer
                 : BufferTarget.ElementArrayBuffer);
 
-        GL.BufferData(buffer.Target, size, IntPtr.Zero,
+        Gl.BufferData(buffer.Target, size, IntPtr.Zero,
             (type & BufferType.Dynamic) == BufferType.Dynamic
                 ? BufferUsageHint.DynamicDraw
                 : BufferUsageHint.StaticDraw);
@@ -161,16 +163,16 @@ public class Graphics : IDisposable
 
     public void UpdateBuffer<T>(Buffer buffer, int offset, T[] data) where T : struct
     {
-        GL.BindBuffer(buffer.Target, buffer.Handle);
-        GL.BufferSubData(buffer.Target, new IntPtr(offset), data.Length * Marshal.SizeOf<T>(), data);
+        Gl.BindBuffer(buffer.Target, buffer.Handle);
+        Gl.BufferSubData(buffer.Target, new IntPtr(offset), data.Length * Marshal.SizeOf<T>(), data);
     }
 
     public void BindBufferToRenderObject(RenderObject obj, Buffer buffer)
     {
-        GL.BindVertexArray(obj.Handle);
-        GL.BindBuffer(buffer.Target, buffer.Handle);
-        GL.BindVertexArray(0);
-        GL.BindBuffer(buffer.Target, 0);
+        Gl.BindVertexArray(obj.Handle);
+        Gl.BindBuffer(buffer.Target, buffer.Handle);
+        Gl.BindVertexArray(0);
+        Gl.BindBuffer(buffer.Target, 0);
     }*/
 
     public void Dispose()
