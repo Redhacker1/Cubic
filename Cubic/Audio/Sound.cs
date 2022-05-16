@@ -224,7 +224,8 @@ public partial class Sound : IDisposable
 
         if (_vorbis.Decoded < _vorbis.SampleRate / 2)
         {
-            StbVorbis.stb_vorbis_seek(_vorbis.StbVorbis, 125197);
+            //StbVorbis.stb_vorbis_seek(_vorbis.StbVorbis, );
+            _vorbis.Restart();
         }
 
         short[] data = _vorbis.SongBuffer;

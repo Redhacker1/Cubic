@@ -299,7 +299,7 @@ public partial class Sound
                             else
                             {*/
                             newSample = (short) ((_samples[_channels[c].SampleId].Data[(a == 1 && _samples[_channels[c].SampleId].Stereo ? _samples[_channels[c].SampleId].Data.Length / 2 : 0) + (int) _channels[c].SamplePos - (_samples[_channels[c].SampleId].Stereo ? (int) _channels[c].SamplePos % 2 : 0)] << 8) - short.MaxValue);
-                                if (false)
+                                if (_interpolation)
                                 {
                                     int nextPos = _channels[c].Ratio <= 1 ? (int) _channels[c].SamplePos + 1 : (int) (_channels[c].SamplePos + _channels[c].Ratio);
                                     short nextSample = (short) ((_samples[_channels[c].SampleId].Data[nextPos >= _samples[_channels[c].SampleId].Data.Length ? (int) _channels[c].SamplePos : nextPos] << 8) - short.MaxValue);

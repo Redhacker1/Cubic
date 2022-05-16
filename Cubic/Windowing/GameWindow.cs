@@ -196,12 +196,19 @@ public sealed unsafe class GameWindow : IDisposable
             // The icon must be an RGBA image otherwise it won't work - we convert it if it is not in RGBA colour space.
             if (_settings.Icon.ColorSpace != ColorSpace.RGBA)
                 _settings.Icon = Bitmap.ConvertToColorSpace(_settings.Icon, ColorSpace.RGBA);
-            //fixed (byte* p = _settings.Icon.Data)
-           // {
-            //    GLFW.SetWindowIcon(Handle,
-            //        new ReadOnlySpan<Image>(new Image[]
-            //            { new Image(_settings.Icon.Size.Width, _settings.Icon.Size.Height, p) }));
-            //}
+            fixed (byte* p = _settings.Icon.Data)
+            {
+                fixed (Image* img = new Image[1])
+                {
+                    img[0] = new Image()
+                    {
+                        Width = _settings.Icon.Size.Width,
+                        Height = _settings.Icon.Size.Height,
+                        Pixels = p
+                    };
+                    GLFW.SetWindowIcon(Handle, 1, img);
+                }
+            }
         }
 
         GLFW.SetKeyCallback(Handle, _keyCallback);

@@ -248,7 +248,7 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
         io.KeyMap[(int)ImGuiKey.Z] = (int)Keys.Z;
     }
 
-    private void RenderImDrawData(ImDrawDataPtr drawData)
+    private unsafe void RenderImDrawData(ImDrawDataPtr drawData)
     {
         uint vertexOffsetInVertices = 0;
         uint indexOffsetInElements = 0;
@@ -282,11 +282,11 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
             
             Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
             Gl.BufferSubData(BufferTargetARB.ArrayBuffer,
-                (nint) (vertexOffsetInVertices * Unsafe.SizeOf<ImDrawVert>()), (nuint) (cmdList.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>()), cmdList.VtxBuffer.Data);
+                (nint) (vertexOffsetInVertices * Unsafe.SizeOf<ImDrawVert>()), (nuint) (cmdList.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>()), cmdList.VtxBuffer.Data.ToPointer());
             
             Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _ebo);
             Gl.BufferSubData(BufferTargetARB.ArrayBuffer, (nint) (indexOffsetInElements * sizeof(ushort)),
-                (nuint) (cmdList.IdxBuffer.Size * sizeof(ushort)), cmdList.IdxBuffer.Data);
+                (nuint) (cmdList.IdxBuffer.Size * sizeof(ushort)), cmdList.IdxBuffer.Data.ToPointer());
 
             vertexOffsetInVertices += (uint) cmdList.VtxBuffer.Size;
             indexOffsetInElements += (uint) cmdList.IdxBuffer.Size;
@@ -341,7 +341,7 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
                     (uint) (clipRect.W - clipRect.Y));
 
                 Gl.DrawElementsBaseVertex(PrimitiveType.Triangles,  pcmd.ElemCount,
-                    DrawElementsType.UnsignedShort, (IntPtr) (idxOffset * sizeof(ushort)), vtxOffset);
+                    DrawElementsType.UnsignedShort, (void*) (idxOffset * sizeof(ushort)), vtxOffset);
 
                 idxOffset += (int) pcmd.ElemCount;
             }

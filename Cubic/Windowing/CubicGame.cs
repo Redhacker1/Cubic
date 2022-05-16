@@ -87,6 +87,11 @@ public class CubicGame : IDisposable
             GraphicsInternal.PrepareFrame(SceneManager.Active.World.ClearColorInternal);
             Draw();
             GraphicsInternal.PresentFrame();
+            if (Window.ShouldClose)
+            {
+                Window.ShouldClose = false;
+                Close();
+            }
         }
     }
 
@@ -114,7 +119,7 @@ public class CubicGame : IDisposable
         AudioDevice.Dispose();
     }
 
-    public void Close()
+    public virtual void Close()
     {
         Window.ShouldClose = true;
     }

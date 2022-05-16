@@ -207,7 +207,7 @@ public sealed unsafe class AudioDevice : IDisposable
         // device to use.
         bool playing = false;
         Al.GetSourceProperty(_sources[channel], GetSourceInteger.SourceState, out int value);
-        if (value == 1)
+        if (value == (int) SourceState.Playing)
             playing = true;
         else if (_channels[channel].persist)
             _channels[channel].persist = false;

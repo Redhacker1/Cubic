@@ -17,6 +17,7 @@ public static class SceneManager
     
     internal static Scene Active;
     private static Type _switchScene;
+    private static object[] _instParams;
 
     internal static void Initialize(CubicGame game)
     {
@@ -36,6 +37,8 @@ public static class SceneManager
         Camera2D.Main = main2D;
         Active.AddEntity("Main Camera 2D", main2D);
         Active.Initialize();
+
+        _instParams = Array.Empty<object>();
     }
     
     internal static void Update(CubicGame game)
@@ -46,7 +49,7 @@ public static class SceneManager
             Active = null;
             // Force the GC to collect our now null scene, as we don't need it.
             GC.Collect();
-            Active = (Scene) Activator.CreateInstance(_switchScene);
+            Active = (Scene) Activator.CreateInstance(_switchScene, _instParams);
             _switchScene = null;
             if (Active == null)
                 throw new CubicException("Scene could not be instantiated.");
@@ -85,5 +88,9 @@ public static class SceneManager
     /// Set the active scene.
     /// </summary>
     /// <param name="name">The name of the scene to change.</param>
-    public static void SetScene(string name) => _switchScene = _scenes[name];
+    public static void SetScene(string name, params object[] instParams)
+    {
+        _switchScene = _scenes[name];
+        _instParams = instParams;
+    }
 }
