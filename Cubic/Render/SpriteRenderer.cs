@@ -109,7 +109,7 @@ void main()
     
     public Size FramebufferSize { get; private set; }
 
-    internal SpriteRenderer(Graphics graphics)
+    internal unsafe SpriteRenderer(Graphics graphics)
     {
         _graphics = graphics;
 
@@ -126,12 +126,12 @@ void main()
 
         _vbo = Gl.GenBuffer();
         Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-        Gl.BufferData(BufferTargetARB.ArrayBuffer, (int) (MaxSprites * VertexSizeInBytes), IntPtr.Zero,
+        Gl.BufferData(BufferTargetARB.ArrayBuffer, (int) (MaxSprites * VertexSizeInBytes), null,
             BufferUsageARB.DynamicDraw);
 
         _ebo = Gl.GenBuffer();
         Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
-        Gl.BufferData(BufferTargetARB.ElementArrayBuffer, (int) (MaxSprites * IndexSizeInBytes), IntPtr.Zero,
+        Gl.BufferData(BufferTargetARB.ElementArrayBuffer, (int) (MaxSprites * IndexSizeInBytes), null,
             BufferUsageARB.DynamicDraw);
 
         _shader = new Shader(VertexShader, FragmentShader);

@@ -81,9 +81,9 @@ public class ImGuiRenderer : IDisposable
         _ebo = Gl.GenBuffer();
         
         Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-        Gl.BufferData(BufferTargetARB.ArrayBuffer, _vboSize, IntPtr.Zero, BufferUsageARB.DynamicDraw);
+        Gl.BufferData(BufferTargetARB.ArrayBuffer, _vboSize, null, BufferUsageARB.DynamicDraw);
         Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _ebo);
-        Gl.BufferData(BufferTargetARB.ArrayBuffer, _eboSize, IntPtr.Zero, BufferUsageARB.DynamicDraw);
+        Gl.BufferData(BufferTargetARB.ArrayBuffer, _eboSize, null, BufferUsageARB.DynamicDraw);
         Gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
 
         RecreateFontDeviceTexture();
@@ -262,7 +262,7 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
             _vboSize = (uint) Math.Max(_vboSize * 1.5f, totalVbSize);
             
             Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-            Gl.BufferData(BufferTargetARB.ArrayBuffer, _vboSize, IntPtr.Zero, BufferUsageARB.DynamicDraw);
+            Gl.BufferData(BufferTargetARB.ArrayBuffer, _vboSize, null, BufferUsageARB.DynamicDraw);
             Gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
         }
 
@@ -272,7 +272,7 @@ out_color = frag_color * texture(uTexture, frag_texCoords);
             _eboSize = (uint) Math.Max(_eboSize * 1.5f, totalIbSize);
             
             Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _ebo);
-            Gl.BufferData(BufferTargetARB.ArrayBuffer, _eboSize, IntPtr.Zero, BufferUsageARB.DynamicDraw);
+            Gl.BufferData(BufferTargetARB.ArrayBuffer, _eboSize, null, BufferUsageARB.DynamicDraw);
             Gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
         }
 
