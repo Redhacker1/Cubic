@@ -116,11 +116,11 @@ public class Entity : IDisposable
     {
         foreach (Component component in _components)
         {
-            if (component.GetType() == typeof(T))
+            if (component?.GetType() == typeof(T))
                 return (T) component;
         }
 
-        throw new CubicException("Requested component was not found.");
+        return null;
     }
 
     protected internal virtual void Update()

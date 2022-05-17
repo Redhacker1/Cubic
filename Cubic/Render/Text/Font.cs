@@ -120,7 +120,7 @@ public struct Font : IDisposable
                 case FontHelper.ParamType.EscapeChar:
                     continue;
                 case FontHelper.ParamType.Color:
-                    currentColor = param.Color;
+                    currentColor = Color.FromArgb(currentColor.A, param.Color);
                     continue;
             }
 

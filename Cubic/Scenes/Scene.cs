@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Cubic.Entities;
+using Cubic.Entities.Components;
 using Cubic.GUI;
 using Cubic.Render;
 using Cubic.Utilities;
@@ -120,6 +121,18 @@ public abstract class Scene : IDisposable
     public Entity GetEntity(string name) => _entities[name];
 
     public T GetEntity<T>(string name) where T : Entity => (T) _entities[name];
+
+    public (string name, Entity entity)[] GetEntitiesWithComponent<T>() where T : Component
+    {
+        List<(string name, Entity entity)> entities = new List<(string name, Entity entity)>();
+        foreach (KeyValuePair<string, Entity> entity in _entities)
+        {
+            if (entity.Value.GetComponent<T>() != null)
+                entities.Add((entity.Key, entity.Value));
+        }
+
+        return entities.ToArray();
+    }
     
     public void AddScreen(Type screenType, string name, params object[] constructorParams)
     {
