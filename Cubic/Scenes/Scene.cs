@@ -22,6 +22,7 @@ public abstract class Scene : IDisposable
     protected internal readonly World World;
 
     private readonly Dictionary<string, Entity> _entitiesQueue;
+    private readonly List<string> _entitiesToRemove;
     private readonly Dictionary<string, Entity> _entities;
     private readonly Dictionary<string, Screen> _screens;
     private Queue<Screen> _screensToAdd;
@@ -33,6 +34,7 @@ public abstract class Scene : IDisposable
         CreatedResources = new List<IDisposable>();
         _entities = new Dictionary<string, Entity>();
         _entitiesQueue = new Dictionary<string, Entity>();
+        _entitiesToRemove = new List<string>();
         _screens = new Dictionary<string, Screen>();
         World = new World();
         _activeScreens = new List<Screen>();
@@ -53,13 +55,14 @@ public abstract class Scene : IDisposable
 
         foreach (KeyValuePair<string, Entity> ent in _entitiesQueue)
         {
-            ent.Value.Name = ent.Key;
-            ent.Value.Initialize(Game);
             _entities.Add(ent.Key, ent.Value);
         }
-
         _entitiesQueue.Clear();
-        
+
+        foreach (string name in _entitiesToRemove)
+            _entities.Remove(name);
+        _entitiesToRemove.Clear();
+
         while (_screensToAdd.TryDequeue(out Screen result))
             _activeScreens.Add(result);
 
@@ -110,15 +113,26 @@ public abstract class Scene : IDisposable
 
     public void AddEntity(string name, Entity entity)
     {
+        entity.Name = name;
+        entity.Initialize(Game);
+        
         if (_updating)
         {
             _entitiesQueue.Add(name, entity);
             return;
         }
-
-        entity.Name = name;
-        entity.Initialize(Game);
         _entities.Add(name, entity);
+    }
+
+    public void RemoveEntity(string name)
+    {
+        if (_updating)
+        {
+            _entitiesToRemove.Add(name);
+            return;
+        }
+
+        _entities.Remove(name);
     }
 
     public Entity GetEntity(string name) => _entities[name];

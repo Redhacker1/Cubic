@@ -140,4 +140,9 @@ public struct ModelGroup
     {
         ModelMatrices.Add(matrix);
     }
+
+    public void RemoveMatrix(int index)
+    {
+        ModelMatrices.RemoveAt(index);
+    }
 }
