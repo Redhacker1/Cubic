@@ -253,6 +253,13 @@ public partial class Sound
                         _channels[c].NoteVolume = n.Volume;
                     }
 
+                    switch (n.Effect)
+                    {
+                        case Effect.SetSpeed:
+                            _speed = n.EffectParam;
+                            break;
+                    }
+                    
                     _channels[c].Effect = n.Effect;
                     if (n.EffectParam != 0)
                         _channels[c].EffectParam = (byte) n.EffectParam;

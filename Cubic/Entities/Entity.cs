@@ -9,6 +9,8 @@ namespace Cubic.Entities;
 
 public class Entity : IDisposable
 {
+    public string Name { get; internal set; }
+    
     internal CubicGame Game;
     private bool _initialized;
     private bool _updating;

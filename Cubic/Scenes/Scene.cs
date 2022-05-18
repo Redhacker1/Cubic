@@ -53,6 +53,7 @@ public abstract class Scene : IDisposable
 
         foreach (KeyValuePair<string, Entity> ent in _entitiesQueue)
         {
+            ent.Value.Name = ent.Key;
             ent.Value.Initialize(Game);
             _entities.Add(ent.Key, ent.Value);
         }
@@ -114,6 +115,8 @@ public abstract class Scene : IDisposable
             _entitiesQueue.Add(name, entity);
             return;
         }
+
+        entity.Name = name;
         entity.Initialize(Game);
         _entities.Add(name, entity);
     }
