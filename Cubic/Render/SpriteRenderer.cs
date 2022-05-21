@@ -212,11 +212,28 @@ void main()
         Metrics.SpritesDrawnInternal++;
     }
 
+    /// <summary>
+    /// Draw a rectangle at the given position.
+    /// </summary>
+    /// <param name="position">The position of the rectangle.</param>
+    /// <param name="size">The size (in pixels) that the rectangle should be.</param>
+    /// <param name="color">The color of the rectangle.</param>
+    /// <param name="rotation">The rectangle's rotation.</param>
+    /// <param name="origin">The origin point of the rectangle. NOTE: This value is between 0 and 1, not the size of the rectangle.</param>
     public void DrawRectangle(Vector2 position, Vector2 size, Color color, float rotation, Vector2 origin)
     {
         Draw(Texture2D.Blank, position, null, color, rotation, origin, size, SpriteFlipMode.None);
     }
 
+    /// <summary>
+    /// Draw a "border" rectangle. This will draw 4 lines of the given thickness in a border shape.
+    /// </summary>
+    /// <param name="position">The position of the border.</param>
+    /// <param name="size">The size (in pixels) of the border.</param>
+    /// <param name="borderWidth">The border width (in pixels).</param>
+    /// <param name="color">The color of the border.</param>
+    /// <param name="rotation">The border's rotation.</param>
+    /// <param name="origin">The origin point of the border. NOTE: This value is between 0 and 1, not the size of the border.</param>
     public void DrawBorder(Vector2 position, Vector2 size, int borderWidth, Color color, float rotation, Vector2 origin)
     {
         Draw(Texture2D.Blank, position, null, color, rotation, origin, new Vector2(size.X, borderWidth), SpriteFlipMode.None);
@@ -230,6 +247,25 @@ void main()
     {
         DrawRectangle(position, size, rectangleColor, rotation, origin);
         DrawBorder(position, size, borderWidth, borderColor, rotation, origin);
+    }
+
+    public void DrawLine(Vector2 a, Vector2 b, int thickness, Color color)
+    {
+        float length = Vector2.Distance(a, b);
+        Vector2 diff = b - a;
+        float rot = MathF.Atan2(diff.Y, diff.X);
+        Draw(Texture2D.Blank, a, null, color, rot, new Vector2(0, 0.5f), new Vector2(length, thickness),
+            SpriteFlipMode.None);
+    }
+
+    public void DrawPolygon(Vector2 positionOffset, Vector2[] positions, int thickness, Color color)
+    {
+        Vector2 lastPos = Vector2.Zero;
+        foreach (Vector2 pos in positions)
+        {
+            DrawLine(lastPos + positionOffset, pos + positionOffset, thickness, color);
+            lastPos = pos;
+        }
     }
     
     private void DrawSprite(Sprite sprite)
@@ -328,7 +364,7 @@ void main()
             return;
 
         Gl.FrontFace(FrontFaceDirection.Ccw);
-        Gl.DepthMask(false);
+        Gl.Disable(EnableCap.DepthTest);
         
         Gl.BindVertexArray(_vao);
         Gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
@@ -352,7 +388,7 @@ void main()
         Gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
         Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
         Gl.FrontFace(FrontFaceDirection.CW);
-        Gl.DepthMask(true);
+        Gl.Enable(EnableCap.DepthTest);
 
         Metrics.DrawCallsInternal++;
         

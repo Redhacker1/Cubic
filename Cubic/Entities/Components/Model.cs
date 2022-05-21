@@ -186,6 +186,7 @@ vec3 CalculateDirectional(DirectionalLight light, vec3 normal, vec3 viewDir)
         Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Linear);
         
         Gl.DrawElements(PrimitiveType.Triangles, (uint) Indices.Length, DrawElementsType.UnsignedInt, null);
+        Metrics.DrawCallsInternal++;
         
         Material.Albedo.Unbind();
         Material.Specular.Unbind();

@@ -107,6 +107,7 @@ public class InstancedModel : Component
                 _shader.Set("uModel", mat * Matrix4x4.CreateFromQuaternion(Transform.Rotation) * Matrix4x4.CreateTranslation(Transform.Position));
                 Gl.DrawElements(PrimitiveType.Triangles, (uint) modelGroup.IndicesLength, DrawElementsType.UnsignedInt,
                     null);
+                Metrics.DrawCallsInternal++;
             }
 
             modelGroup.Material.Albedo.Unbind();
