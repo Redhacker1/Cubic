@@ -77,7 +77,7 @@ public partial class Sound : IDisposable
         int soundLoopPoint = 0;
 
         _vorbis = null;
-        
+
         string ext = Path.GetExtension(path).ToLower();
         switch (ext)
         {
@@ -135,11 +135,11 @@ public partial class Sound : IDisposable
         _currentBuffer = 0;
 
         _interpolation = interpolation;
-        
+
         Load();
         
         _device.BufferFinished += DeviceOnBufferFinished;
-        
+
         SceneManager.Active.CreatedResources.Add(this);
     }
 
@@ -226,6 +226,7 @@ public partial class Sound : IDisposable
         {
             //StbVorbis.stb_vorbis_seek(_vorbis.StbVorbis, );
             _vorbis.Restart();
+            _vorbis.SubmitBuffer();
         }
 
         short[] data = _vorbis.SongBuffer;
