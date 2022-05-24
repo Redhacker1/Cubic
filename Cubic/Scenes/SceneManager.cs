@@ -84,6 +84,8 @@ public static class SceneManager
         _scenes.Add(name, sceneType);
     }
 
+    public static void RegisterScene<T>(string name) => RegisterScene(typeof(T), name);
+
     /// <summary>
     /// Set the active scene.
     /// </summary>

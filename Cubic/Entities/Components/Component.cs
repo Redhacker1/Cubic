@@ -25,7 +25,7 @@ public abstract class Component
 
     protected T GetComponent<T>() where T : Component => Entity.GetComponent<T>();
 
-    protected void AddComponent(Type component, params object[] args) => Entity.AddComponent(component, args);
+    protected void AddComponent<T>(T component) where T : Component => Entity.AddComponent(component);
 
     protected void RemoveComponent(Type component) => Entity.RemoveComponent(component);
 }

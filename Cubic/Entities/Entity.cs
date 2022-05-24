@@ -37,67 +37,21 @@ public class Entity : IDisposable
     /// <param name="args"></param>
     /// <exception cref="Exception"></exception>
     /// <exception cref="CubicException"></exception>
-    public void AddComponent(Type component, params object[] args)
+    public void AddComponent<T>(T component) where T : Component
     {
-        if (component != typeof(Component) && component.BaseType != typeof(Component))
-            throw new Exception($"Given component must be of type {typeof(Component)}");
-        
         foreach (Component comp in _components)
         {
             if (comp == null)
                 continue;
             
-            if (comp.GetType() == component)
+            if (comp.GetType() == component.GetType())
                 throw new CubicException("Entity can have only one type of each component.");
         }
 
-        // Parameter checking.
-        bool correctArgs = false;
-        // Get all constructors the component has
-        ConstructorInfo[] constructors = component.GetConstructors();
-        foreach (ConstructorInfo info in constructors)
-        {
-            ParameterInfo[] parameters = info.GetParameters();
-            int optionalParamCount = parameters.Count(inf => inf.IsOptional);
-            // If a matching number of parameters is found...
-            if (args.Length == parameters.Length)
-            {
-                correctArgs = true;
-                for (int i = 0; i < parameters.Length; i++)
-                {
-                    //if (parameters[i].ParameterType != args[i].GetType() && parameters[i].ParameterType != args[i].GetType().BaseType)
-                    //    correctArgs = false;
-                }
-
-                break;
-            }
-        }
-
-        if (!correctArgs)
-        {
-            string msg =
-                $"Attempted to call constructor of type \"{component}\" however none matched provided parameters.\nThe following constructor(s) are available:\n";
-            foreach (ConstructorInfo info in constructors)
-            {
-                ParameterInfo[] parameters = info.GetParameters();
-                msg += $"\t{component.Name}(";
-                for (int i = 0; i < parameters.Length; i++)
-                {
-                    msg += $"{parameters[i].ParameterType.Name} {parameters[i].Name}";
-                    if (i < parameters.Length - 1)
-                        msg += ", ";
-                }
-
-                msg += ")\n";
-            }
-
-            throw new CubicException(msg);
-        }
-
         if (_updating)
-            _componentStates.Add(new ComponentState(component, true, args));
+            _componentStates.Add(new ComponentState(component, component.GetType(), true));
         else
-            CreateComponent(component, args);
+            CreateComponent(component);
     }
 
     public void RemoveComponent(Type component)
@@ -107,12 +61,14 @@ public class Entity : IDisposable
 
         if (_updating)
         {
-            _componentStates.Add(new ComponentState(component, false, null));
+            _componentStates.Add(new ComponentState(null, component, false));
             return;
         }
 
         DeleteComponent(component);
     }
+
+    public void RemoveComponent<T>() => RemoveComponent(typeof(T));
 
     public T GetComponent<T>() where T : Component
     {
@@ -140,9 +96,9 @@ public class Entity : IDisposable
         foreach (ComponentState cState in _componentStates)
         {
             if (cState.Add)
-                CreateComponent(cState.Component, cState.Args);
+                cState.Component.Initialize();
             else
-                DeleteComponent(cState.Component);
+                DeleteComponent(cState.Component.GetType());
         }
         _componentStates.Clear();
     }
@@ -176,12 +132,8 @@ public class Entity : IDisposable
 
     protected virtual void Initialize() { }
 
-    private void CreateComponent(Type component, object[] args)
+    private void CreateComponent(Component comp)
     {
-        Component comp = (Component) Activator.CreateInstance(component, args);
-        if (comp == null)
-            throw new CubicException("Component could not be created.");
-        
         if (_componentCount + 1 > _components.Length)
             Array.Resize(ref _components, _components.Length * 2);
         _components[_componentCount] = comp;
@@ -218,15 +170,15 @@ public class Entity : IDisposable
 
     private struct ComponentState
     {
-        public Type Component;
-        public object[] Args;
+        public Component Component;
+        public Type ComponentType;
         public bool Add;
 
-        public ComponentState(Type component, bool add, object[] args)
+        public ComponentState(Component component, Type componentType, bool add)
         {
             Component = component;
             Add = add;
-            Args = args;
+            ComponentType = componentType;
         }
     }
 

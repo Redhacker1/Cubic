@@ -151,14 +151,8 @@ public abstract class Scene : IDisposable
         return entities.ToArray();
     }
     
-    public void AddScreen(Type screenType, string name, params object[] constructorParams)
+    public void AddScreen(Screen screen, string name)
     {
-        if (screenType.BaseType != typeof(Screen))
-            throw new CubicException($"Given screen must derive off {typeof(Screen)}");
-
-        Screen screen = (Screen) Activator.CreateInstance(screenType, constructorParams);
-        if (screen == null)
-            throw new CubicException("Screen was not created.");
         screen.Game = Game;
         screen.Initialize();
         _screens.Add(name, screen);
