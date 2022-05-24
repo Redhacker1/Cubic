@@ -77,8 +77,9 @@ public partial class Sound
             _samples[i].Loop = (flags & 1) != 0;
             _samples[i].Stereo = (flags & 2) != 0;
             _samples[i].SixteenBit = (flags & 4) != 0;
-            
+
             _samples[i].SampleRate = reader.ReadUInt32();
+            _samples[i].SampleMultiplier = _samples[i].SampleRate / CalculateSampleRate(PianoKey.C, Octave.Octave4, 1);
             reader.ReadBytes(12); // Unused data & stuff we don't need. No soundblaster or GUS here!
             reader.ReadChars(28); // We also don't need sample name either.
             if (new string(reader.ReadChars(4)) != "SCRS")
@@ -184,7 +185,7 @@ public partial class Sound
             }
         }
 
-        _channels = new Channel[16];
+        _channels = new Channel[32];
         _tickDurationInSamples = CalculateTickDurationInSamples(initialTempo);
         _currentRow = 0;
         _currentOrder = 0;
@@ -241,9 +242,11 @@ public partial class Sound
                     {
                         PitchNote pn = new PitchNote(n.Key, n.Octave, n.Volume);
                         _channels[c].SampleId = (uint) n.SampleNum;
-                        _channels[c].SampleRate = (float) (_samples[_channels[c].SampleId].SampleRate * pn.Pitch);
-                            //CalculateSampleRate(n.Key, n.Octave, _samples[_channels[c].SampleId].SampleRate);
-                            _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
+                        //_channels[c].SampleRate = (float) (_samples[_channels[c].SampleId].SampleRate * pn.Pitch);
+                        _channels[c].SampleRate = CalculateSampleRate(n.Key, n.Octave,
+                            _samples[_channels[c].SampleId].SampleMultiplier);
+                        //CalculateSampleRate(n.Key, n.Octave, _samples[_channels[c].SampleId].SampleRate);
+                        _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
                         _channels[c].SamplePos = 0;
                     }
 
@@ -275,8 +278,10 @@ public partial class Sound
                 _channels[c].SamplePos += _channels[c].Ratio * multiplier;
                 if (_samples[_channels[c].SampleId].Loop &&
                     _channels[c].SamplePos >= _samples[_channels[c].SampleId].LoopEnd * multiplier)
+                {
                     _channels[c].SamplePos = _samples[_channels[c].SampleId].LoopBegin * multiplier;
-                
+                }
+
                 if (_channels[c].Volume == 0)
                     continue;
 
@@ -391,11 +396,10 @@ public partial class Sound
         return (int) ((tickDurationInMs / 1000f) * SampleRate);
     }
 
-    private static int[] _periodTableS3M = { 1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 0960, 0907 };
-    
-    private float CalculateSampleRate(PianoKey key, Octave octave, float cRate)
+    private float CalculateSampleRate(PianoKey key, Octave octave, float sampleMultiplier)
     {
-        return 14317456f / (8363f * 16f * ((_periodTableS3M[(int) key - 2]) >> ((int) octave)) / cRate);
+        int note = 40 + (int) (key - 2) + (int) (octave - 4) * 12;
+        return (float) (8363 * Math.Pow(2, (4608 - (7680 - (note * 64))) / 768d)) * sampleMultiplier;
     }
     
     private struct Sample
@@ -409,6 +413,7 @@ public partial class Sound
         public bool Stereo;
         public bool SixteenBit;
         public bool Loop;
+        public float SampleMultiplier;
     }
 
     private struct Channel
