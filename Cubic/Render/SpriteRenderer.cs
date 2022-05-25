@@ -70,10 +70,13 @@ in vec4 frag_tint;
 out vec4 out_color;
 
 uniform sampler2D uTexture;
+uniform bool uUseTexture;
 
 void main()
 {
-    out_color = texture(uTexture, frag_texCoords) * frag_tint;
+    vec4 tex = texture(uTexture, frag_texCoords);
+    // Invert it here to account for frag shaders that don't implement uUseTexture
+    out_color = (!uUseTexture ? tex : vec4(1.0, 1.0, 1.0, tex.a)) * frag_tint;
 }";
 
     #endregion
@@ -102,6 +105,7 @@ void main()
     private uint[] _indices;
 
     private TextureSample _sample;
+    private bool _useTextureState;
     
     public Size FramebufferSize { get; private set; }
 
@@ -145,6 +149,8 @@ void main()
         Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
 
         _graphics.ViewportResized += GraphicsOnViewportResized;
+
+        _useTextureState = false;
     }
 
     private void GraphicsOnViewportResized(Size size)
@@ -196,14 +202,15 @@ void main()
     /// <param name="scale">The scale of the sprite.</param>
     /// <param name="flip">The type of optional flip the sprite will display on screen.</param>
     /// <param name="depth">The depth the sprite will be drawn at. A sprite with a greater depth will be placed <b>behind</b> other sprites with lesser depths.</param>
+    /// <param name="useTexture">If false, the texture will be drawn as the tint colour. The alpha values, however, of the texture will still be respected. Transparent parts of the texture will remain transparent (or translucent).</param>
     /// <exception cref="CubicException">Thrown if a draw call is issued when there is no current batch session.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the <see cref="flip"/> value provided is invalid.</exception>
     public void Draw(Texture texture, Vector2 position, Rectangle? source, Color tint, float rotation, Vector2 origin,
-        Vector2 scale, SpriteFlipMode flip, float depth = 0)
+        Vector2 scale, SpriteFlipMode flip, float depth = 0, bool useTexture = true)
     {
         if (!_begun)
             throw new CubicException("There is no active batch session. You must start a new batch session before you can issue draw calls.");
-        _sprites.Add(new Sprite(texture, position, source, tint, rotation, origin, scale, flip, depth, _currentSprite));
+        _sprites.Add(new Sprite(texture, position, source, tint, rotation, origin, scale, flip, depth, _currentSprite, useTexture));
         _currentSprite++;
         Metrics.SpritesDrawnInternal++;
     }
@@ -270,6 +277,12 @@ void main()
             Flush();
         if (_currentSpriteIndex >= MaxSprites)
             Flush();
+        if (sprite.UseTexture != _useTextureState)
+        {
+            Flush();
+            _useTextureState = sprite.UseTexture;
+            _shader.Set("uUseTexture", !sprite.UseTexture);
+        }
         _currentTexture = sprite.Texture;
 
         Rectangle src = sprite.Source ?? new Rectangle(0, 0, sprite.Texture.Size.Width, sprite.Texture.Size.Height);
@@ -412,9 +425,10 @@ void main()
         public SpriteFlipMode Flip;
         public float Depth;
         public uint ID;
+        public bool UseTexture;
 
         public Sprite(Texture texture, Vector2 position, Rectangle? source, Color tint, float rotation, Vector2 origin,
-            Vector2 scale, SpriteFlipMode flip, float depth, uint id)
+            Vector2 scale, SpriteFlipMode flip, float depth, uint id, bool useTexture)
         {
             Texture = texture;
             Position = position;
@@ -426,6 +440,7 @@ void main()
             Flip = flip;
             Depth = depth;
             ID = id;
+            UseTexture = useTexture;
         }
     }
 

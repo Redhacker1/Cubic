@@ -28,12 +28,19 @@ public sealed class Sprite : Component
     /// </summary>
     public SpriteFlipMode Flip;
 
+    /// <summary>
+    /// If false, the sprite will just be the <see cref="Tint"/> colour. It will, however, respect the alpha values of
+    /// the sprite's texture. All transparent parts of the texture will remain transparent (or translucent).
+    /// </summary>
+    public bool UseTexture;
+
     public Sprite(Texture2D spriteTexture)
     {
         SpriteTexture = spriteTexture;
         Tint = Color.White;
         Source = null;
         Flip = SpriteFlipMode.None;
+        UseTexture = true;
     }
 
     protected internal override void Draw()
@@ -41,6 +48,6 @@ public sealed class Sprite : Component
         Transform transform = Transform;
         Graphics.SpriteRenderer.Draw(SpriteTexture, transform.Position.ToVector2(), Source, Tint,
             Transform.Rotation.ToEulerAngles().Z, transform.Origin, transform.Scale.ToVector2(), Flip,
-            transform.Position.Z);
+            transform.Position.Z, UseTexture);
     }
 }
