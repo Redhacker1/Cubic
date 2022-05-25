@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Numerics;
@@ -11,7 +12,9 @@ namespace Cubic.Render;
 public class Shader : IDisposable
 {
     internal uint Handle;
-    
+
+    private Dictionary<string, int> _uniformLocations;
+
     public Shader(string vertex, string fragment, ShaderLoadType loadType = ShaderLoadType.String)
     {
         uint vertexShader = Gl.CreateShader(ShaderType.VertexShader);
@@ -42,44 +45,56 @@ public class Shader : IDisposable
         Gl.DetachShader(Handle, fragmentShader);
         Gl.DeleteShader(vertexShader);
         Gl.DeleteShader(fragmentShader);
+
+        _uniformLocations = new Dictionary<string, int>();
+        Gl.GetProgram(Handle, ProgramPropertyARB.ActiveUniforms, out int numUniforms);
+        for (uint i = 0; i < numUniforms; i++)
+        {
+            string name = Gl.GetActiveUniform(Handle, i, out _, out _);
+            int location = Gl.GetUniformLocation(Handle, name);
+            _uniformLocations.Add(name, location);
+        }
     }
 
-    public unsafe void Set<T>(string uniformName, T value, bool transpose = true)
+    public void Set(string uniformName, bool value)
     {
-        Gl.UseProgram(Handle);
-        
-        int location = Gl.GetUniformLocation(Handle, uniformName);
+        Gl.Uniform1(_uniformLocations[uniformName], value ? 1 : 0);
+    }
+    
+    public void Set(string uniformName, int value)
+    {
+        Gl.Uniform1(_uniformLocations[uniformName], value);
+    }
+    
+    public void Set(string uniformName, float value)
+    {
+        Gl.Uniform1(_uniformLocations[uniformName], value);
+    }
 
-        switch (value)
-        {
-            case bool bValue:
-                Gl.Uniform1(location, bValue ? 1 : 0);
-                break;
-            case int iValue:
-                Gl.Uniform1(location, iValue);
-                break;
-            case float fValue:
-                Gl.Uniform1(location, fValue);
-                break;
-            case Vector2 v2Value:
-                Gl.Uniform2(location, 1, (float*) &v2Value);
-                break;
-            case Vector3 v3Value:
-                Gl.Uniform3(location, 1, (float*) &v3Value);
-                break;
-            case Vector4 v4Value:
-                Gl.Uniform4(location, 1, (float*) &v4Value);
-                break;
-            case Color cValue:
-                Vector4 color = cValue.Normalize();
-                Gl.Uniform4(location, 1, (float*) &color);
-                break;
-            case Matrix4x4 m4Value:
-                Gl.UniformMatrix4(location, 1, transpose, (float*) &m4Value);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(value), value, "Invalid type");
-        }
+    public void Set(string uniformName, Vector2 value)
+    {
+        Gl.Uniform2(_uniformLocations[uniformName], ref value);
+    }
+    
+    public void Set(string uniformName, Vector3 value)
+    {
+        Gl.Uniform3(_uniformLocations[uniformName], ref value);
+    }
+    
+    public void Set(string uniformName, Vector4 value)
+    {
+        Gl.Uniform4(_uniformLocations[uniformName], ref value);
+    }
+
+    public void Set(string uniformName, Color color)
+    {
+        Vector4 normalized = color.Normalize();
+        Gl.Uniform4(_uniformLocations[uniformName], ref normalized);
+    }
+
+    public unsafe void Set(string uniformName, Matrix4x4 value, bool transpose = true)
+    {
+        Gl.UniformMatrix4(_uniformLocations[uniformName], 1, transpose, (float*) &value);
     }
 
     private static void Compile(uint shader)
