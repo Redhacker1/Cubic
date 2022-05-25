@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Numerics;
+using System.Text;
 using Cubic.Utilities;
 using static Cubic.Render.Graphics;
 using Silk.NET.OpenGL;
@@ -23,12 +24,12 @@ public class Shader : IDisposable
         switch (loadType)
         {
             case ShaderLoadType.File:
-                Gl.ShaderSource(vertexShader, File.ReadAllText(vertex));
-                Gl.ShaderSource(fragmentShader, File.ReadAllText(fragment));
+                Gl.ShaderSource(vertexShader, PreProcess(File.ReadAllText(vertex)));
+                Gl.ShaderSource(fragmentShader, PreProcess(File.ReadAllText(fragment)));
                 break;
             case ShaderLoadType.String:
-                Gl.ShaderSource(vertexShader, vertex);
-                Gl.ShaderSource(fragmentShader, fragment);
+                Gl.ShaderSource(vertexShader, PreProcess(vertex));
+                Gl.ShaderSource(fragmentShader, PreProcess(fragment));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(loadType), loadType, null);
@@ -113,6 +114,15 @@ public class Shader : IDisposable
         Gl.GetProgram(program, ProgramPropertyARB.LinkStatus, out int status);
         if (status != 1)
             throw new CubicException($"Program '{program}' failed to link: {Gl.GetProgramInfoLog(program)}");
+    }
+
+    private static string PreProcess(string shader)
+    {
+        StringBuilder builder = new StringBuilder();
+        // TODO: Change this when different OpenGL versions are added.
+        builder.AppendLine("#version 330 core");
+        builder.Append(shader);
+        return builder.ToString();
     }
 
     public void Dispose()

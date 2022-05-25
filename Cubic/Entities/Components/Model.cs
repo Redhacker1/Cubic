@@ -26,8 +26,6 @@ public class Model : Component
     public Material Material;
 
     public const string VertexShader = @"
-#version 330 core
-
 layout (location = 0) in vec3 aPosition;
 layout (location = 1) in vec2 aTexCoords;
 layout (location = 2) in vec3 aNormals;
@@ -49,8 +47,6 @@ void main()
 }";
 
     public const string FragmentShader = @"
-#version 330 core
-
 struct Material
 {
     sampler2D albedo;

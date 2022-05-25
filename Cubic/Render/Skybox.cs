@@ -54,8 +54,6 @@ public class Skybox : IDisposable
     };
 
     public const string VertexShader = @"
-#version 330 core
-
 layout (location = 0) in vec3 aPosition;
 
 out vec3 frag_texCoords;
@@ -70,8 +68,6 @@ void main()
 }";
 
     public const string FragmentShader = @"
-#version 330 core
-
 in vec3 frag_texCoords;
 
 out vec4 out_color;

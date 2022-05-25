@@ -89,7 +89,6 @@ public class ImGuiRenderer : IDisposable
         RecreateFontDeviceTexture();
 
         const string vertexSource = @"
-#version 330 core
 layout (location = 0) in vec2 aPosition;
 layout (location = 1) in vec2 aTexCoords;
 layout (location = 2) in vec4 aColor;
@@ -107,7 +106,6 @@ frag_texCoords = aTexCoords;
 }";
 
         const string fragmentSource = @"
-#version 330 core
 in vec4 frag_color;
 in vec2 frag_texCoords;
 
