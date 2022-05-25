@@ -20,6 +20,7 @@ public class CubicGame : IDisposable
     internal Simulation Simulation;
 
     protected Graphics Graphics => GraphicsInternal;
+    protected Scene CurrentScene => SceneManager.Active;
     public AudioDevice AudioDevice { get; private set; }
 
     private bool _running;

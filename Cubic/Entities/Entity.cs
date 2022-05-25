@@ -37,7 +37,7 @@ public class Entity : IDisposable
     /// <param name="args"></param>
     /// <exception cref="Exception"></exception>
     /// <exception cref="CubicException"></exception>
-    public void AddComponent<T>(T component) where T : Component
+    public void AddComponent(Component component)
     {
         foreach (Component comp in _components)
         {
@@ -98,7 +98,7 @@ public class Entity : IDisposable
             if (cState.Add)
                 cState.Component.Initialize();
             else
-                DeleteComponent(cState.Component.GetType());
+                DeleteComponent(cState.ComponentType);
         }
         _componentStates.Clear();
     }

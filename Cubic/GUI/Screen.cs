@@ -8,6 +8,8 @@ public abstract class Screen
 {
     protected internal CubicGame Game { get; internal set; }
     protected Graphics Graphics => Game.GraphicsInternal;
+
+    protected Scene CurrentScene => SceneManager.Active;
     
     protected internal virtual void Initialize() { }
 

@@ -10,11 +10,6 @@ public static class SceneManager
 {
     private static readonly Dictionary<string, Type> _scenes = new Dictionary<string, Type>();
 
-    /// <summary>
-    /// Get the currently active scene.
-    /// </summary>
-    public static Scene ActiveScene => Active;
-    
     internal static Scene Active;
     private static Type _switchScene;
     private static object[] _instParams;
