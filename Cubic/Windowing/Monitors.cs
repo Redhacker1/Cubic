@@ -40,8 +40,8 @@ public static unsafe class Monitors
             {
                 displayModes.Add(new DisplayMode()
                 {
-                    Resolution = new Size(modes[i].Width, modes[i].Height),
-                    RefreshRate = modes[i].RefreshRate
+                    Resolution = new Size(modes[dm].Width, modes[dm].Height),
+                    RefreshRate = modes[dm].RefreshRate
                 });
             }
 
