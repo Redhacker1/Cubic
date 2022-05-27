@@ -30,6 +30,12 @@ public struct GameSettings
     public bool Resizable;
 
     /// <summary>
+    /// The refresh rate that the monitor should use. Note: This is <b>not</b> the same as <see cref="TargetFps"/>, as
+    /// this setting directly affects the monitor. (Default: Monitor's default refresh rate)
+    /// </summary>
+    public uint RefreshRate;
+
+    /// <summary>
     /// If true, the graphics device will attempt to sync to vertical refresh. (Default: true)
     /// </summary>
     public bool VSync;
@@ -80,6 +86,7 @@ public struct GameSettings
         Title = "Cubic Window";
         WindowMode = WindowMode.Windowed;
         Resizable = false;
+        RefreshRate = 0;
         VSync = true;
         TargetFps = 60;
         Location = new Point(-1, -1);

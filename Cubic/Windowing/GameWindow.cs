@@ -181,7 +181,8 @@ public sealed unsafe class GameWindow : IDisposable
         GLFW.WindowHint(WindowHintInt.RedBits, mode->RedBits);
         GLFW.WindowHint(WindowHintInt.GreenBits, mode->GreenBits);
         GLFW.WindowHint(WindowHintInt.BlueBits, mode->BlueBits);
-        GLFW.WindowHint(WindowHintInt.RefreshRate, mode->RefreshRate);
+        GLFW.WindowHint(WindowHintInt.RefreshRate,
+            _settings.RefreshRate == 0 ? mode->RefreshRate : (int) _settings.RefreshRate);
         Handle = GLFW.CreateWindow(_settings.Size.Width, _settings.Size.Height, _settings.Title, null, null);
         _title = _settings.Title;
 
