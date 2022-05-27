@@ -1,5 +1,7 @@
+using System;
 using System.Drawing;
 using System.Numerics;
+using Cubic.Render;
 
 namespace Cubic.GUI;
 
@@ -15,14 +17,14 @@ public static partial class UI
         Color buttonColor = Theme.RectColor;
         
         CalculatePos(anchor, ref pos, ignoreReferenceResolution);
-        AddElement(pos);
+        Add(pos);
 
         if (ElementClicked(pos))
         {
             _textCursorPos.X = text.Length;
         }
 
-        if (IsFocused(_currentID))
+        if (IsFocused())
         {
             foreach (char c in _charBuffer)
             {
@@ -30,13 +32,14 @@ public static partial class UI
                 _textCursorPos.X++;
             }
 
-            while (pos.X + 1 - _textOffset +
-                   Theme.Font.MeasureString(size, text[.._textCursorPos.X], ignoreParams: true).Width > pos.Width)
-                _textOffset += 5;
+            Size texSize = Theme.Font.MeasureString(size, text[.._textCursorPos.X]);
 
-            while (pos.X + 1 - _textOffset +
-                   Theme.Font.MeasureString(size, text[.._textCursorPos.X], ignoreParams: true).Width < pos.X)
-                _textOffset -= 5;
+            while (texSize.Width - _textOffset > pos.Width - 5)
+                _textOffset += 1;
+            while (texSize.Width - _textOffset < 0 + 5)
+                _textOffset -= 50;
+            if (_textOffset < -5)
+                _textOffset = -5;
 
             if (Input.KeyPressedOrRepeating(Keys.Backspace))
             {
@@ -65,15 +68,19 @@ public static partial class UI
                 _textCursorPos.X = text.Length;
         }
         
-        _rectangles.Add((pos, borderColor, _currentID));
+        _rectangles.Add((pos, borderColor, Texture2D.Blank, _currentID));
         _rectangles.Add((
             new Rectangle(pos.X + borderThickness, pos.Y + borderThickness, pos.Width - borderThickness * 2,
-                pos.Height - borderThickness * 2), buttonColor, _currentID));
-        _rectangles.Add((
-            new Rectangle(
-                pos.X + 1 - _textOffset + Theme.Font.MeasureString(size, text[.._textCursorPos.X], ignoreParams: true).Width,
-                pos.Y + pos.Height / 2 - (int) size / 2, 1, (int) size), Color.White, _currentID));
-        
+                pos.Height - borderThickness * 2), buttonColor, Texture2D.Blank, _currentID));
+        if (IsFocused())
+        {
+            _rectangles.Add((
+                new Rectangle(
+                    pos.X + 1 - _textOffset +
+                    Theme.Font.MeasureString(size, text[.._textCursorPos.X], ignoreParams: true).Width,
+                    pos.Y + pos.Height / 2 - (int) size / 2, 1, (int) size), Color.White, Texture2D.Blank, _currentID));
+        }
+
         _texts.Add((text, size, new Vector2(pos.X - _textOffset, pos.Y + pos.Height / 2 - size / 2), Theme.TextColor, false, true, _currentID));
 
         return ElementClicked(pos);

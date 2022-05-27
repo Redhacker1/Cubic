@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Numerics;
+using Cubic.Render;
 
 namespace Cubic.GUI;
 
@@ -22,6 +23,7 @@ public static partial class UI
 
         // Calculate the correct position of the element based on its anchor point.
         CalculatePos(anchor, ref pos, ignoreReferenceResolution);
+        Add(pos);
 
         float scale = GetReferenceMultiplier();
         textSize = (uint) (textSize * scale);
@@ -38,15 +40,13 @@ public static partial class UI
         // rectangles, the first one being the "full size" or "border" rectangle, and the second one being a slightly
         // smaller "actual" rectangle. This rectangle changes colour based on the state of the button. It's FAR more
         // efficient and memory wise than the old system.
-        _rectangles.Add((pos, borderColor, _currentID));
+        _rectangles.Add((pos, borderColor, Texture2D.Blank, _currentID));
         _rectangles.Add((
             new Rectangle(pos.X + borderThickness, pos.Y + borderThickness, pos.Width - borderThickness * 2,
-                pos.Height - borderThickness * 2), buttonColor, _currentID));
+                pos.Height - borderThickness * 2), buttonColor, Texture2D.Blank, _currentID));
         // The text gets centered around the origin too.
         _texts.Add((text, textSize, new Vector2(pos.X + pos.Width / 2, pos.Y + pos.Height / 2), Theme.TextColor,
             true, false, _currentID));
-
-        AddElement(pos);
 
         return ElementClicked(pos);
     }

@@ -37,6 +37,8 @@ public abstract class Component
 
     protected void AddEntity(string name, Entity entity) => CurrentScene.AddEntity(name, entity);
 
+    protected void AddEntity(Entity entity) => CurrentScene.AddEntity(entity);
+
     protected void RemoveEntity(string name) => CurrentScene.RemoveEntity(name);
 
     protected Entity GetEntity(string name) => CurrentScene.GetEntity(name);

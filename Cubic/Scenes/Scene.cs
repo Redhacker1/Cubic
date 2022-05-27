@@ -124,6 +124,8 @@ public abstract class Scene : IDisposable
         _entities.Add(name, entity);
     }
 
+    public void AddEntity(Entity entity) => AddEntity(_entities.Count.ToString(), entity);
+    
     public void RemoveEntity(string name)
     {
         if (_updating)
