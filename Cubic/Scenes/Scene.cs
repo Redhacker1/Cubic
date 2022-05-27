@@ -141,13 +141,13 @@ public abstract class Scene : IDisposable
 
     public T GetEntity<T>(string name) where T : Entity => (T) _entities[name];
 
-    public (string name, Entity entity)[] GetEntitiesWithComponent<T>() where T : Component
+    public Entity[] GetEntitiesWithComponent<T>() where T : Component
     {
-        List<(string name, Entity entity)> entities = new List<(string name, Entity entity)>();
+        List<Entity> entities = new List<Entity>();
         foreach (KeyValuePair<string, Entity> entity in _entities)
         {
             if (entity.Value.GetComponent<T>() != null)
-                entities.Add((entity.Key, entity.Value));
+                entities.Add(entity.Value);
         }
 
         return entities.ToArray();

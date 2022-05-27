@@ -45,7 +45,7 @@ public abstract class Component
 
     protected T GetEntity<T>(string name) where T : Entity => CurrentScene.GetEntity<T>(name);
 
-    protected (string name, Entity entity)[] GetEntitiesWithComponent<T>() where T : Component =>
+    protected Entity[] GetEntitiesWithComponent<T>() where T : Component =>
         CurrentScene.GetEntitiesWithComponent<T>();
 
     protected void AddScreen(Screen screen, string name) => CurrentScene.AddScreen(screen, name);
