@@ -7,8 +7,6 @@ namespace Cubic.GUI;
 
 public abstract class UIElement
 {
-    
-    
     public event OnHover Hover;
     public event OnClick Click;
     
@@ -36,7 +34,7 @@ public abstract class UIElement
 
         Hovering = false;
         
-        if (rect.Contains(Input.MousePosition.ToPoint()))
+        if (rect.Contains(Input.MousePosition.ToPoint()) && !mouseCaptured)
         {
             Hovering = true;
             mouseCaptured = true;
@@ -52,7 +50,9 @@ public abstract class UIElement
         }
     }
 
-    protected internal virtual void Draw(SpriteRenderer renderer) { }
+    protected internal virtual void Draw(Graphics graphics) { }
+
+    protected internal virtual void Remove() { }
 
     public delegate void OnClick();
 

@@ -241,7 +241,7 @@ public static partial class UI
         }
         
         foreach (UIElement element in _reversedElements)
-            element.Draw(graphics.SpriteRenderer);
+            element.Draw(graphics);
 
         graphics.SpriteRenderer.End();
     }
