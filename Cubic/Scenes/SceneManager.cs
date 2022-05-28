@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cubic.Entities;
+using Cubic.GUI;
 using Cubic.Windowing;
 
 namespace Cubic.Scenes;
@@ -44,6 +45,7 @@ public static class SceneManager
             Active = null;
             // Force the GC to collect our now null scene, as we don't need it.
             GC.Collect();
+            UI.Clear();
             Active = (Scene) Activator.CreateInstance(_switchScene, _instParams);
             _switchScene = null;
             if (Active == null)

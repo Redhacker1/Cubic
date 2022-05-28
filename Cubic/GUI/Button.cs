@@ -34,9 +34,10 @@ public class Button : UIElement
         graphics.SpriteRenderer.DrawBorderRectangle(rect.Location.ToVector2(), rect.Size.ToVector2(), UI.Theme.BorderWidth,
             UI.Theme.BorderColor, color, 0, Vector2.Zero);
 
+        Size origin = UI.Theme.Font.MeasureString((uint) (_fontSize * UI.GetReferenceMultiplier()), _text);
+        
         UI.Theme.Font.Draw(graphics.SpriteRenderer, (uint) (_fontSize * UI.GetReferenceMultiplier()), _text,
             new Vector2(rect.X + rect.Width / 2, rect.Y + rect.Height / 2), UI.Theme.TextColor, 0,
-            UI.Theme.Font.MeasureString((uint) (_fontSize * UI.GetReferenceMultiplier()), _text).ToVector2() / 2,
-            Vector2.One);
+            new Vector2(origin.Width / 2, origin.Height / 2), Vector2.One);
     }
 }

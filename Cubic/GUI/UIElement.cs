@@ -18,6 +18,7 @@ public abstract class UIElement
 
     protected bool Hovering;
     protected bool Clicked;
+    protected Point ClickPoint;
 
     public UIElement(Anchor anchor, Rectangle position, bool captureMouse = true, bool ignoreReferenceResolution = false)
     {
@@ -41,7 +42,10 @@ public abstract class UIElement
             Hover?.Invoke();
 
             if (Input.MouseButtonDown(MouseButtons.Left))
+            {
                 Clicked = true;
+                ClickPoint = new Point((int) Input.MousePosition.X - rect.X, (int) Input.MousePosition.Y - rect.Y);
+            }
         }
         if (Clicked && !Input.MouseButtonDown(MouseButtons.Left))
         {

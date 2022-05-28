@@ -245,4 +245,10 @@ public static partial class UI
 
         graphics.SpriteRenderer.End();
     }
+
+    public static void Clear()
+    {
+        _elements.Clear();
+        _reversedElements.Clear();
+    }
 }
