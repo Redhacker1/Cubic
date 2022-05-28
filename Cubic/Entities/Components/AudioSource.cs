@@ -29,6 +29,6 @@ public class AudioSource : Component
     
     public void Play(string soundName, float pitch = 1, float volume = 1, bool persistent = false)
     {
-        _sounds[soundName].Play(pitch: pitch, volume: volume, persistent: false);
+        _sounds[soundName].Play(pitch: pitch, volume: volume, persistent: persistent);
     }
 }
