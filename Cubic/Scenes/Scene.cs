@@ -29,6 +29,8 @@ public abstract class Scene : IDisposable
     private List<Screen> _activeScreens;
     private int _popCount;
 
+    private int _uniqueId;
+
     protected Scene()
     {
         CreatedResources = new List<IDisposable>();
@@ -39,6 +41,7 @@ public abstract class Scene : IDisposable
         World = new World();
         _activeScreens = new List<Screen>();
         _screensToAdd = new Queue<Screen>();
+        _uniqueId = 0;
     }
 
     protected internal virtual void Initialize() { }
@@ -124,7 +127,7 @@ public abstract class Scene : IDisposable
         _entities.Add(name, entity);
     }
 
-    public void AddEntity(Entity entity) => AddEntity(_entities.Count.ToString(), entity);
+    public void AddEntity(Entity entity) => AddEntity(_uniqueId++.ToString(), entity);
     
     public void RemoveEntity(string name)
     {
