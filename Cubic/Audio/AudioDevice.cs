@@ -16,9 +16,9 @@ public sealed unsafe class AudioDevice : IDisposable
     
     private readonly uint[] _sources;
     private readonly (bool persist, bool loop)[] _channels;
-    private float* _floatBuf;
 
     private float _masterVolume;
+    private float[] _floatBuf;
 
     // When a tracker track is playing, sounds will not be able to automatically play on the channels it allocates,
     // unless manually told to play on those channels
@@ -58,9 +58,7 @@ public sealed unsafe class AudioDevice : IDisposable
         MasterVolume = 1;
         NumChannels = numChannels;
         _channelCount = -1;
-
-        fixed (float* p = new float[6])
-            _floatBuf = p;
+        _floatBuf = new float[6];
     }
 
     /// <summary>
@@ -87,7 +85,9 @@ public sealed unsafe class AudioDevice : IDisposable
             _floatBuf[3] = up.X;
             _floatBuf[4] = up.Y;
             _floatBuf[5] = up.Z;
-            Al.SetListenerProperty(ListenerFloatArray.Orientation, _floatBuf);
+            
+            fixed (float* p = _floatBuf)
+                Al.SetListenerProperty(ListenerFloatArray.Orientation, p);
         }
     }
 
@@ -316,6 +316,11 @@ public sealed unsafe class AudioDevice : IDisposable
     public void SetPersistent(int channel, bool persistent)
     {
         _channels[channel].persist = persistent;
+    }
+
+    public void SetPosition(int channel, Vector3 position)
+    {
+        Al.SetSourceProperty(_sources[channel], SourceVector3.Position, position.X, position.Y, position.Z);
     }
 
     /// <summary>

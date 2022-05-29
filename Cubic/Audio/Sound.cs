@@ -254,9 +254,9 @@ public partial class Sound : IDisposable
                     _device.QueueBuffer(channel, _buffers[1], Loop);
                 }
                 else if (channel == -1)
-                    channel = _device.PlayBuffer(_buffers[0], pitch, volume, persistent: persistent);
+                    channel = _device.PlayBuffer(_buffers[0], pitch, volume, persistent: persistent, loop: Loop);
                 else
-                    _device.PlayBuffer(channel, _buffers[0], pitch, volume, persistent: persistent);
+                    _device.PlayBuffer(channel, _buffers[0], pitch, volume, persistent: persistent, loop: Loop);
 
                 break;
             default:
