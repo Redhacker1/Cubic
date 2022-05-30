@@ -10,6 +10,8 @@ namespace Cubic.Entities;
 public class Entity : IDisposable
 {
     public string Name { get; internal set; }
+
+    public string Tag;
     
     internal CubicGame Game;
     private bool _initialized;

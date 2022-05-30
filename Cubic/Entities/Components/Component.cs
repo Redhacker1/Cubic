@@ -27,6 +27,8 @@ public abstract class Component
 
     protected internal virtual void Unload() { }
 
+    protected int EntityCount => CurrentScene.EntityCount;
+
     protected T GetComponent<T>() where T : Component => Entity.GetComponent<T>();
 
     protected void AddComponent(Component component) => Entity.AddComponent(component);
@@ -41,12 +43,18 @@ public abstract class Component
 
     protected void RemoveEntity(string name) => CurrentScene.RemoveEntity(name);
 
+    protected void Destroy() => CurrentScene.RemoveEntity(Entity.Name);
+
     protected Entity GetEntity(string name) => CurrentScene.GetEntity(name);
 
     protected T GetEntity<T>(string name) where T : Entity => CurrentScene.GetEntity<T>(name);
 
     protected Entity[] GetEntitiesWithComponent<T>() where T : Component =>
         CurrentScene.GetEntitiesWithComponent<T>();
+
+    protected Entity[] GetEntitiesWithTag(string tag) => CurrentScene.GetEntitiesWithTag(tag);
+
+    protected Entity[] GetAllEntities() => CurrentScene.GetAllEntities();
 
     protected void AddScreen(Screen screen, string name) => CurrentScene.AddScreen(screen, name);
 

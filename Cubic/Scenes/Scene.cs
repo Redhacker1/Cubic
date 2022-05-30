@@ -31,6 +31,8 @@ public abstract class Scene : IDisposable
 
     private int _uniqueId;
 
+    public int EntityCount => _entities.Count;
+
     protected Scene()
     {
         CreatedResources = new List<IDisposable>();
@@ -155,7 +157,21 @@ public abstract class Scene : IDisposable
 
         return entities.ToArray();
     }
-    
+
+    public Entity[] GetEntitiesWithTag(string tag)
+    {
+        List<Entity> entities = new List<Entity>();
+        foreach (KeyValuePair<string, Entity> entity in _entities)
+        {
+            if (entity.Value.Tag == tag)
+                entities.Add(entity.Value);
+        }
+
+        return entities.ToArray();
+    }
+
+    public Entity[] GetAllEntities() => (Entity[]) (IEnumerable<Entity>) _entities.Values;
+
     public void AddScreen(Screen screen, string name)
     {
         screen.Game = Game;
