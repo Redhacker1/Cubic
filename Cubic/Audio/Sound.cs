@@ -103,14 +103,16 @@ public partial class Sound : IDisposable
                 Channels = 2;
                 SampleRate = 44100;
                 BitsPerSample = 2;
-                
-                // The new way! Immediately loads!
                 _type = SoundType.Track;
                 LoadS3M(File.ReadAllBytes(path));
-                
-                // THE OLD WAY - This is how a track used to be generated - look at how long it takes!
-                //_type = SoundType.PCM;
-                //Data = Track.FromS3M(device, File.ReadAllBytes(path)).ToPCM(2, true, 44100, 16, out _, out _);
+                break;
+            case ".it":
+                Data = null;
+                Channels = 2;
+                SampleRate = 44100;
+                BitsPerSample = 2;
+                _type = SoundType.Track;
+                LoadIT(File.ReadAllBytes(path));
                 break;
             default:
                     throw new Exception("Given file is not a valid type.");

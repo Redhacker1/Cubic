@@ -106,6 +106,8 @@ void main()
 
     private TextureSample _sample;
     private bool _useTextureState;
+
+    public bool UseBottomLeftOriginPoint;
     
     public Size FramebufferSize { get; private set; }
 
@@ -151,6 +153,7 @@ void main()
         _graphics.ViewportResized += GraphicsOnViewportResized;
 
         _useTextureState = false;
+        UseBottomLeftOriginPoint = false;
     }
 
     private void GraphicsOnViewportResized(Size size)
@@ -314,6 +317,9 @@ void main()
 
         sprite.Position -= sprite.Origin;
         sprite.Origin += sprite.Position;
+
+        if (UseBottomLeftOriginPoint)
+            sprite.Position.Y = FramebufferSize.Height - sprite.Position.Y - src.Height;
 
         // We overwrite the elements of the arrays to reduce array allocations, making it more memory efficient.
         

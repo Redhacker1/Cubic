@@ -185,13 +185,70 @@ public partial class Sound
             }
         }
 
-        _channels = new Channel[32];
+        _channels = new Channel[16];
         _tickDurationInSamples = CalculateTickDurationInSamples(initialTempo);
         _currentRow = 0;
         _currentOrder = 0;
         _rowChanged = true;
 
         _speed = initialSpeed;
+    }
+
+    internal void LoadIT(byte[] data)
+    {
+        using MemoryStream memStream = new MemoryStream(data);
+        using BinaryReader reader = new BinaryReader(memStream);
+
+        if (new string(reader.ReadChars(4)) != "IMPM")
+            throw new CubicException("Given IT file is not valid.");
+
+        reader.ReadBytes(28); // Ignore song name and pattern highlight info.
+        short numOrders = reader.ReadInt16();
+        short numInstruments = reader.ReadInt16();
+        short numSamples = reader.ReadInt16();
+        short numPatterns = reader.ReadInt16();
+
+        reader.ReadBytes(4); // Ignore tracker version
+
+        short flags = reader.ReadInt16(); // TODO: Implement flags checking
+
+        reader.ReadInt16(); // special
+
+        byte globalVolume = reader.ReadByte();
+        byte mixVolume = reader.ReadByte();
+        byte initialSpeed = reader.ReadByte();
+        byte initialTempo = reader.ReadByte();
+        byte panningSep = reader.ReadByte();
+        reader.ReadBytes(11); // Ignore pitch wheel depth and message stuff
+
+        byte[] channelPans = reader.ReadBytes(64);
+        byte[] channelVols = reader.ReadBytes(64);
+
+        byte[] orders = reader.ReadBytes(numOrders);
+        
+        // TODO: Instruments
+        reader.BaseStream.Position += 34; // ?????????
+        _samples = new Sample[numSamples];
+        for (int i = 0; i < numSamples; i++)
+        {
+            if (new string(reader.ReadChars(4)) != "IMPS")
+                throw new CubicException("Error reading sample header");
+            reader.ReadBytes(13); // Ignore dos filename and what I assume is a padding byte
+            
+            _samples[i].Volume = reader.ReadByte();
+            byte sFlags = reader.ReadByte();
+            byte sVol = reader.ReadByte();
+            reader.ReadBytes(28); // sample name
+            int sLength = reader.ReadInt32();
+            int sLoopBegin = reader.ReadInt32();
+            int sLoopEnd = reader.ReadInt32();
+            _samples[i].SampleRate = (uint) reader.ReadInt32();
+            _samples[i].SampleMultiplier = _samples[i].SampleRate / CalculateSampleRate(PianoKey.C, Octave.Octave4, 1);
+            int sSustainBegin = reader.ReadInt32();
+            int sSustainEnd = reader.ReadInt32();
+            int samplePointer = reader.ReadInt32();
+            reader.ReadBytes(4); // TODO: implement, unsupported for now
+        }
     }
 
     private short[] _trackBuffer;
