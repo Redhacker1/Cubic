@@ -157,7 +157,7 @@ vec3 CalculateDirectional(DirectionalLight light, vec3 normal, vec3 viewDir)
         Gl.UseProgram(_shader.Handle);
         _shader.Set("uProjection", Camera.Main.ProjectionMatrix);
         _shader.Set("uView", Camera.Main.ViewMatrix);
-        _shader.Set("uModel", Matrix4x4.CreateFromQuaternion(Transform.Rotation) * Matrix4x4.CreateTranslation(Transform.Position));
+        _shader.Set("uModel",  Matrix4x4.CreateScale(Transform.Scale) * Matrix4x4.CreateFromQuaternion(Transform.Rotation) * Matrix4x4.CreateTranslation(Transform.Position));
         
         _shader.Set("uCameraPos", Camera.Main.Transform.Position);
         _shader.Set("uMaterial.albedo", 0);
