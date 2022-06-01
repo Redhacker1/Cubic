@@ -227,7 +227,19 @@ public partial class Sound
         byte[] orders = reader.ReadBytes(numOrders);
         
         // TODO: Instruments
-        reader.BaseStream.Position += 34; // ?????????
+        string testStr = "";
+        long pos = reader.BaseStream.Position;
+        while (testStr != "IMPS")
+        {
+            try
+            {
+                testStr = new string(reader.ReadChars(4));
+            }
+            catch (Exception) { }
+            reader.BaseStream.Position = ++pos;
+        }
+
+        reader.BaseStream.Position = pos - 1;
         _samples = new Sample[numSamples];
         for (int i = 0; i < numSamples; i++)
         {
@@ -237,18 +249,131 @@ public partial class Sound
             
             _samples[i].Volume = reader.ReadByte();
             byte sFlags = reader.ReadByte();
+            Console.WriteLine((sFlags & 0b0001) != 0);
             byte sVol = reader.ReadByte();
             reader.ReadBytes(28); // sample name
-            int sLength = reader.ReadInt32();
-            int sLoopBegin = reader.ReadInt32();
-            int sLoopEnd = reader.ReadInt32();
+            _samples[i].Length = (uint) reader.ReadInt32();
+            _samples[i].LoopBegin = (uint) reader.ReadInt32();
+            _samples[i].LoopEnd = (uint) reader.ReadInt32();
+            if (_samples[i].LoopEnd > 0)
+                _samples[i].Loop = true;
             _samples[i].SampleRate = (uint) reader.ReadInt32();
             _samples[i].SampleMultiplier = _samples[i].SampleRate / CalculateSampleRate(PianoKey.C, Octave.Octave4, 1);
             int sSustainBegin = reader.ReadInt32();
             int sSustainEnd = reader.ReadInt32();
             int samplePointer = reader.ReadInt32();
             reader.ReadBytes(4); // TODO: implement, unsupported for now
+            long currentPos = reader.BaseStream.Position;
+            reader.BaseStream.Position = samplePointer;
+            _samples[i].Data = reader.ReadBytes((int) _samples[i].Length);
+            reader.BaseStream.Position = currentPos;
+            _samples[i].Signed = true;
         }
+
+        _patterns = new Pattern[numPatterns];
+        for (int p = 0; p < numPatterns; p++)
+        {
+            short length = reader.ReadInt16();
+            short numRows = reader.ReadInt16();
+
+            _patterns[p] = new Pattern(64, numRows);
+            Console.WriteLine(numRows);
+            reader.ReadBytes(4);
+
+            (byte cNote, byte cInst, byte cVol, byte cCmd, byte cCmdVal, byte cMask)[] channels =
+                new (byte cNote, byte cInst, byte cVol, byte cCmd, byte cCmdVal, byte cMask)[64];
+            
+            for (int r = 0; r < numRows; r++)
+            {
+                byte channelMarker = reader.ReadByte();
+                while (channelMarker != 0)
+                {
+                    int channel = (channelMarker - 1) & 63;
+                    byte mask = channels[channel].cMask;
+                    if ((channelMarker & 128) == 128)
+                    {
+                        mask = reader.ReadByte();
+                        channels[channel].cMask = mask;
+                    }
+
+                    byte note = 253;
+                    byte instrument = 0;
+                    byte volumeInfo = 65;
+                    byte command = 0;
+                    byte commandInfo = 0;
+                    if ((mask & 1) == 1)
+                    {
+                        note = reader.ReadByte();
+                        channels[channel].cNote = note;
+                        volumeInfo = 64;
+                    }
+
+                    if ((mask & 2) == 2)
+                    {
+                        instrument = reader.ReadByte();
+                        channels[channel].cInst = instrument;
+                    }
+
+                    if ((mask & 4) == 4)
+                    {
+                        volumeInfo = reader.ReadByte();
+                        channels[channel].cVol = volumeInfo;
+                    }
+
+                    if ((mask & 8) == 8)
+                    {
+                        command = reader.ReadByte();
+                        commandInfo = reader.ReadByte();
+                        channels[channel].cCmd = command;
+                        channels[channel].cCmdVal = commandInfo;
+                    }
+
+                    if ((mask & 16) == 16)
+                        note = channels[channel].cNote;
+                    if ((mask & 32) == 32)
+                        instrument = channels[channel].cInst;
+                    if ((mask & 64) == 64)
+                        volumeInfo = channels[channel].cVol;
+                    if ((mask & 128) == 128)
+                    {
+                        command = channels[channel].cCmd;
+                        commandInfo = channels[channel].cCmdVal;
+                    }
+
+                    PianoKey key = PianoKey.None;
+                    Octave octave = Octave.Octave0;
+                    if (note != 253)
+                    {
+                        if (note == 254)
+                        {
+                            key = PianoKey.NoteCut;
+                            octave = Octave.Octave0;
+                        }
+                        else
+                        {
+                            key = (PianoKey) (note % 12) + 2;
+                            octave = (Octave) (note / 12) - 1;
+                        }
+                    }
+
+                    Effect effect = (Effect) command;
+
+                    _patterns[p].SetNote(r, channel, new Note(key, octave, instrument - 1, volumeInfo, effect, commandInfo));
+                    Console.WriteLine($"Row: {r} | Channel: {channel} | Note: {key} | Octave: {octave} | Instrument: {instrument - 1} | Volume: {volumeInfo} | Effect: {effect} | Info: {commandInfo}");
+
+                    channelMarker = reader.ReadByte();
+                }
+            }
+        }
+
+        _channels = new Channel[64];
+        _tickDurationInSamples = CalculateTickDurationInSamples(initialTempo);
+        _currentRow = 0;
+        _currentOrder = 0;
+        _rowChanged = true;
+        _orders = orders;
+
+        _speed = initialSpeed;
     }
 
     private short[] _trackBuffer;
@@ -367,11 +492,11 @@ public partial class Sound
                             }
                             else
                             {*/
-                            newSample = (short) ((_samples[_channels[c].SampleId].Data[(a == 1 && _samples[_channels[c].SampleId].Stereo ? _samples[_channels[c].SampleId].Data.Length / 2 : 0) + (int) _channels[c].SamplePos - (_samples[_channels[c].SampleId].Stereo ? (int) _channels[c].SamplePos % 2 : 0)] << 8) - short.MaxValue);
+                            newSample = (short) ((_samples[_channels[c].SampleId].Data[(a == 1 && _samples[_channels[c].SampleId].Stereo ? _samples[_channels[c].SampleId].Data.Length / 2 : 0) + (int) _channels[c].SamplePos - (_samples[_channels[c].SampleId].Stereo ? (int) _channels[c].SamplePos % 2 : 0)] << 8) - (_samples[_channels[c].SampleId].Signed ? 0 : short.MaxValue));
                                 if (_interpolation)
                                 {
                                     int nextPos = _channels[c].Ratio <= 1 ? (int) _channels[c].SamplePos + 1 : (int) (_channels[c].SamplePos + _channels[c].Ratio);
-                                    short nextSample = (short) ((_samples[_channels[c].SampleId].Data[nextPos >= _samples[_channels[c].SampleId].Data.Length ? (int) _channels[c].SamplePos : nextPos] << 8) - short.MaxValue);
+                                    short nextSample = (short) ((_samples[_channels[c].SampleId].Data[nextPos >= _samples[_channels[c].SampleId].Data.Length ? (int) _channels[c].SamplePos : nextPos] << 8) - (_samples[_channels[c].SampleId].Signed ? 0 : short.MaxValue));
                                     newSample = (short) CubicMath.Lerp(newSample, nextSample, (_channels[c].SamplePos - (int) _channels[c].SamplePos) / 1);
                                 }
                             //}
@@ -471,6 +596,7 @@ public partial class Sound
         public bool SixteenBit;
         public bool Loop;
         public float SampleMultiplier;
+        public bool Signed;
     }
 
     private struct Channel

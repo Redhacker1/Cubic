@@ -1,6 +1,6 @@
 namespace Cubic.Audio;
 
-internal enum Effect
+internal enum S3MEffect
 {
     None,
     PositionJump,

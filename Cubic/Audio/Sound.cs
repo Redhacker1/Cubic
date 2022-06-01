@@ -71,7 +71,7 @@ public partial class Sound : IDisposable
     /// <param name="interpolation">If true, linear interpolation will be used. This option is <b>only</b> valid for modules.</param>
     /// <exception cref="Exception">Thrown if the given file is not an accepted file type, or if the given file is invalid/corrupt.</exception>
     /// <remarks><paramref name="beginLoopPoint"/> and <paramref name="endLoopPoint"/> are only used if <paramref name="loop"/> is set.</remarks>
-    public Sound(AudioDevice device, string path, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1, bool interpolation = true)
+    public Sound(AudioDevice device, string path, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1, bool interpolation = true, bool autoDispose = true)
     {
         _device = device;
         int soundLoopPoint = 0;
@@ -142,7 +142,8 @@ public partial class Sound : IDisposable
         
         _device.BufferFinished += DeviceOnBufferFinished;
 
-        SceneManager.Active.CreatedResources.Add(this);
+        if (autoDispose)
+            SceneManager.Active.CreatedResources.Add(this);
     }
 
     public static AudioFormat GetFormat(int channels, int bits)
