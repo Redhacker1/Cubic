@@ -249,23 +249,25 @@ public partial class Sound
             
             _samples[i].Volume = reader.ReadByte();
             byte sFlags = reader.ReadByte();
-            Console.WriteLine((sFlags & 0b0001) != 0);
+            Console.WriteLine(Convert.ToString(sFlags, 2));
+            _samples[i].SixteenBit = (sFlags & 2) == 2;
+            _samples[i].Stereo = (sFlags & 4) == 4;
+            Console.WriteLine(_samples[i].Stereo);
+            _samples[i].Loop = (sFlags & 16) == 16;
             byte sVol = reader.ReadByte();
             reader.ReadBytes(28); // sample name
             _samples[i].Length = (uint) reader.ReadInt32();
             _samples[i].LoopBegin = (uint) reader.ReadInt32();
             _samples[i].LoopEnd = (uint) reader.ReadInt32();
-            if (_samples[i].LoopEnd > 0)
-                _samples[i].Loop = true;
             _samples[i].SampleRate = (uint) reader.ReadInt32();
             _samples[i].SampleMultiplier = _samples[i].SampleRate / CalculateSampleRate(PianoKey.C, Octave.Octave4, _samples[i].SampleRate, 1, out _);
             int sSustainBegin = reader.ReadInt32();
             int sSustainEnd = reader.ReadInt32();
             int samplePointer = reader.ReadInt32();
-            reader.ReadBytes(4); // TODO: implement, unsupported for now
+            reader.ReadBytes(4); // TODO: implement vibrato, unsupported for now
             long currentPos = reader.BaseStream.Position;
             reader.BaseStream.Position = samplePointer;
-            _samples[i].Data = reader.ReadBytes((int) _samples[i].Length);
+            _samples[i].Data = reader.ReadBytes((int) _samples[i].Length * (_samples[i].Stereo ? 2 : 1) * (_samples[i].SixteenBit ? 2 : 1));
             reader.BaseStream.Position = currentPos;
             _samples[i].Signed = true;
         }
@@ -276,6 +278,8 @@ public partial class Sound
         {
             channels[i].cVol = 255;
         }
+
+        int maxChannels = 0;
         
         _patterns = new Pattern[numPatterns];
         for (int p = 0; p < numPatterns; p++)
@@ -284,7 +288,6 @@ public partial class Sound
             short numRows = reader.ReadInt16();
 
             _patterns[p] = new Pattern(64, numRows);
-            Console.WriteLine(numRows);
             reader.ReadBytes(4);
 
             for (int r = 0; r < numRows; r++)
@@ -293,6 +296,8 @@ public partial class Sound
                 while (channelMarker != 0)
                 {
                     int channel = (channelMarker - 1) & 63;
+                    if (channel > maxChannels)
+                        maxChannels = channel;
                     byte mask = channels[channel].cMask;
                     if ((channelMarker & 128) == 128)
                     {
@@ -372,8 +377,13 @@ public partial class Sound
                 }
             }
         }
-
-        _channels = new Channel[64];
+        
+        _channels = new Channel[maxChannels + 1];
+        for (int i = 0; i < maxChannels + 1; i++)
+        {
+            _channels[i].Enabled = channelPans[i] < 128;
+        }
+        
         _tickDurationInSamples = CalculateTickDurationInSamples(initialTempo);
         _currentRow = 0;
         _currentOrder = 0;
@@ -427,16 +437,14 @@ public partial class Sound
 
                     if (n.Key != PianoKey.None)
                     {
-                        PitchNote pn = new PitchNote(n.Key, n.Octave, n.Volume);
                         _channels[c].SampleId = (uint) n.SampleNum;
-                        //_channels[c].SampleRate = (float) (_samples[_channels[c].SampleId].SampleRate * pn.Pitch);
                         _channels[c].SampleRate = CalculateSampleRate(n.Key, n.Octave,
                             _samples[_channels[c].SampleId].SampleRate,
                             _samples[_channels[c].SampleId].SampleMultiplier, out float noteFrequency);
                         _channels[c].NoteFrequency = noteFrequency;
-                        //CalculateSampleRate(n.Key, n.Octave, _samples[_channels[c].SampleId].SampleRate);
                         _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
                         _channels[c].SamplePos = 0;
+                        _channels[c].RampVolume = 0;
                     }
 
                     if (n.Volume != 65)
@@ -489,11 +497,14 @@ public partial class Sound
                                               _samples[_channels[c].SampleId].LoopEnd * multiplier);
                 }
 
-                if (_channels[c].Volume == 0)
+                if (!_channels[c].Enabled || _channels[c].Volume == 0)
                     continue;
 
-                if (_samples[_channels[c].SampleId].Data != null &&
-                    _channels[c].SamplePos < _samples[_channels[c].SampleId].Data.Length)
+                // 17 samples ramp up, based on openmpt
+                if (_channels[c].RampVolume < 1)
+                    _channels[c].RampVolume += 1 / 20f;
+
+                if (_samples[_channels[c].SampleId].Data != null && _channels[c].SamplePos < _samples[_channels[c].SampleId].Length * multiplier)
                 {
                     for (int a = 0; a < Channels; a++)
                     {
@@ -502,32 +513,26 @@ public partial class Sound
                         short newSample;
 
                         // TODO: Add proper support for 16-bit samples, as well as mono & stereo samples for both 8 and 16 bits.
+
                         if (_samples[_channels[c].SampleId].SixteenBit)
                         {
-                            newSample = (short) ((_samples[_channels[c].SampleId].Data[(int) _channels[c].SamplePos - (int) _channels[c].SamplePos % 2] | _samples[_channels[c].SampleId].Data[(int) _channels[c].SamplePos - (int) _channels[c].SamplePos % 2 + 1]  << 8) - short.MaxValue);
+                            newSample = (short) (((_samples[_channels[c].SampleId].Data[(int) (_channels[c].SamplePos - _channels[c].SamplePos % 2) + a * (_samples[_channels[c].SampleId].Stereo ? 1 : 0) * _samples[_channels[c].SampleId].Length]) | _samples[_channels[c].SampleId].Data[(int) (_channels[c].SamplePos - _channels[c].SamplePos % 2) + 1 + a] << 8) - (_samples[_channels[c].SampleId].Signed ? 0 : short.MaxValue));
                         }
                         else
                         {
-                            /*if (_samples[_channels[c].SampleId].Stereo)
-                            {
-                                // s3m files store samples weirdly - the first half of the data is the left channel, and
-                                // the second half of the data is the right channel (i was expecting [l, r, l, r] etc.)
-                                // therefore, we need to add the datalength / 2 every time a is 1 to get stereo.
-                                newSample = (short) ((_samples[_channels[c].SampleId].Data[(a == 1 ? _samples[_channels[c].SampleId].Data.Length / 2 : 0) + ((int) _channels[c].SamplePos - (int) _channels[c].SamplePos % 2)] << 8) - short.MaxValue);
-                            }
-                            else
-                            {*/
-                            newSample = (short) ((_samples[_channels[c].SampleId].Data[(a == 1 && _samples[_channels[c].SampleId].Stereo ? _samples[_channels[c].SampleId].Data.Length / 2 : 0) + (int) _channels[c].SamplePos - (_samples[_channels[c].SampleId].Stereo ? (int) _channels[c].SamplePos % 2 : 0)] << 8) - (_samples[_channels[c].SampleId].Signed ? 0 : short.MaxValue));
+                            newSample = (short) ((_samples[_channels[c].SampleId].Data[(int) _channels[c].SamplePos + a * (_samples[_channels[c].SampleId].Stereo ? 1 : 0) * _samples[_channels[c].SampleId].Length] << 8) - (_samples[_channels[c].SampleId].Signed ? 0 : short.MaxValue));
                             if (_interpolation)
                             {
-                                int nextPos = _channels[c].Ratio <= 1 ? (int) _channels[c].SamplePos + 1 : (int) (_channels[c].SamplePos + _channels[c].Ratio);
-                                short nextSample = (short) ((_samples[_channels[c].SampleId].Data[nextPos >= _samples[_channels[c].SampleId].Data.Length ? (int) _channels[c].SamplePos : nextPos] << 8) - (_samples[_channels[c].SampleId].Signed ? 0 : short.MaxValue));
-                                newSample = (short) CubicMath.Lerp(newSample, nextSample, (_channels[c].SamplePos - (int) _channels[c].SamplePos) / 1);
+                                int nextPos = _channels[c].Ratio < 1 ? (int) (_channels[c].SamplePos + a * (_samples[_channels[c].SampleId].Stereo ? 1 : 0) * _samples[_channels[c].SampleId].Length + 1) : (int) (_channels[c].SamplePos + a * (_samples[_channels[c].SampleId].Stereo ? 1 : 0) * _samples[_channels[c].SampleId].Length + _channels[c].Ratio);
+                                if (nextPos < _samples[_channels[c].SampleId].Data.Length)
+                                {
+                                    short nextSample = (short) ((_samples[_channels[c].SampleId].Data[nextPos] << 8) - (_samples[_channels[c].SampleId].Signed ? 0 : short.MaxValue));
+                                    newSample = (short) CubicMath.Lerp(newSample, nextSample, (_channels[c].SamplePos - (int) _channels[c].SamplePos) / 1);
+                                }
                             }
-                            //}
                         }
 
-                        int mixedSample = (int) (sample + newSample / 4 * _channels[c].Volume * (_samples[_channels[c].SampleId].Volume * PitchNote.RefVolume));
+                        int mixedSample = (int) (sample + newSample / 4 * _channels[c].Volume * (_samples[_channels[c].SampleId].Volume * PitchNote.RefVolume) * _channels[c].RampVolume);
                         mixedSample = CubicMath.Clamp(mixedSample, short.MinValue, short.MaxValue);
 
                         short shortSample = (short) mixedSample;
@@ -655,5 +660,8 @@ public partial class Sound
 
         public int NoteVolume;
         public float NoteFrequency;
+        public float RampVolume;
+
+        public bool Enabled;
     }
 }
