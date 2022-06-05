@@ -186,6 +186,8 @@ public partial class Sound
         }
 
         _channels = new Channel[16];
+        for (int i = 0; i < _channels.Length; i++)
+            _channels[i].Enabled = true;
         _tickDurationInSamples = CalculateTickDurationInSamples(initialTempo);
         _currentRow = 0;
         _currentOrder = 0;
@@ -249,10 +251,8 @@ public partial class Sound
             
             _samples[i].Volume = reader.ReadByte();
             byte sFlags = reader.ReadByte();
-            Console.WriteLine(Convert.ToString(sFlags, 2));
             _samples[i].SixteenBit = (sFlags & 2) == 2;
             _samples[i].Stereo = (sFlags & 4) == 4;
-            Console.WriteLine(_samples[i].Stereo);
             _samples[i].Loop = (sFlags & 16) == 16;
             byte sVol = reader.ReadByte();
             reader.ReadBytes(28); // sample name
@@ -447,7 +447,7 @@ public partial class Sound
                         _channels[c].RampVolume = 0;
                     }
 
-                    if (n.Volume != 65)
+                    if (n.Volume < 65)
                     {
                         _channels[c].Volume = n.Volume * PitchNote.RefVolume;
                         _channels[c].NoteVolume = n.Volume;
@@ -460,6 +460,17 @@ public partial class Sound
                             break;
                         case Effect.PositionJump:
                             _channels[c].MiscParam = (byte) n.EffectParam;
+                            break;
+                        case Effect.SetTempo:
+                            _tickDurationInSamples = CalculateTickDurationInSamples(n.EffectParam);
+                            break;
+                        case Effect.SampleOffset:
+                            _channels[c].SamplePos = _channels[c].OffsetParam * 256 + _channels[c].HighOffset * 65536;
+                            break;
+                        case Effect.Special:
+                            if (n.EffectParam is >= 0xA0 and <= 0xAF)
+                                _channels[c].HighOffset = (byte) (n.EffectParam - 0xA0);
+
                             break;
                     }
                     
@@ -474,6 +485,10 @@ public partial class Sound
                                 break;
                             case Effect.VolumeSlide:
                                 _channels[c].VolParam = (byte) n.EffectParam;
+                                break;
+                            case Effect.SampleOffset:
+                                _channels[c].SamplePos = n.EffectParam * 256 + _channels[c].HighOffset * 65536;
+                                _channels[c].OffsetParam = (byte) n.EffectParam;
                                 break;
                             case Effect.VolumeSlideAndVibrato:
                                 goto case Effect.VolumeSlide;
@@ -555,24 +570,25 @@ public partial class Sound
                         case Effect.PortamentoUp:
                             if (_currentTick == 1)
                                 continue;
-                            _channels[c].NoteFrequency += MathF.Pow(2, 1 / 12f) * _channels[c].PitchParam;
+                            _channels[c].NoteFrequency += MathF.Pow(2, 1 / 12f);
                             _channels[c].SampleRate = _samples[_channels[c].SampleId].SampleRate * _channels[c].NoteFrequency * PitchNote.Tuning;
                             _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
                             break;
                         case Effect.PortamentoDown:
                             if (_currentTick == 1)
                                 continue;
-                            _channels[c].NoteFrequency -= MathF.Pow(2, 1 / 12f) * _channels[c].PitchParam;
+                            _channels[c].NoteFrequency -= MathF.Pow(2, 1 / 12f);
                             _channels[c].SampleRate = _samples[_channels[c].SampleId].SampleRate * _channels[c].NoteFrequency * PitchNote.Tuning;
                             _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
                             break;
                         case Effect.VolumeSlide:
-                            if (_currentTick == 1)
-                                continue;
-                            if (_channels[c].VolParam < 16)
+                            if (_channels[c].VolParam < 16 && _currentTick != 1)
                                 _channels[c].NoteVolume -= _channels[c].VolParam;
-                            else if (_channels[c].VolParam % 16 == 0)
+                            else if (_channels[c].VolParam > 0xF0 && _currentTick == 1)
+                                _channels[c].NoteVolume -= _channels[c].VolParam;
+                            else if (_channels[c].VolParam % 16 == 0 && _currentTick != 1)
                                 _channels[c].NoteVolume += _channels[c].VolParam / 16;
+                            
 
                             _channels[c].NoteVolume = CubicMath.Clamp(_channels[c].NoteVolume, 0, 64);
                             _channels[c].Volume = _channels[c].NoteVolume * PitchNote.RefVolume;
@@ -655,6 +671,8 @@ public partial class Sound
 
         public byte VolParam;
         public byte PitchParam;
+        public byte OffsetParam;
+        public byte HighOffset;
 
         public byte MiscParam;
 

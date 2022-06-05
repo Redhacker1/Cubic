@@ -1,5 +1,6 @@
 namespace Cubic.Audio;
 
+// Represents impulse tracker effects - all other module effects are internally converted to these effects.
 public enum Effect
 {
     None,

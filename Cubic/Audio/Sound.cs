@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Cubic.Scenes;
 using StbVorbisSharp;
 
@@ -101,7 +102,7 @@ public partial class Sound : IDisposable
             case ".s3m":
                 Data = null;
                 Channels = 2;
-                SampleRate = 44100;
+                SampleRate = 48000;
                 BitsPerSample = 2;
                 _type = SoundType.Track;
                 LoadS3M(File.ReadAllBytes(path));
@@ -109,7 +110,7 @@ public partial class Sound : IDisposable
             case ".it":
                 Data = null;
                 Channels = 2;
-                SampleRate = 44100;
+                SampleRate = 48000;
                 BitsPerSample = 2;
                 _type = SoundType.Track;
                 LoadIT(File.ReadAllBytes(path));
@@ -202,7 +203,7 @@ public partial class Sound : IDisposable
         }
     }
     
-    private void DeviceOnBufferFinished(int channel)
+    private async void DeviceOnBufferFinished(int channel)
     {
         if (channel != _activeChannel || _type == SoundType.PCM)
             return;
@@ -213,7 +214,7 @@ public partial class Sound : IDisposable
                 GetVorbisData();
                 break;
             case SoundType.Track:
-                GetTrackData();
+                await Task.Run(GetTrackData);
                 break;
         }
         
