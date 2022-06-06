@@ -1,9 +1,11 @@
 # Cubic
 
 A fast & easy cross-platform 2D & 3D game engine for C#.
-![Games & Apps written with Cubic](http://i.rollbot.net/CubicDemo.png)
+[![Games & Apps written with Cubic](http://i.rollbot.net/CubicDemo.png)](https://github.com/IsometricSoftware/CubicSamples)
 
 Join the [Discord server](https://discord.gg/ygUpYkUstz) to get updates, ask questions, and show off your projects!
+
+View the [Cubic Samples repo](https://github.com/IsometricSoftware/CubicSamples) for easy to understand samples and demos of Cubic.
 
 ## Easy to use
 Cubic employs an easy to learn component system, allowing you to easily create complex objects in your game worlds.
