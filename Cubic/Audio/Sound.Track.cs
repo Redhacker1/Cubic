@@ -79,7 +79,7 @@ public partial class Sound
             _samples[i].SixteenBit = (flags & 4) != 0;
 
             _samples[i].SampleRate = reader.ReadUInt32();
-            _samples[i].SampleMultiplier = _samples[i].SampleRate / CalculateSampleRate(PianoKey.C, Octave.Octave4, _samples[i].SampleRate, 1, out _);
+            _samples[i].SampleMultiplier = _samples[i].SampleRate / CalculateSampleRate(PianoKey.C, Octave.Octave4, _samples[i].SampleRate, 1);
             reader.ReadBytes(12); // Unused data & stuff we don't need. No soundblaster or GUS here!
             reader.ReadChars(28); // We also don't need sample name either.
             if (new string(reader.ReadChars(4)) != "SCRS")
@@ -260,7 +260,7 @@ public partial class Sound
             _samples[i].LoopBegin = (uint) reader.ReadInt32();
             _samples[i].LoopEnd = (uint) reader.ReadInt32();
             _samples[i].SampleRate = (uint) reader.ReadInt32();
-            _samples[i].SampleMultiplier = _samples[i].SampleRate / CalculateSampleRate(PianoKey.C, Octave.Octave4, _samples[i].SampleRate, 1, out _);
+            _samples[i].SampleMultiplier = _samples[i].SampleRate / CalculateSampleRate(PianoKey.C, Octave.Octave4, _samples[i].SampleRate, 1);
             int sSustainBegin = reader.ReadInt32();
             int sSustainEnd = reader.ReadInt32();
             int samplePointer = reader.ReadInt32();
@@ -367,7 +367,7 @@ public partial class Sound
                             octave = (Octave) (note / 12) - 1;
                         }
                     }
-
+                    
                     Effect effect = (Effect) command;
 
                     _patterns[p].SetNote(r, channel, new Note(key, octave, instrument - 1, volumeInfo, effect, commandInfo));
@@ -382,6 +382,7 @@ public partial class Sound
         for (int i = 0; i < maxChannels + 1; i++)
         {
             _channels[i].Enabled = channelPans[i] < 128;
+            _channels[i].Volume = 64;
         }
         
         _tickDurationInSamples = CalculateTickDurationInSamples(initialTempo);
@@ -422,6 +423,7 @@ public partial class Sound
                 for (int c = 0; c < _channels.Length; c++)
                 {
                     Note n = pattern.Notes[c, _currentRow];
+                    _channels[c].Effect = n.Effect;
                     if (!n.Initialized)
                     {
                         continue;
@@ -431,17 +433,14 @@ public partial class Sound
                     {
                         _channels[c].SampleRate = 0;
                         _channels[c].Ratio = 0;
-                        _channels[c].Volume = 0;
-                        continue;
+                        _channels[c].NoteVolume = 0;
                     }
-
-                    if (n.Key != PianoKey.None)
+                    else if (n.Key != PianoKey.None)
                     {
                         _channels[c].SampleId = (uint) n.SampleNum;
                         _channels[c].SampleRate = CalculateSampleRate(n.Key, n.Octave,
                             _samples[_channels[c].SampleId].SampleRate,
-                            _samples[_channels[c].SampleId].SampleMultiplier, out float noteFrequency);
-                        _channels[c].NoteFrequency = noteFrequency;
+                            _samples[_channels[c].SampleId].SampleMultiplier);
                         _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
                         _channels[c].SamplePos = 0;
                         _channels[c].RampVolume = 0;
@@ -449,9 +448,11 @@ public partial class Sound
 
                     if (n.Volume < 65)
                     {
-                        _channels[c].Volume = n.Volume * PitchNote.RefVolume;
                         _channels[c].NoteVolume = n.Volume;
                     }
+                    // Hmm.
+                    else if (n.Volume > 65)
+                        _channels[c].NoteVolume = 64;
 
                     switch (n.Effect)
                     {
@@ -467,14 +468,15 @@ public partial class Sound
                         case Effect.SampleOffset:
                             _channels[c].SamplePos = _channels[c].OffsetParam * 256 + _channels[c].HighOffset * 65536;
                             break;
+                        case Effect.SetChannelVolume:
+                            _channels[c].Volume = n.EffectParam;
+                            break;
                         case Effect.Special:
                             if (n.EffectParam is >= 0xA0 and <= 0xAF)
                                 _channels[c].HighOffset = (byte) (n.EffectParam - 0xA0);
-
                             break;
                     }
                     
-                    _channels[c].Effect = n.Effect;
                     if (n.EffectParam != 0)
                     {
                         switch (n.Effect)
@@ -492,6 +494,9 @@ public partial class Sound
                                 break;
                             case Effect.VolumeSlideAndVibrato:
                                 goto case Effect.VolumeSlide;
+                            default:
+                                _channels[c].MiscParam = (byte) n.EffectParam;
+                                break;
                         }
                     }
                 }
@@ -512,10 +517,10 @@ public partial class Sound
                                               _samples[_channels[c].SampleId].LoopEnd * multiplier);
                 }
 
-                if (!_channels[c].Enabled || _channels[c].Volume == 0)
+                if (!_channels[c].Enabled || _channels[c].Volume == 0 || _channels[c].NoteVolume == 0)
                     continue;
 
-                // 17 samples ramp up, based on openmpt
+                // 20 samples ramp up, based on openmpt
                 if (_channels[c].RampVolume < 1)
                     _channels[c].RampVolume += 1 / 20f;
 
@@ -546,8 +551,8 @@ public partial class Sound
                                 }
                             }
                         }
-
-                        int mixedSample = (int) (sample + newSample / 4 * _channels[c].Volume * (_samples[_channels[c].SampleId].Volume * PitchNote.RefVolume) * _channels[c].RampVolume);
+                        
+                        int mixedSample = (int) (sample + newSample / 4 * (_channels[c].NoteVolume * _samples[_channels[c].SampleId].Volume * _channels[c].Volume * 128 / 262144) * (1 / 128f) * _channels[c].RampVolume);
                         mixedSample = CubicMath.Clamp(mixedSample, short.MinValue, short.MaxValue);
 
                         short shortSample = (short) mixedSample;
@@ -570,15 +575,17 @@ public partial class Sound
                         case Effect.PortamentoUp:
                             if (_currentTick == 1)
                                 continue;
-                            _channels[c].NoteFrequency += MathF.Pow(2, 1 / 12f);
-                            _channels[c].SampleRate = _samples[_channels[c].SampleId].SampleRate * _channels[c].NoteFrequency * PitchNote.Tuning;
+                            //_channels[c].NoteFrequency *= MathF.Pow(2, 1 / 12f * 1 / 16f * _channels[c].PitchParam);
+                            //_channels[c].SampleRate = _samples[_channels[c].SampleId].SampleRate * _channels[c].NoteFrequency * PitchNote.Tuning;
+                            _channels[c].SampleRate *= MathF.Pow(2, 4 * _channels[c].PitchParam / 768f); 
                             _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
                             break;
                         case Effect.PortamentoDown:
                             if (_currentTick == 1)
                                 continue;
-                            _channels[c].NoteFrequency -= MathF.Pow(2, 1 / 12f);
-                            _channels[c].SampleRate = _samples[_channels[c].SampleId].SampleRate * _channels[c].NoteFrequency * PitchNote.Tuning;
+                            //_channels[c].NoteFrequency /= MathF.Pow(2, 1 / 12f * 1 / 16f * _channels[c].PitchParam);
+                            //_channels[c].SampleRate = _samples[_channels[c].SampleId].SampleRate * _channels[c].NoteFrequency * PitchNote.Tuning;
+                            _channels[c].SampleRate *= MathF.Pow(2, -4 * _channels[c].PitchParam / 768f); 
                             _channels[c].Ratio = _channels[c].SampleRate / SampleRate;
                             break;
                         case Effect.VolumeSlide:
@@ -591,10 +598,13 @@ public partial class Sound
                             
 
                             _channels[c].NoteVolume = CubicMath.Clamp(_channels[c].NoteVolume, 0, 64);
-                            _channels[c].Volume = _channels[c].NoteVolume * PitchNote.RefVolume;
                             break;
                         case Effect.VolumeSlideAndVibrato:
                             goto case Effect.VolumeSlide;
+                        case Effect.Retrigger:
+                            if (_currentTick % _channels[c].MiscParam == 0)
+                                _channels[c].SamplePos = 0;
+                            break;
                     }
                 }
                 if (_currentTick >= _speed)
@@ -636,11 +646,10 @@ public partial class Sound
         return (int) (2.5f / tempo * SampleRate);
     }
 
-    private float CalculateSampleRate(PianoKey key, Octave octave, float actualRate, float sampleMultiplier, out float noteFrequency)
+    private float CalculateSampleRate(PianoKey key, Octave octave, float actualRate, float sampleMultiplier)
     {
         int note = 40 + (int) (key - 2) + (int) (octave - 4) * 12;
         float powNote = MathF.Pow(2, (note - 49f) / 12f);
-        noteFrequency = powNote * 440f;
         return actualRate * powNote * sampleMultiplier;
     }
     
@@ -677,7 +686,6 @@ public partial class Sound
         public byte MiscParam;
 
         public int NoteVolume;
-        public float NoteFrequency;
         public float RampVolume;
 
         public bool Enabled;

@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using Cubic.Render;
 using Cubic.Utilities;
 using Silk.NET.GLFW;
 using GMonitor = Silk.NET.GLFW.Monitor;
@@ -189,7 +190,7 @@ public sealed unsafe class GameWindow : IDisposable
         if (Handle == null)
         {
             GLFW.Terminate();
-            throw new CubicException("Window was not created.");
+            throw new ContextCreationException(GraphicsApi.OpenGL33);
         }
 
         if (_settings.Icon != default)

@@ -9,12 +9,7 @@ public enum GraphicsApi
     Default,
 
     /// <summary>
-    /// OpenGL backend. Works on all desktop platforms.
+    /// OpenGL 3.3
     /// </summary>
-    OpenGL,
-    
-    /// <summary>
-    /// OpenGLES backend. Works on all platforms, however works best on mobile platforms.
-    /// </summary>
-    OpenGLES
+    OpenGL33,
 }

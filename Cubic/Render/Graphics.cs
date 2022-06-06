@@ -43,11 +43,13 @@ public class Graphics : IDisposable
         {
             Gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             Viewport = new Rectangle(0, 0, _window.Size.Width, _window.Size.Height);
+            SetScissor(Viewport);
             return;
         }
 
         Gl.BindFramebuffer(FramebufferTarget.Framebuffer, target.Fbo);
         Viewport = new Rectangle(0, 0, target.Size.Width, target.Size.Height);
+        SetScissor(Viewport);
     }
 
     public void Clear(Vector4 clearColor)
@@ -96,8 +98,8 @@ public class Graphics : IDisposable
 
     internal void PrepareFrame(Vector4 clearColor)
     {
-        Clear(clearColor);
         SetScissor(Viewport);
+        Clear(clearColor);
     }
 
     internal unsafe void PresentFrame()
