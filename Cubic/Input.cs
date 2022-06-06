@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using Cubic.Windowing;
 using static Cubic.Windowing.GameWindow;
 using Silk.NET.GLFW;
@@ -10,6 +12,8 @@ namespace Cubic;
 
 public static class Input
 {
+    #region Keyboard and mouse
+
     public static event OnTextInput TextInput;
     
     private static readonly HashSet<KeyState> _keyStates = new HashSet<KeyState>();
@@ -192,11 +196,144 @@ public static class Input
         Matrix4x4.Invert(transform, out Matrix4x4 invTransform);
         MousePosition = Vector2.Transform(MousePosition, invTransform);
     }
+    
+    #endregion
+
+    #region Controller
+
+    private static readonly bool[] _connectedControllers = new bool[16];
+    private static readonly GamepadState[] _gamepadStates = new GamepadState[16];
+    private static GamepadState[] _prevStates = new GamepadState[16];
+    
+    /// <summary>
+    /// Set the deadzone of the controller thumbsticks. If the thumbstick axis is below the given value, it will just
+    /// return 0 for that axis. This is useful for preventing drift. (Default: (0.1, 0.1))
+    /// </summary>
+    public static Vector2 ControllerDeadzone { get; set; } = new Vector2(0.1f, 0.1f);
+
+    /// <summary>
+    /// Gets the total number of usable controllers connected to the system.
+    /// </summary>
+    public static int NumControllersConnected => _connectedControllers.Count(connected => connected);
+
+    /// <summary>
+    /// Returns true if the controller index is connected to the system.
+    /// </summary>
+    /// <param name="index">The controller index to check.</param>
+    /// <returns>True, if the controller is connected.</returns>
+    public static bool ControllerConnected(int index = 0) => _connectedControllers[index];
+
+    /// <summary>
+    /// Returns true if the given button on the given controller is held down.
+    /// </summary>
+    /// <param name="button">The button to check.</param>
+    /// <param name="index">The controller index.</param>
+    /// <returns>True, if the given button is held down.</returns>
+    /// <remarks>If the controller at the given index is not connected, this will just return false.</remarks>
+    public static unsafe bool ControllerButtonDown(ControllerButton button, int index = 0)
+    {
+        return _gamepadStates[index].Buttons[(int) button] == 1;
+    }
+
+    /// <summary>
+    /// Returns true if the given button on the given controller was pressed on this frame.
+    /// </summary>
+    /// <param name="button">The button to check.</param>
+    /// <param name="index">The controller index.</param>
+    /// <returns>True, if the given button was pressed on this frame.</returns>
+    /// <remarks>If the controller at the given index is not connected, this will just return false.</remarks>
+    public static unsafe bool ControllerButtonPressed(ControllerButton button, int index = 0)
+    {
+        return _gamepadStates[index].Buttons[(int) button] == 1 &&
+               _prevStates[index].Buttons[(int) button] != 1;
+    }
+
+    /// <summary>
+    /// Returns true if the given trigger is pressed more than <paramref name="triggerAmount"/> on this frame.
+    /// </summary>
+    /// <param name="trigger">The trigger to check.</param>
+    /// <param name="index">The controller index.</param>
+    /// <param name="triggerAmount">The amount the trigger should have to be pressed in order to return true. Should be a value between 0 and 1.</param>
+    /// <returns>True, if the given trigger is pressed more than <paramref name="triggerAmount"/> on this frame.</returns>
+    /// <remarks>If the controller at the given index is not connected, this will just return false.</remarks>
+    public static unsafe bool ControllerTriggerPressed(ControllerTrigger trigger, int index = 0,
+        float triggerAmount = 0.5f)
+    {
+        float value = _gamepadStates[index].Axes[(int) trigger + 4];
+        value = (value + 1) / 2f;
+        float pValue = _prevStates[index].Axes[(int) trigger + 4];
+        pValue = (pValue + 1) / 2f;
+
+        return value >= triggerAmount && pValue < triggerAmount;
+    }
+
+    /// <summary>
+    /// Returns true if any of the given buttons on the given controller are held down.
+    /// </summary>
+    /// <param name="buttons">The buttons to check.</param>
+    /// <param name="index">The controller index.</param>
+    /// <returns>True, if any of the given buttons are held down.</returns>
+    /// <remarks>If the controller at the given index is not connected, this will just return false.</remarks>
+    public static bool ControllerButtonsDown(int index = 0, params ControllerButton[] buttons)
+    {
+        return buttons.Any(button => ControllerButtonDown(button, index));
+    }
+
+    /// <summary>
+    /// Returns true if any of the given buttons on the given controller were pressed in this frame.
+    /// </summary>
+    /// <param name="buttons">The buttons to check.</param>
+    /// <param name="index">The controller index.</param>
+    /// <returns>True, if any of the given buttons were pressed in this frame.</returns>
+    /// <remarks>If the controller at the given index is not connected, this will just return false.</remarks>
+    public static bool ControllerButtonsPressed(int index = 0, params ControllerButton[] buttons)
+    {
+        return buttons.Any(button => ControllerButtonPressed(button, index));
+    }
+
+    /// <summary>
+    /// Get the normalized <see cref="Vector2"/> axis for the given thumb stick. (Stick fully right = (1, 0). Stick fully up = (0, 1))
+    /// </summary>
+    /// <param name="stick">The stick to get the axis of.</param>
+    /// <param name="index">The controller index.</param>
+    /// <returns>The axis for the given thumb stick.</returns>
+    /// <remarks>If the controller at the given index is not connected, this will just return <see cref="Vector2.Zero"/>.</remarks>
+    public static unsafe Vector2 GetControllerAxis(ThumbStick stick, int index = 0)
+    {
+        float x = _gamepadStates[index].Axes[(int) stick * 2];
+        float y = -_gamepadStates[index].Axes[(int) stick * 2 + 1];
+
+        x = x <= ControllerDeadzone.X && x >= -ControllerDeadzone.X ? 0 : x;
+        y = y <= ControllerDeadzone.Y && y >= -ControllerDeadzone.Y ? 0 : y;
+
+        return new Vector2(x, y);
+    }
+
+    /// <summary>
+    /// Get the normalized axis for the given trigger. (Fully depressed = 1, fully released = 0).
+    /// </summary>
+    /// <param name="trigger">The trigger to get the axis of.</param>
+    /// <param name="index">The controller index.</param>
+    /// <returns>The axis for the given trigger.</returns>
+    /// <remarks>If the controller at the given index is not connected, this will just return 0.</remarks>
+    public static unsafe float GetControllerAxis(ControllerTrigger trigger, int index = 0)
+    {
+        float value = _gamepadStates[index].Axes[(int) trigger + 4];
+        value = (value + 1) / 2f;
+        return value;
+    }
+
+    #endregion
 
     internal static unsafe void Start(GameWindow window)
     {
         GLFW.GetCursorPos(window.Handle, out double x, out double y);
         MousePosition = new Vector2((float) x, (float) y);
+        Assembly assembly = Assembly.GetCallingAssembly();
+        const string name = "Cubic.gamecontrollerdb.txt";
+        using Stream stream = assembly.GetManifestResourceStream(name);
+        using StreamReader reader = new StreamReader(stream);
+        GLFW.UpdateGamepadMappings(reader.ReadToEnd());
     }
 
     internal static unsafe void Update(GameWindow window)
@@ -255,6 +392,19 @@ public static class Input
             };
             GLFW.SetInputMode(window.Handle, CursorStateAttribute.Cursor, val);
         }
+
+        Array.Copy(_gamepadStates, _prevStates, _gamepadStates.Length);
+        Array.Clear(_gamepadStates);
+        Array.Clear(_connectedControllers);
+        int totalGamepads = 0;
+        for (int i = 0; i < 16; i++)
+        {
+            if (GLFW.GetGamepadState(i, out GamepadState state))
+            {
+                _connectedControllers[totalGamepads] = true;
+                _gamepadStates[totalGamepads++] = state;
+            }
+        }
     }
 
     internal static unsafe void KeyCallback(WindowHandle* windowHandle, Silk.NET.GLFW.Keys keys,
@@ -296,12 +446,12 @@ public static class Input
         }
     }
 
-    public static unsafe void ScrollCallback(WindowHandle* windowHandle, double offsetx, double offsety)
+    internal static unsafe void ScrollCallback(WindowHandle* windowHandle, double offsetx, double offsety)
     {
         ScrollWheelDelta += new Vector2((float) offsetx, (float) offsety);
     }
 
-    public static unsafe void CharCallback(WindowHandle* windowHandle, uint codepoint)
+    internal static unsafe void CharCallback(WindowHandle* windowHandle, uint codepoint)
     {
         TextInput?.Invoke((char) codepoint);
     }
@@ -456,4 +606,35 @@ public enum MouseMode
     Visible,
     Hidden,
     Locked
+}
+
+public enum ControllerButton
+{
+    A,
+    B,
+    X,
+    Y,
+    LeftBumper,
+    RightBumper,
+    Select,
+    Start,
+    Home,
+    LeftThumbstick,
+    RightThumbstick,
+    DpadUp,
+    DpadRight,
+    DpadDown,
+    DpadLeft
+}
+
+public enum ThumbStick
+{
+    LeftStick,
+    RightStick,
+}
+
+public enum ControllerTrigger
+{
+    LeftTrigger,
+    RightTrigger
 }
