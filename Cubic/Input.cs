@@ -256,13 +256,32 @@ public static class Input
     /// <param name="triggerAmount">The amount the trigger should have to be pressed in order to return true. Should be a value between 0 and 1.</param>
     /// <returns>True, if the given trigger is pressed more than <paramref name="triggerAmount"/> on this frame.</returns>
     /// <remarks>If the controller at the given index is not connected, this will just return false.</remarks>
-    public static unsafe bool ControllerTriggerPressed(ControllerTrigger trigger, int index = 0,
+    public static unsafe bool ControllerAxisPressed(ControllerTrigger trigger, int index = 0,
         float triggerAmount = 0.5f)
     {
         float value = _gamepadStates[index].Axes[(int) trigger + 4];
         value = (value + 1) / 2f;
         float pValue = _prevStates[index].Axes[(int) trigger + 4];
         pValue = (pValue + 1) / 2f;
+
+        return value >= triggerAmount && pValue < triggerAmount;
+    }
+    
+    /// <summary>
+    /// Returns true if the given stick is pressed, in the given direction, more than <paramref name="triggerAmount"/> on this frame.
+    /// </summary>
+    /// <param name="stick">The stick to check.</param>
+    /// <param name="axis">The axis of the given thumb stick to check.</param>
+    /// <param name="index">The controller index.</param>
+    /// <param name="triggerAmount">The amount the stick should have to be pressed in order to return true. Should be a value between 0 and 1.</param>
+    /// <returns>True, if the given stick is pressed more than <paramref name="triggerAmount"/> on this frame.</returns>
+    /// <remarks>If the controller at the given index is not connected, this will just return false.</remarks>
+    public static unsafe bool ControllerAxisPressed(ThumbStick stick, StickAxis axis, int index = 0,
+        float triggerAmount = 0.5f)
+    {
+        int invert = ((int) axis % 2) == 0 ? -1 : 1;
+        float value = invert * _gamepadStates[index].Axes[(int) stick * 2 + (int) axis / 2];
+        float pValue = invert * _prevStates[index].Axes[(int) stick * 2 + (int) axis / 2];
 
         return value >= triggerAmount && pValue < triggerAmount;
     }
@@ -631,6 +650,14 @@ public enum ThumbStick
 {
     LeftStick,
     RightStick,
+}
+
+public enum StickAxis
+{
+    Left,
+    Right,
+    Up,
+    Down
 }
 
 public enum ControllerTrigger
