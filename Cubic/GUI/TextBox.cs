@@ -57,7 +57,7 @@ public class TextBox : UIElement
         }
 
         Rectangle rect = Position;
-        UI.CalculatePos(Anchor, ref rect, IgnoreReferenceResolution);
+        UI.CalculatePos(Anchor, ref rect, IgnoreReferenceResolution, Offset, Viewport);
         uint textSize = (uint) (_textSize * UI.GetReferenceMultiplier());
 
         if (Clicked)
@@ -66,7 +66,7 @@ public class TextBox : UIElement
             int lastWidth = 0;
             for (int i = 0; i < Text.Length + 1; i++)
             {
-                int width = UI.Theme.Font.MeasureString(textSize, Text[..i], ignoreParams: true).Width;
+                int width = Theme.Font.MeasureString(textSize, Text[..i], ignoreParams: true).Width;
 
                 if (width - (width - lastWidth) / 2f >= clickPoint)
                 {
@@ -92,7 +92,7 @@ public class TextBox : UIElement
 
         _cursorPos = CubicMath.Clamp(_cursorPos, 0, Text.Length);
         
-        Size measureText = UI.Theme.Font.MeasureString(textSize, Text[.._cursorPos], ignoreParams: true);
+        Size measureText = Theme.Font.MeasureString(textSize, Text[.._cursorPos], ignoreParams: true);
         while (measureText.Width - _textOffset > rect.Width - Padding)
             _textOffset += 5;
 
@@ -106,27 +106,31 @@ public class TextBox : UIElement
     protected internal override void Draw(Graphics graphics)
     {
         base.Draw(graphics);
-
-        graphics.SpriteRenderer.End();
-
+        
         Rectangle rect = Position;
-        UI.CalculatePos(Anchor, ref rect, IgnoreReferenceResolution);
+        UI.CalculatePos(Anchor, ref rect, IgnoreReferenceResolution, Offset, Viewport);
         uint textSize = (uint) (_textSize * UI.GetReferenceMultiplier());
         
-        graphics.SetScissor(rect);
-        graphics.SpriteRenderer.Begin();
-
-        graphics.SpriteRenderer.DrawBorderRectangle(rect.Location.ToVector2(), rect.Size.ToVector2(), UI.Theme.BorderWidth,
-            UI.Theme.BorderColor, UI.Theme.RectColor, 0, Vector2.Zero);
-        UI.Theme.Font.Draw(graphics.SpriteRenderer, textSize, Text, new Vector2(rect.X - _textOffset, rect.Y + rect.Height / 2), UI.Theme.TextColor,
-            0, new Vector2(0, UI.Theme.Font.MeasureString(textSize, Text, ignoreParams: true).Height / 2), Vector2.One, ignoreParams: true);
-
-        graphics.SpriteRenderer.DrawRectangle(
-            new Vector2(rect.X + UI.Theme.Font.MeasureString(textSize, Text[.._cursorPos], ignoreParams: true).Width - _textOffset,
-                rect.Y + rect.Height / 2), new Vector2(1, rect.Height - 10), Color.White, 0, new Vector2(0, 0.5f));
+        _cursorPos = CubicMath.Clamp(_cursorPos, 0, Text.Length);
         
+        graphics.SpriteRenderer.DrawBorderRectangle(rect.Location.ToVector2(), rect.Size.ToVector2(), Theme.BorderWidth,
+            Theme.BorderColor, Theme.RectColor, 0, Vector2.Zero);
+
         graphics.SpriteRenderer.End();
-        graphics.SetScissor(graphics.Viewport);
+
+        Rectangle scissor = graphics.Scissor;
+        graphics.Scissor = rect with { Y = scissor.Y };
         graphics.SpriteRenderer.Begin();
+        
+        Theme.Font.Draw(graphics.SpriteRenderer, textSize, Text, new Vector2(rect.X - _textOffset, rect.Y + rect.Height / 2), UI.Theme.TextColor,
+            0, new Vector2(0, Theme.Font.MeasureString(textSize, Text, ignoreParams: true).Height / 2), Vector2.One, ignoreParams: true);
+
+        graphics.SpriteRenderer.End();
+        graphics.Scissor = scissor;
+        graphics.SpriteRenderer.Begin();
+        
+        graphics.SpriteRenderer.DrawRectangle(
+            new Vector2(rect.X + Theme.Font.MeasureString(textSize, Text[.._cursorPos], ignoreParams: true).Width - _textOffset,
+                rect.Y + rect.Height / 2), new Vector2(1, rect.Height - 10), Color.White, 0, new Vector2(0, 0.5f));
     }
 }

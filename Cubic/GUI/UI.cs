@@ -83,11 +83,12 @@ public static partial class UI
             : ReferenceResolution.Width);
     }
 
-    internal static void CalculatePos(Anchor anchor, ref Rectangle rect, bool ignoreReference)
+    internal static void CalculatePos(Anchor anchor, ref Rectangle rect, bool ignoreReference, Vector2 offset, Rectangle? vp = null)
     {
+        Rectangle viewport = vp ?? new Rectangle(Point.Empty, ignoreReference ? ReferenceResolution : _framebufferSize);
         Vector2 origin;
         float scale = ignoreReference ? 1 : GetReferenceMultiplier();
-        
+
         switch (anchor)
         {
             case Anchor.TopLeft:
@@ -96,60 +97,71 @@ public static partial class UI
                 origin = Vector2.Zero;
                 break;
             case Anchor.TopCenter:
-                rect.X = (int) (_framebufferSize.Width / 2f + rect.X * scale);
+                rect.X = (int) (viewport.Width / 2f + rect.X * scale);
                 rect.Y = (int) (rect.Y * scale);
                 origin = new Vector2(rect.Size.Width / 2, 0);
                 break;
             case Anchor.TopRight:
-                rect.X = (int) (_framebufferSize.Width + rect.X * scale);
+                rect.X = (int) (viewport.Width + rect.X * scale);
                 rect.Y = (int) (rect.Y * scale);
                 origin = new Vector2(rect.Size.Width, 0);
                 break;
             case Anchor.CenterLeft:
                 rect.X = (int) (rect.X * scale);
-                rect.Y = (int) (_framebufferSize.Height / 2f + rect.Y * scale);
+                rect.Y = (int) (viewport.Height / 2f + rect.Y * scale);
                 origin = new Vector2(0, rect.Size.Height / 2);
                 break;
             case Anchor.Center:
-                rect.X = (int) (_framebufferSize.Width / 2f + rect.X * scale);
-                rect.Y = (int) (_framebufferSize.Height / 2f + rect.Y * scale);
+                rect.X = (int) (viewport.Width / 2f + rect.X * scale);
+                rect.Y = (int) (viewport.Height / 2f + rect.Y * scale);
                 origin = rect.Size.ToVector2() / 2;
                 break;
             case Anchor.CenterRight:
-                rect.X = (int) (_framebufferSize.Width + rect.X * scale);
-                rect.Y = (int) (_framebufferSize.Height / 2f + rect.Y * scale);
+                rect.X = (int) (viewport.Width + rect.X * scale);
+                rect.Y = (int) (viewport.Height / 2f + rect.Y * scale);
                 origin = new Vector2(rect.Size.Width, rect.Size.Height / 2);
                 break;
             case Anchor.BottomLeft:
                 rect.X = (int) (rect.X * scale);
-                rect.Y = (int) (_framebufferSize.Height + rect.Y * scale);
+                rect.Y = (int) (viewport.Height + rect.Y * scale);
                 origin = new Vector2(0, rect.Size.Height);
                 break;
             case Anchor.BottomCenter:
-                rect.X = (int) (_framebufferSize.Width / 2f + rect.X * scale);
-                rect.Y = (int) (_framebufferSize.Height + rect.Y * scale);
+                rect.X = (int) (viewport.Width / 2f + rect.X * scale);
+                rect.Y = (int) (viewport.Height + rect.Y * scale);
                 origin = new Vector2(rect.Size.Width / 2, rect.Size.Height);
                 break;
             case Anchor.BottomRight:
-                rect.X = (int) (_framebufferSize.Width + rect.X * scale);
-                rect.Y = (int) (_framebufferSize.Height + rect.Y * scale);
+                rect.X = (int) (viewport.Width + rect.X * scale);
+                rect.Y = (int) (viewport.Height + rect.Y * scale);
                 origin = rect.Size.ToVector2();
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(anchor), anchor, null);
         }
 
+        
         rect.Width = (int) (rect.Width * scale);
         rect.Height = (int) (rect.Height * scale);
 
         rect.X -= (int) (origin.X * scale);
         rect.Y -= (int) (origin.Y * scale);
+
+        rect.X += viewport.X;
+        rect.Y += viewport.Y;
+        rect.X += (int) (offset.X * scale);
+        rect.Y += (int) (offset.Y * scale);
     }
 
     public static void AddElement(string name, UIElement element)
     {
         _elements.Add(name, element);
         _reversedElements.Add(element);
+    }
+
+    public static T GetElement<T>(string name) where T : UIElement
+    {
+        return (T) _elements[name];
     }
 
     private static bool IsFocused()
@@ -187,6 +199,8 @@ public static partial class UI
         bool mouseCaptured = false;
         for (int i = _reversedElements.Count - 1; i >= 0; i--)
         {
+            if (!_reversedElements[i].Visible)
+                continue;
             _reversedElements[i].Update(ref mouseCaptured);
         }
     }
@@ -239,9 +253,13 @@ public static partial class UI
             Theme.Font.Draw(graphics.SpriteRenderer, size, text, pos, color, 0, origin, Vector2.One, -id,
                 ignoreParams: ignoreParams);
         }
-        
+
         foreach (UIElement element in _reversedElements)
+        {
+            if (!element.Visible)
+                continue;
             element.Draw(graphics);
+        }
 
         graphics.SpriteRenderer.End();
     }

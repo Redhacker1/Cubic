@@ -14,7 +14,7 @@ public static partial class UI
     /// <param name="text">The text (if any) the button will display.</param>
     /// <param name="textSize">The font size (default: 24) of the text on the button.</param>
     /// <returns>True if the button is clicked.</returns>
-    public static bool Button(Anchor anchor, Rectangle pos, string text = "", uint textSize = 24, bool ignoreReferenceResolution = false)
+    public static bool Button(Anchor anchor, Rectangle pos, string text = "", uint textSize = 24, bool ignoreReferenceResolution = false, bool selected = false)
     {
         // Get the current UI theme...
         int borderThickness = Theme.BorderWidth;
@@ -22,14 +22,14 @@ public static partial class UI
         Color buttonColor = Theme.RectColor;
 
         // Calculate the correct position of the element based on its anchor point.
-        CalculatePos(anchor, ref pos, ignoreReferenceResolution);
+        CalculatePos(anchor, ref pos, ignoreReferenceResolution, Vector2.Zero);
         Add(pos);
 
         float scale = GetReferenceMultiplier();
         textSize = (uint) (textSize * scale);
         //borderThickness = (int) (borderThickness * scale);
 
-        if (MouseHovering(pos))
+        if (MouseHovering(pos) || selected)
         {
             buttonColor = Theme.HoverColor;
             if (_mouseButtonHeld)
@@ -48,6 +48,6 @@ public static partial class UI
         _texts.Add((text, textSize, new Vector2(pos.X + pos.Width / 2, pos.Y + pos.Height / 2), Theme.TextColor,
             true, false, _currentID));
 
-        return ElementClicked(pos);
+        return ElementClicked(pos) || (selected && Input.ControllerButtonPressed(ControllerButton.A));
     }
 }

@@ -18,6 +18,7 @@ public class Graphics : IDisposable
     public readonly SpriteRenderer SpriteRenderer;
 
     private Rectangle _viewport;
+    private Rectangle _scissor;
 
     internal static GL Gl;
 
@@ -37,19 +38,29 @@ public class Graphics : IDisposable
         }
     }
 
+    public Rectangle Scissor
+    {
+        get => _scissor;
+        set
+        {
+            _scissor = value;
+            Gl.Scissor(value.X, Viewport.Height - value.Height - value.Y, (uint) value.Width, (uint) value.Height);
+        }
+    }
+
     public void SetRenderTarget(RenderTarget target)
     {
         if (target == null)
         {
             Gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             Viewport = new Rectangle(0, 0, _window.Size.Width, _window.Size.Height);
-            SetScissor(Viewport);
+            Scissor = Viewport;
             return;
         }
 
         Gl.BindFramebuffer(FramebufferTarget.Framebuffer, target.Fbo);
         Viewport = new Rectangle(0, 0, target.Size.Width, target.Size.Height);
-        SetScissor(Viewport);
+        Scissor = Viewport;
     }
 
     public void Clear(Vector4 clearColor)
@@ -89,7 +100,7 @@ public class Graphics : IDisposable
         Gl.DepthFunc(DepthFunction.Lequal);
         
         Gl.Enable(EnableCap.ScissorTest);
-        SetScissor(Viewport);
+        Scissor = Viewport;
         
         if (settings.MsaaSamples > 0)
             Gl.Enable(EnableCap.Multisample);
@@ -98,7 +109,7 @@ public class Graphics : IDisposable
 
     internal void PrepareFrame(Vector4 clearColor)
     {
-        SetScissor(Viewport);
+        Scissor = Viewport;
         Clear(clearColor);
     }
 
@@ -137,11 +148,6 @@ public class Graphics : IDisposable
     }
 
     public Bitmap Capture() => Capture(Viewport);
-
-    public void SetScissor(Rectangle rectangle)
-    {
-        Gl.Scissor(rectangle.X, Viewport.Height - rectangle.Height - rectangle.Y, (uint) rectangle.Width, (uint) rectangle.Height);
-    }
 
     /*public RenderObject CreateRenderObject()
     {

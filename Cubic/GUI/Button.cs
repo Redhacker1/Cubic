@@ -11,11 +11,20 @@ public class Button : UIElement
     private string _text;
     private uint _fontSize;
 
+    public Texture2D Texture;
+    public Size TextureSize;
+    public Point TextureOffset;
+    public Point TextOffset;
+
     public Button(Anchor anchor, Rectangle position, string text = "", uint fontSize = 24, bool captureMouse = true,
         bool ignoreReferenceResolution = false) : base(anchor, position, captureMouse, ignoreReferenceResolution)
     {
         _text = text;
         _fontSize = fontSize;
+        Texture = null;
+        TextureSize = position.Size;
+        TextOffset = Point.Empty;
+        TextureOffset = Point.Empty;
     }
 
     protected internal override void Draw(Graphics graphics)
@@ -23,21 +32,32 @@ public class Button : UIElement
         base.Draw(graphics);
 
         Rectangle rect = Position;
-        UI.CalculatePos(Anchor, ref rect, IgnoreReferenceResolution);
+        UI.CalculatePos(Anchor, ref rect, IgnoreReferenceResolution, Offset, Viewport);
 
-        Color color = UI.Theme.RectColor;
+        Color color = Theme.RectColor;
         if (Hovering)
-            color = UI.Theme.HoverColor;
+            color = Theme.HoverColor;
         if (Clicked)
-            color = UI.Theme.ClickColor;
+            color = Theme.ClickColor;
         
-        graphics.SpriteRenderer.DrawBorderRectangle(rect.Location.ToVector2(), rect.Size.ToVector2(), UI.Theme.BorderWidth,
-            UI.Theme.BorderColor, color, 0, Vector2.Zero);
+        graphics.SpriteRenderer.DrawBorderRectangle(rect.Location.ToVector2(), rect.Size.ToVector2(), Theme.BorderWidth,
+            Theme.BorderColor, color, 0, Vector2.Zero);
 
-        Size origin = UI.Theme.Font.MeasureString((uint) (_fontSize * UI.GetReferenceMultiplier()), _text);
+        float scale = UI.GetReferenceMultiplier();
         
-        UI.Theme.Font.Draw(graphics.SpriteRenderer, (uint) (_fontSize * UI.GetReferenceMultiplier()), _text,
-            new Vector2(rect.X + rect.Width / 2, rect.Y + rect.Height / 2), UI.Theme.TextColor, 0,
+        if (Texture != null)
+        {
+            graphics.SpriteRenderer.Draw(Texture, rect.Location.ToVector2() + TextureOffset.ToVector2() * scale, null,
+                Color.White, 0, Vector2.Zero,
+                new Vector2(TextureSize.Width / (float) Texture.Size.Width * scale,
+                    TextureSize.Height / (float) Texture.Size.Height * scale), SpriteFlipMode.None);
+        }
+        
+        Size origin = Theme.Font.MeasureString((uint) (_fontSize * scale), _text);
+
+        Theme.Font.Draw(graphics.SpriteRenderer, (uint) (_fontSize * scale), _text,
+            new Vector2(rect.X + rect.Width / 2 + (int) (TextOffset.X * scale),
+                rect.Y + rect.Height / 2 + (int) (TextOffset.Y * scale)), Theme.TextColor, 0,
             new Vector2(origin.Width / 2, origin.Height / 2), Vector2.One);
     }
 }

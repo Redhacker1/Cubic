@@ -4,13 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using Cubic.Utilities;
 using Cubic.Windowing;
 using static Cubic.Windowing.GameWindow;
 using Silk.NET.GLFW;
 
 namespace Cubic;
 
-public static class Input
+public static unsafe class Input
 {
     #region Keyboard and mouse
 
@@ -25,6 +26,9 @@ public static class Input
 
     private static readonly HashSet<MouseButtons> _buttonsHeld = new HashSet<MouseButtons>();
     private static readonly HashSet<MouseButtons> _frameButtons = new HashSet<MouseButtons>();
+
+    private static Cursor* _currentCursor;
+    private static bool _setCursor;
 
     private static MouseMode _mouseMode;
     private static bool _cursorStateChanged;
@@ -195,6 +199,21 @@ public static class Input
     {
         Matrix4x4.Invert(transform, out Matrix4x4 invTransform);
         MousePosition = Vector2.Transform(MousePosition, invTransform);
+    }
+
+    public static void SetMouseCursor(Bitmap mouse)
+    {
+        fixed (byte* p = mouse.Data)
+        {
+            Image image = new Image()
+            {
+                Width = mouse.Size.Width,
+                Height = mouse.Size.Height,
+                Pixels = p
+            };
+            _currentCursor = GLFW.CreateCursor(&image, 0, 0);
+            _setCursor = true;
+        }
     }
     
     #endregion
@@ -423,6 +442,12 @@ public static class Input
                 _connectedControllers[totalGamepads] = true;
                 _gamepadStates[totalGamepads++] = state;
             }
+        }
+
+        if (_setCursor)
+        {
+            _setCursor = false;
+            GLFW.SetCursor(window.Handle, _currentCursor);
         }
     }
 

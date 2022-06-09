@@ -16,7 +16,7 @@ public static partial class UI
     public static void Label(Anchor anchor, Point pos, string text, uint size, bool captureMouse = false, bool ignoreReferenceResolution = false, Color? color = null)
     {
         Rectangle rect = new Rectangle(pos, Theme.Font.MeasureString(size, text));
-        CalculatePos(anchor, ref rect, ignoreReferenceResolution);
+        CalculatePos(anchor, ref rect, ignoreReferenceResolution, Vector2.Zero);
         Add(rect, captureMouse);
         _texts.Add((text, (uint) (size * GetReferenceMultiplier()), new Vector2(rect.X, rect.Y), color ?? Theme.TextColor, false, false, _currentID));
     }

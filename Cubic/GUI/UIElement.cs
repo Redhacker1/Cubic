@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Numerics;
 using Cubic.Render;
 using Cubic.Utilities;
 
@@ -15,23 +16,34 @@ public abstract class UIElement
 
     public bool CaptureMouse;
     public bool IgnoreReferenceResolution;
+    public bool Visible;
 
     protected bool Hovering;
     protected bool Clicked;
     protected Point ClickPoint;
 
-    public UIElement(Anchor anchor, Rectangle position, bool captureMouse = true, bool ignoreReferenceResolution = false)
+    public Vector2 Offset;
+
+    public Rectangle? Viewport;
+
+    public UITheme Theme;
+
+    public UIElement(Anchor anchor, Rectangle position, bool captureMouse = true, bool ignoreReferenceResolution = false, Point? index = null)
     {
         Anchor = anchor;
         Position = position;
         CaptureMouse = captureMouse;
         IgnoreReferenceResolution = ignoreReferenceResolution;
+        Viewport = null;
+        Visible = true;
+        Offset = Vector2.Zero;
+        Theme = UI.Theme;
     }
 
     protected internal virtual void Update(ref bool mouseCaptured)
     {
         Rectangle rect = Position;
-        UI.CalculatePos(Anchor, ref rect, IgnoreReferenceResolution);
+        UI.CalculatePos(Anchor, ref rect, IgnoreReferenceResolution, Offset, Viewport);
 
         Hovering = false;
         

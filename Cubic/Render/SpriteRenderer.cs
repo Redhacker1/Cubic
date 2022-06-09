@@ -167,7 +167,7 @@ void main()
     /// <param name="transform">The optional transformation (camera) matrix to use for this batch session.</param>
     /// <param name="sample">Which sample type this batch should use.</param>
     /// <exception cref="CubicException">Thrown if you try to call <see cref="Begin"/> before a batch session has ended.</exception>
-    public void Begin(Matrix4x4? transform = null, TextureSample sample = TextureSample.Nearest, Shader shader = null)
+    public void Begin(Matrix4x4? transform = null, TextureSample sample = TextureSample.Linear, Shader shader = null)
     {
         if (_begun)
             throw new CubicException(

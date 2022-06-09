@@ -16,7 +16,7 @@ public static partial class UI
         Color borderColor = Theme.BorderColor;
         Color buttonColor = Theme.RectColor;
         
-        CalculatePos(anchor, ref pos, ignoreReferenceResolution);
+        CalculatePos(anchor, ref pos, ignoreReferenceResolution, Vector2.Zero);
         Add(pos);
 
         if (ElementClicked(pos))
