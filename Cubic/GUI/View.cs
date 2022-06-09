@@ -52,7 +52,7 @@ public class View : UIElement
         _offset.Y += Input.ScrollWheelDelta.Y * 50;
         _offset.Y = CubicMath.Clamp(_offset.Y, -_maxOffset.Y, 0);
 
-        bool mc = false;
+        bool mc = mouseCaptured;
         foreach ((string name, UIElement element) in _elements)
         {
             element.Offset = _offset;
