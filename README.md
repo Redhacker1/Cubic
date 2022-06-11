@@ -33,7 +33,7 @@ Want to get started? It's easy.
 1. [Download the latest Cubic version](https://github.com/ohtrobinson/Cubic.git)
 2. Extract the folder
 3. Add a reference to `Cubic.csproj` in your project.
-4. Away you go! Follow the [Getting started guide]() (not complete) to create your first project!
+4. Away you go! Follow the [getting started guide](https://github.com/IsometricSoftware/Cubic/wiki/Getting-Started) to create your first project!
 
 ## Credits
 Cubic by Ollie Robinson
