@@ -27,6 +27,8 @@ public class TextBox : UIElement
 
     private const int Padding = 5;
     
+    public int MaxLength;
+    
     public TextBox(Anchor anchor, Rectangle position, string placeholder = "", uint textSize = 24, bool captureMouse = true, bool ignoreReferenceResolution = false) : base(anchor, position, captureMouse, ignoreReferenceResolution)
     {
         Text = "";
@@ -38,6 +40,7 @@ public class TextBox : UIElement
         _selectionRectEnd = 0;
         _blink = true;
         _blinkTimer = BlinkTime;
+        MaxLength = int.MaxValue;
     }
 
     private void InputOnTextInput(char character)
@@ -153,6 +156,9 @@ public class TextBox : UIElement
 
         if (_textOffset < Padding)
             _textOffset = -Padding;
+
+        if (Text.Length >= MaxLength)
+            Text = Text[..MaxLength];
     }
 
     protected internal override void Draw(Graphics graphics)
