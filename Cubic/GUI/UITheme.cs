@@ -17,20 +17,29 @@ public struct UITheme
 
     public Color ClickColor;
 
-    public Color SelectedColor;
-
     public Color TextColor;
+
+    public int CheckBoxPadding;
+
+    public Color CheckedColor;
+
+    public Color WindowColor;
+
+    public Color AccentTextColor;
     
     public UITheme()
     {
-        Font = default;
+        Font = UI.DefaultFont;
         
-        BorderColor = Color.White;
+        BorderColor = Color.Black;
         BorderWidth = 1;
-        RectColor = Color.Gray;
+        RectColor = Color.GhostWhite;
         HoverColor = Color.DarkGray;
-        ClickColor = Color.Gray;
-        SelectedColor = Color.DarkGray;
-        TextColor = Color.White;
+        ClickColor = Color.LightGray;
+        TextColor = Color.Black;
+        CheckBoxPadding = 5;
+        CheckedColor = Color.DimGray;
+        WindowColor = Color.White;
+        AccentTextColor = Color.DimGray;
     }
 }

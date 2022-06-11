@@ -8,7 +8,10 @@ namespace Cubic.GUI;
 
 public class TextBox : UIElement
 {
+    public event OnTextChanged TextChanged;
+    
     public string Text;
+    public string Placeholder;
 
     private uint _textSize;
 
@@ -17,21 +20,35 @@ public class TextBox : UIElement
     private int _selectionRectBegin;
     private int _selectionRectEnd;
 
+    private bool _blink;
+    private float _blinkTimer;
+    private const float BlinkTime = 0.5f;
+    private bool _wasFocused;
+
     private const int Padding = 5;
     
-    public TextBox(Anchor anchor, Rectangle position, uint textSize = 24, bool captureMouse = true, bool ignoreReferenceResolution = false) : base(anchor, position, captureMouse, ignoreReferenceResolution)
+    public TextBox(Anchor anchor, Rectangle position, string placeholder = "", uint textSize = 24, bool captureMouse = true, bool ignoreReferenceResolution = false) : base(anchor, position, captureMouse, ignoreReferenceResolution)
     {
         Text = "";
+        Placeholder = placeholder;
         _textSize = textSize;
         Input.TextInput += InputOnTextInput;
         _textOffset = 0;
         _selectionRectBegin = 0;
         _selectionRectEnd = 0;
+        _blink = true;
+        _blinkTimer = BlinkTime;
     }
 
     private void InputOnTextInput(char character)
     {
+        if (!Focused)
+            return;
+        
         Text = Text.Insert(_cursorPos, character.ToString());
+        TextChanged?.Invoke(Text);
+        _blink = true;
+        _blinkTimer = BlinkTime;
         _cursorPos++;
     }
 
@@ -39,12 +56,26 @@ public class TextBox : UIElement
     {
         base.Update(ref mouseCaptured);
 
+        if (!_wasFocused)
+        {
+            _blink = true;
+            _blinkTimer = BlinkTime;
+        }
+        
+        _wasFocused = Focused;
+        
+        if (!Focused)
+            return;
+
         if (Input.KeyPressedOrRepeating(Keys.Backspace))
         {
             if (_cursorPos > 0)
             {
                 Text = Text.Remove(_cursorPos - 1, 1);
+                TextChanged?.Invoke(Text);
                 _cursorPos--;
+                _blink = true;
+                _blinkTimer = BlinkTime;
             }
         }
 
@@ -53,6 +84,9 @@ public class TextBox : UIElement
             if (_cursorPos < Text.Length)
             {
                 Text = Text.Remove(_cursorPos, 1);
+                TextChanged?.Invoke(Text);
+                _blink = true;
+                _blinkTimer = BlinkTime;
             }
         }
 
@@ -79,16 +113,34 @@ public class TextBox : UIElement
                 lastWidth = width;
             }
         }
-        
+
         if (Input.KeyPressedOrRepeating(Keys.Left))
+        {
             _cursorPos--;
+            _blink = true;
+            _blinkTimer = BlinkTime;
+        }
+
         if (Input.KeyPressedOrRepeating(Keys.Right))
+        {
             _cursorPos++;
+            _blink = true;
+            _blinkTimer = BlinkTime;
+        }
 
         if (Input.KeyPressed(Keys.Home))
+        {
             _cursorPos = 0;
+            _blink = true;
+            _blinkTimer = BlinkTime;
+        }
+
         if (Input.KeyPressed(Keys.End))
+        {
             _cursorPos = Text.Length;
+            _blink = true;
+            _blinkTimer = BlinkTime;
+        }
 
         _cursorPos = CubicMath.Clamp(_cursorPos, 0, Text.Length);
         
@@ -122,15 +174,37 @@ public class TextBox : UIElement
         graphics.Scissor = rect with { Y = scissor.Y };
         graphics.SpriteRenderer.Begin();
         
-        Theme.Font.Draw(graphics.SpriteRenderer, textSize, Text, new Vector2(rect.X - _textOffset, rect.Y + rect.Height / 2), UI.Theme.TextColor,
-            0, new Vector2(0, Theme.Font.MeasureString(textSize, Text, ignoreParams: true).Height / 2), Vector2.One, ignoreParams: true);
+        if (!string.IsNullOrEmpty(Placeholder) && Text.Length == 0)
+        {
+            Theme.Font.Draw(graphics.SpriteRenderer, textSize, Placeholder,
+                new Vector2(rect.X + Padding, rect.Y + rect.Height / 2), Theme.AccentTextColor, 0,
+                new Vector2(0, textSize / 2), Vector2.One, smartPlacement: false);
+        }
+
+        Theme.Font.Draw(graphics.SpriteRenderer, textSize, Text, new Vector2(rect.X - _textOffset, rect.Y + rect.Height / 2), Theme.TextColor,
+            0, new Vector2(0, textSize / 2), Vector2.One, ignoreParams: true, smartPlacement: false);
 
         graphics.SpriteRenderer.End();
         graphics.Scissor = scissor;
         graphics.SpriteRenderer.Begin();
+
+        if (!Focused)
+            return;
+
+        _blinkTimer -= Time.DeltaTime;
+        if (_blinkTimer <= 0)
+        {
+            _blink = !_blink;
+            _blinkTimer = BlinkTime;
+        }
         
+        if (!_blink)
+            return;
+
         graphics.SpriteRenderer.DrawRectangle(
             new Vector2(rect.X + Theme.Font.MeasureString(textSize, Text[.._cursorPos], ignoreParams: true).Width - _textOffset,
-                rect.Y + rect.Height / 2), new Vector2(1, rect.Height - 10), Color.White, 0, new Vector2(0, 0.5f));
+                rect.Y + rect.Height / 2), new Vector2(1, rect.Height - 10), Theme.TextColor, 0, new Vector2(0, 0.5f));
     }
+    
+    public delegate void OnTextChanged(string text);
 }

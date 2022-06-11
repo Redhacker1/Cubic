@@ -81,6 +81,12 @@ public struct GameSettings
     /// </summary>
     public uint MsaaSamples;
 
+    /// <summary>
+    /// Set this to false if you don't want to create the default UI font (if you are using your own).
+    /// Disabling this will mean the default font won't use any system memory. (Default: true)
+    /// </summary>
+    public bool CreateDefaultFont;
+
     public GameSettings()
     {
         Size = new Size(1280, 720);
@@ -96,5 +102,6 @@ public struct GameSettings
         AudioChannels = 32;
         Icon = default;
         MsaaSamples = 0;
+        CreateDefaultFont = true;
     }
 }

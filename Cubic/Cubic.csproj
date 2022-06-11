@@ -26,6 +26,9 @@
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         <Pack>true</Pack>
       </Content>
+      <None Update="Roboto-Regular.ttf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
     <ItemGroup>

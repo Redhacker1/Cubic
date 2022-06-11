@@ -72,7 +72,7 @@ public class CubicGame : IDisposable
 
         Time.Start();
         
-        UI.Initialize(Graphics.Viewport.Size);
+        UI.Initialize(Graphics.Viewport.Size, _settings.CreateDefaultFont);
         
         Initialize();
 

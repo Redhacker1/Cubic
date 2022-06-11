@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
+using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using Cubic.Render;
+using Cubic.Render.Text;
 using Cubic.Utilities;
 
 namespace Cubic.GUI;
@@ -28,8 +32,10 @@ public static partial class UI
 
     private static Dictionary<string, UIElement> _elements;
     private static List<UIElement> _reversedElements;
+    
+    public static Font DefaultFont { get; private set; }
 
-    internal static void Initialize(Size viewportSize)
+    internal static void Initialize(Size viewportSize, bool createFont)
     {
         _framebufferSize = viewportSize;
         _rectangles = new List<(Rectangle, Color, Texture2D, int)>();
@@ -37,6 +43,17 @@ public static partial class UI
         _elements = new Dictionary<string, UIElement>();
         _reversedElements = new List<UIElement>();
         _elementPositions = new List<(int, Rectangle)>();
+        
+        /*Assembly assembly = Assembly.GetCallingAssembly();
+        const string name = "Cubic.Roboto-Regular.ttf";
+        using Stream stream = assembly.GetManifestResourceStream(name);
+        using MemoryStream memStr = new MemoryStream();
+        stream.CopyTo(memStr);
+        _defaultFont = new Font(memStr.GetBuffer());*/
+
+        if (createFont)
+            DefaultFont = new Font("Roboto-Regular.ttf", autoDispose: false);
+
         Theme = new UITheme();
         _charBuffer = new List<char>();
         _textCursorPos = Point.Empty;
@@ -164,6 +181,8 @@ public static partial class UI
         return (T) _elements[name];
     }
 
+    public static UIElement[] GetAllElements() => _elements.Values.ToArray();
+
     private static bool IsFocused()
     {
         // TODO
@@ -201,6 +220,7 @@ public static partial class UI
         {
             if (!_reversedElements[i].Visible)
                 continue;
+
             _reversedElements[i].Update(ref mouseCaptured);
         }
     }

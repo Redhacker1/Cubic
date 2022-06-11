@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Numerics;
 using Cubic.Scenes;
 using Rectangle = System.Drawing.Rectangle;
@@ -27,7 +28,6 @@ public struct Font : IDisposable
     /// <summary>
     /// Create a new dynamic font. This font can be retrieved at any font size.
     /// </summary>
-    /// <param name="game">The active Cubic game.</param>
     /// <param name="fontPath">The path to the font.</param>
     /// <param name="unicodeRangeStart">The starting character of the unicode set.</param>
     /// <param name="unicodeRangeEnd">The ending character of the unicode set.</param>
@@ -35,10 +35,21 @@ public struct Font : IDisposable
     /// <param name="texHeight">The height of the font atlas's texture. By default, this is 1024.</param>
     /// <exception cref="CubicException">Thrown if the font does not exist.</exception>
     public Font(string fontPath, uint unicodeRangeStart = 0, uint unicodeRangeEnd = 128, int texWidth = 1024,
-        int texHeight = 1024, bool autoDispose = true)
+        int texHeight = 1024, bool autoDispose = true) : this(unicodeRangeStart, unicodeRangeEnd, texWidth, texHeight,
+        autoDispose)
     {
         _face = new FontFace(fontPath);
+    }
 
+    internal Font(byte[] data) : this(0, 128, 1024, 1024, false)
+    {
+        _face = new FontFace(File.ReadAllBytes("Content/Fonts/inversionz.ttf"));
+    }
+
+    private Font(uint unicodeRangeStart, uint unicodeRangeEnd, int texWidth, int texHeight, bool autoDispose)
+    {
+        _face = default;
+        
         _cachedAtlases = new Dictionary<uint, (Texture2D, Dictionary<char, FontHelper.Character>)>();
 
         _texWidth = texWidth;
@@ -54,7 +65,7 @@ public struct Font : IDisposable
         if (autoDispose)
             SceneManager.Active.CreatedResources.Add(this);
     }
-    
+
     /// <summary>
     /// Draw the text to the screen.
     /// </summary>
@@ -67,14 +78,59 @@ public struct Font : IDisposable
     /// <param name="origin">The origin point of the text, scaling and rotation will occur around this point.</param>
     /// <param name="scale">The scale of the text.</param>
     /// <param name="extraLineSpacing">Any additional spacing between lines. This can also be a negative number if you want less spacing.</param>
+    /// <param name="ignoreParams">If true, parameters (such as color, etc) will be ignored. Useful for text boxes.</param>
+    /// <param name="smartPlacement">If true (default), the text will be placed so that it appears more accurate to the given position.</param>
     /// <exception cref="CubicException">Thrown if an incorrect parameter is given to the text drawer.</exception>
     public void Draw(SpriteRenderer renderer, uint size, string text, Vector2 position, Color startColor,
-        float rotation, Vector2 origin, Vector2 scale, int depth = 0, int extraLineSpacing = 0, bool ignoreParams = false)
+        float rotation, Vector2 origin, Vector2 scale, int depth = 0, int extraLineSpacing = 0, bool ignoreParams = false, bool smartPlacement = true, int wrapWidth = 0)
     {
+        if (wrapWidth > 0)
+        {
+            int tempI = 0;
+            string tempText = text;
+            int lastSpace = 0;
+            int measurePoint = 0;
+            int tempSpace = 0;
+            for (int i = 0; i < text.Length; i++, tempI++)
+            {
+                char c = tempText[tempI];
+                switch (c)
+                {
+                    case ' ':
+                        lastSpace = i;
+                        tempSpace = tempI;
+                        break;
+                }
+
+                int prevI = tempI;
+                if (FontHelper.CheckParams(ref c, ref tempI, tempText, ignoreParams).Type != FontHelper.ParamType.None)
+                {
+                    tempText = tempText.Remove(prevI, tempI - prevI + 1);
+                    i += tempI - prevI + 1;
+                    tempI = prevI;
+                }
+                int s = MeasureString(size, tempText[measurePoint..tempI], extraLineSpacing, true).Width;
+                if (s >= wrapWidth)
+                {
+                    if (tempSpace - measurePoint == 0)
+                    {
+                        text = text.Insert(i, "\n");
+                        tempI--;
+                        measurePoint = tempI;
+                    }
+                    else
+                    {
+                        text = text.Remove(lastSpace, 1).Insert(lastSpace, "\n");
+                        measurePoint = tempSpace;
+                    }
+                }
+            }
+        }
+        
         // We need to keep a reference to both the current character's position and our actual position, which is what
         // we do here.
         Vector2 pos = position;
-        
+
         // If the font size is not the same as our old one, generate a new texture!
         if (size != _storedSize)
         {
@@ -97,12 +153,24 @@ public struct Font : IDisposable
         // Calculate the largest character in height in our text. This is used to ensure the text is drawn at the
         // correct position.
         int largestChar = 0;
-        foreach (char c in text)
+        if (smartPlacement)
         {
-            FontHelper.Character chr = _characters[c];
-            if (chr.Bearing.Y > largestChar)
-                largestChar = chr.Bearing.Y;
+            foreach (char c in text)
+            {
+                FontHelper.Character chr = _characters[c];
+                if (chr.Bearing.Y > largestChar)
+                    largestChar = chr.Bearing.Y;
+            }
         }
+        else
+        {
+            foreach ((char _, FontHelper.Character chr) in _characters)
+            {
+                if (chr.Bearing.Y > largestChar)
+                    largestChar = chr.Bearing.Y;
+            }
+        }
+
         pos.Y += largestChar;
 
         // Loop through each character in our text :)
@@ -148,10 +216,53 @@ public struct Font : IDisposable
     /// <param name="text">The text to measure.</param>
     /// <param name="extraLineSpacing">Any extra line spacing between lines.</param>
     /// <returns></returns>
-    public Size MeasureString(uint size, string text, int extraLineSpacing = 0, bool ignoreParams = false)
+    public Size MeasureString(uint size, string text, int extraLineSpacing = 0, bool ignoreParams = false, int wrapWidth = 0)
     {
         // A fair bit of code here is reused from Draw(). We even generate a new texture... (Although to be
         // honest, who would measure the size of a string in a font size that is never going to be used?)
+        
+        if (wrapWidth > 0)
+        {
+            int tempI = 0;
+            string tempText = text;
+            int lastSpace = 0;
+            int measurePoint = 0;
+            int tempSpace = 0;
+            for (int i = 0; i < text.Length; i++, tempI++)
+            {
+                char c = tempText[tempI];
+                switch (c)
+                {
+                    case ' ':
+                        lastSpace = i;
+                        tempSpace = tempI;
+                        break;
+                }
+
+                int prevI = tempI;
+                if (FontHelper.CheckParams(ref c, ref tempI, tempText, ignoreParams).Type != FontHelper.ParamType.None)
+                {
+                    tempText = tempText.Remove(prevI, tempI - prevI + 1);
+                    i += tempI - prevI + 1;
+                    tempI = prevI;
+                }
+                int s = MeasureString(size, tempText[measurePoint..tempI], extraLineSpacing, true).Width;
+                if (s >= wrapWidth)
+                {
+                    if (tempSpace - measurePoint == 0)
+                    {
+                        text = text.Insert(i, "\n");
+                        tempI--;
+                        measurePoint = tempI;
+                    }
+                    else
+                    {
+                        text = text.Remove(lastSpace, 1).Insert(lastSpace, "\n");
+                        measurePoint = tempSpace;
+                    }
+                }
+            }
+        }
         
         Size stringSize = new Size(0, 0);
 

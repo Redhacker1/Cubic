@@ -8,7 +8,7 @@ namespace Cubic.GUI;
 
 public class Button : UIElement
 {
-    private string _text;
+    public string Text;
     private uint _fontSize;
 
     public Texture2D Texture;
@@ -19,7 +19,7 @@ public class Button : UIElement
     public Button(Anchor anchor, Rectangle position, string text = "", uint fontSize = 24, bool captureMouse = true,
         bool ignoreReferenceResolution = false) : base(anchor, position, captureMouse, ignoreReferenceResolution)
     {
-        _text = text;
+        Text = text;
         _fontSize = fontSize;
         Texture = null;
         TextureSize = position.Size;
@@ -53,9 +53,9 @@ public class Button : UIElement
                     TextureSize.Height / (float) Texture.Size.Height * scale), SpriteFlipMode.None);
         }
         
-        Size origin = Theme.Font.MeasureString((uint) (_fontSize * scale), _text);
+        Size origin = Theme.Font.MeasureString((uint) (_fontSize * scale), Text);
 
-        Theme.Font.Draw(graphics.SpriteRenderer, (uint) (_fontSize * scale), _text,
+        Theme.Font.Draw(graphics.SpriteRenderer, (uint) (_fontSize * scale), Text,
             new Vector2(rect.X + rect.Width / 2 + (int) (TextOffset.X * scale),
                 rect.Y + rect.Height / 2 + (int) (TextOffset.Y * scale)), Theme.TextColor, 0,
             new Vector2(origin.Width / 2, origin.Height / 2), Vector2.One);
