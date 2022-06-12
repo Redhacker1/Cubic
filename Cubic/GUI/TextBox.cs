@@ -28,6 +28,10 @@ public class TextBox : UIElement
     private const int Padding = 5;
     
     public int MaxLength;
+
+    private int _lastCursorPos;
+    private int _initialCursorPos;
+    private bool _textInserted;
     
     public TextBox(Anchor anchor, Rectangle position, string placeholder = "", uint textSize = 24, bool captureMouse = true, bool ignoreReferenceResolution = false) : base(anchor, position, captureMouse, ignoreReferenceResolution)
     {
@@ -41,18 +45,22 @@ public class TextBox : UIElement
         _blink = true;
         _blinkTimer = BlinkTime;
         MaxLength = int.MaxValue;
+        _lastCursorPos = -1;
     }
 
     private void InputOnTextInput(char character)
     {
         if (!Focused)
             return;
-        
+
+        AdjustForSelection();
         Text = Text.Insert(_cursorPos, character.ToString());
         TextChanged?.Invoke(Text);
+        ResetSelection();
         _blink = true;
         _blinkTimer = BlinkTime;
         _cursorPos++;
+        _textInserted = true;
     }
 
     protected internal override void Update(ref bool mouseCaptured)
@@ -72,22 +80,26 @@ public class TextBox : UIElement
 
         if (Input.KeyPressedOrRepeating(Keys.Backspace))
         {
-            if (_cursorPos > 0)
+            if (!AdjustForSelection() && _cursorPos > 0)
             {
                 Text = Text.Remove(_cursorPos - 1, 1);
-                TextChanged?.Invoke(Text);
                 _cursorPos--;
-                _blink = true;
-                _blinkTimer = BlinkTime;
             }
+
+            TextChanged?.Invoke(Text);
+            ResetSelection();
+            _blink = true;
+            _blinkTimer = BlinkTime;
         }
 
         if (Input.KeyPressedOrRepeating(Keys.Delete))
         {
             if (_cursorPos < Text.Length)
             {
-                Text = Text.Remove(_cursorPos, 1);
+                if (!AdjustForSelection())
+                    Text = Text.Remove(_cursorPos, 1);
                 TextChanged?.Invoke(Text);
+                ResetSelection();
                 _blink = true;
                 _blinkTimer = BlinkTime;
             }
@@ -97,29 +109,11 @@ public class TextBox : UIElement
         UI.CalculatePos(Anchor, ref rect, IgnoreReferenceResolution, Offset, Viewport);
         uint textSize = (uint) (_textSize * UI.GetReferenceMultiplier());
 
-        if (Clicked)
-        {
-            int clickPoint = ClickPoint.X + _textOffset;
-            int lastWidth = 0;
-            for (int i = 0; i < Text.Length + 1; i++)
-            {
-                int width = Theme.Font.MeasureString(textSize, Text[..i], ignoreParams: true).Width;
-
-                if (width - (width - lastWidth) / 2f >= clickPoint)
-                {
-                    _cursorPos = i - 1;
-                    break;
-                }
-                else
-                    _cursorPos = i;
-
-                lastWidth = width;
-            }
-        }
-
         if (Input.KeyPressedOrRepeating(Keys.Left))
         {
             _cursorPos--;
+            if (Input.KeyReleased(Keys.LeftShift))
+                ResetSelection();
             _blink = true;
             _blinkTimer = BlinkTime;
         }
@@ -127,13 +121,71 @@ public class TextBox : UIElement
         if (Input.KeyPressedOrRepeating(Keys.Right))
         {
             _cursorPos++;
+            if (Input.KeyReleased(Keys.LeftShift))
+                ResetSelection();
             _blink = true;
             _blinkTimer = BlinkTime;
+        }
+        
+        if (Clicked || Input.KeyDown(Keys.LeftShift) && !_textInserted)
+        {
+            if (Clicked)
+            {
+                int clickPoint = ClickPoint.X + _textOffset;
+                int lastWidth = 0;
+                for (int i = 0; i < Text.Length + 1; i++)
+                {
+                    int width = Theme.Font.MeasureString(textSize, Text[..i], ignoreParams: true).Width;
+
+                    if (width - (width - lastWidth) / 2f >= clickPoint)
+                    {
+                        _cursorPos = i - 1;
+                        break;
+                    }
+                    else
+                        _cursorPos = i;
+
+                    lastWidth = width;
+                }
+            }
+
+            if (_lastCursorPos != -1)
+            {
+                if (_initialCursorPos == -1)
+                {
+                    _initialCursorPos = _cursorPos;
+                    _selectionRectBegin = _cursorPos;
+                    _selectionRectEnd = _cursorPos;
+                }
+
+                if (_cursorPos > _lastCursorPos)
+                {
+                    if (_selectionRectBegin < _initialCursorPos)
+                        _selectionRectBegin = _cursorPos;
+                    else
+                        _selectionRectEnd = _cursorPos;
+                }
+                else if (_cursorPos < _lastCursorPos)
+                {
+                    if (_selectionRectEnd > _initialCursorPos)
+                        _selectionRectEnd = _cursorPos;
+                    else
+                        _selectionRectBegin = _cursorPos;
+                }
+            }
+
+            _lastCursorPos = _cursorPos;
+        }
+        else
+        {
+            _lastCursorPos = -1;
+            _initialCursorPos = -1;
         }
 
         if (Input.KeyPressed(Keys.Home))
         {
             _cursorPos = 0;
+            ResetSelection();
             _blink = true;
             _blinkTimer = BlinkTime;
         }
@@ -141,12 +193,50 @@ public class TextBox : UIElement
         if (Input.KeyPressed(Keys.End))
         {
             _cursorPos = Text.Length;
+            ResetSelection();
             _blink = true;
             _blinkTimer = BlinkTime;
         }
 
+        if (Input.KeyDown(Keys.LeftControl))
+        {
+            if (Input.KeyPressed(Keys.A))
+            {
+                _selectionRectBegin = 0;
+                _selectionRectEnd = Text.Length;
+                _cursorPos = Text.Length;
+                _blink = true;
+                _blinkTimer = BlinkTime;
+            }
+
+            if (Input.KeyPressed(Keys.V))
+            {
+                AdjustForSelection();
+                ResetSelection();
+                string clipboard = Input.Clipboard.Replace("\n", "");
+                Text = Text.Insert(_cursorPos, clipboard);
+                _cursorPos += clipboard.Length;
+            }
+
+            if (Input.KeyPressed(Keys.C))
+            {
+                if (_selectionRectEnd - _selectionRectBegin > 0)
+                    Input.Clipboard = Text[_selectionRectBegin.._selectionRectEnd];
+            }
+
+            if (Input.KeyPressed(Keys.X))
+            {
+                if (_selectionRectEnd - _selectionRectBegin > 0)
+                {
+                    Input.Clipboard = Text[_selectionRectBegin.._selectionRectEnd];
+                    AdjustForSelection();
+                    ResetSelection();
+                }
+            }
+        }
+
         _cursorPos = CubicMath.Clamp(_cursorPos, 0, Text.Length);
-        
+
         Size measureText = Theme.Font.MeasureString(textSize, Text[.._cursorPos], ignoreParams: true);
         while (measureText.Width - _textOffset > rect.Width - Padding)
             _textOffset += 5;
@@ -159,6 +249,11 @@ public class TextBox : UIElement
 
         if (Text.Length >= MaxLength)
             Text = Text[..MaxLength];
+
+        _selectionRectBegin = CubicMath.Clamp(_selectionRectBegin, 0, Text.Length);
+        _selectionRectEnd = CubicMath.Clamp(_selectionRectEnd, 0, Text.Length);
+
+        _textInserted = false;
     }
 
     protected internal override void Draw(Graphics graphics)
@@ -187,6 +282,14 @@ public class TextBox : UIElement
                 new Vector2(0, textSize / 2), Vector2.One, smartPlacement: false);
         }
 
+        if (_selectionRectEnd - _selectionRectBegin > 0)
+        {
+            int measureTextBegin = Theme.Font.MeasureString(textSize, Text[.._selectionRectBegin], ignoreParams: true).Width;
+            int measureTextEnd = Theme.Font.MeasureString(textSize, Text[_selectionRectBegin.._selectionRectEnd], ignoreParams: true).Width;
+            graphics.SpriteRenderer.DrawRectangle(new Vector2(rect.X + measureTextBegin - _textOffset, rect.Y + rect.Height / 2),
+                new Vector2(measureTextEnd, rect.Height - 10), Theme.SelectionColor, 0, new Vector2(0, 0.5f));
+        }
+
         Theme.Font.Draw(graphics.SpriteRenderer, textSize, Text, new Vector2(rect.X - _textOffset, rect.Y + rect.Height / 2), Theme.TextColor,
             0, new Vector2(0, textSize / 2), Vector2.One, ignoreParams: true, smartPlacement: false);
 
@@ -210,6 +313,25 @@ public class TextBox : UIElement
         graphics.SpriteRenderer.DrawRectangle(
             new Vector2(rect.X + Theme.Font.MeasureString(textSize, Text[.._cursorPos], ignoreParams: true).Width - _textOffset,
                 rect.Y + rect.Height / 2), new Vector2(1, rect.Height - 10), Theme.TextColor, 0, new Vector2(0, 0.5f));
+    }
+
+    private void ResetSelection()
+    {
+        _selectionRectBegin = 0;
+        _selectionRectEnd = 0;
+    }
+
+    private bool AdjustForSelection()
+    {
+        if (_selectionRectEnd - _selectionRectBegin > 0)
+        {
+            Text = Text.Remove(_selectionRectBegin, _selectionRectEnd - _selectionRectBegin);
+            if (_cursorPos == _selectionRectEnd)
+                _cursorPos -= _selectionRectEnd - _selectionRectBegin;
+            return true;
+        }
+
+        return false;
     }
     
     public delegate void OnTextChanged(string text);

@@ -1,5 +1,8 @@
 namespace Cubic.Audio;
 
+/// <summary>
+/// Represents all the piano keys in one octave.
+/// </summary>
 public enum PianoKey
 {
     None,

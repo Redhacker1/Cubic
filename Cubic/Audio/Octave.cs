@@ -1,5 +1,8 @@
 namespace Cubic.Audio;
 
+/// <summary>
+/// Represents an octave on a piano.
+/// </summary>
 public enum Octave
 {
     Octave0,

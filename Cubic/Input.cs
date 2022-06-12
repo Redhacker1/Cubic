@@ -15,6 +15,8 @@ public static unsafe class Input
 {
     #region Keyboard and mouse
 
+    private static WindowHandle* _handle;
+    
     public static event OnTextInput TextInput;
     
     private static readonly HashSet<KeyState> _keyStates = new HashSet<KeyState>();
@@ -42,6 +44,16 @@ public static unsafe class Input
     /// Get an array of all mouse buttons currently held down.
     /// </summary>
     public static MouseButtons[] MouseButtonsHeld => _buttonsHeld.ToArray();
+
+    /// <summary>
+    /// Get or set the clipboard string.
+    /// </summary>
+    public static string Clipboard
+    {
+        // TODO: Think about this - I don't like storing the window handle if I can avoid it.
+        get => GLFW.GetClipboardString(_handle);
+        set => GLFW.SetClipboardString(_handle, value);
+    }
 
     /// <summary>
     /// Check if the given key is held down.
@@ -365,6 +377,7 @@ public static unsafe class Input
 
     internal static unsafe void Start(GameWindow window)
     {
+        _handle = window.Handle;
         GLFW.GetCursorPos(window.Handle, out double x, out double y);
         MousePosition = new Vector2((float) x, (float) y);
         Assembly assembly = Assembly.GetCallingAssembly();

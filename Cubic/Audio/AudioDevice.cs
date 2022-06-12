@@ -5,6 +5,9 @@ using Silk.NET.OpenAL;
 
 namespace Cubic.Audio;
 
+/// <summary>
+/// Represents an audio device that can play music.
+/// </summary>
 public sealed unsafe class AudioDevice : IDisposable
 {
     public event OnBufferFinished BufferFinished;

@@ -26,6 +26,8 @@ public struct UITheme
     public Color WindowColor;
 
     public Color AccentTextColor;
+
+    public Color SelectionColor;
     
     public UITheme()
     {
@@ -41,5 +43,6 @@ public struct UITheme
         CheckedColor = Color.DimGray;
         WindowColor = Color.White;
         AccentTextColor = Color.DimGray;
+        SelectionColor = Color.CornflowerBlue;
     }
 }

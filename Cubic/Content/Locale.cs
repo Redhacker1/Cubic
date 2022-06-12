@@ -2,6 +2,10 @@ using System.Collections.Generic;
 
 namespace Cubic.Content;
 
+/// <summary>
+/// A locale contains a dictionary of strings that can be loaded and accessed at any point.
+/// Useful for allowing support for multiple languages.
+/// </summary>
 public class Locale
 {
     public readonly string Language;

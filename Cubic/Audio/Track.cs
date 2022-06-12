@@ -4,6 +4,9 @@ using Cubic.Utilities;
 
 namespace Cubic.Audio;
 
+/// <summary>
+/// A loaded sound tracker file.
+/// </summary>
 public struct Track
 {
     /// <summary>

@@ -2,7 +2,7 @@ using System.Text;
 
 namespace Cubic.Audio;
 
-internal struct Pattern
+public struct Pattern
 {
     public readonly Note[,] Notes;
     public readonly int Length;

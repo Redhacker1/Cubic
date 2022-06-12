@@ -63,13 +63,16 @@ public partial class Sound : IDisposable
     ///     <item>.ogg</item>
     ///     <item>.ctra</item>
     ///     <item>.s3m</item>
+    ///     <item>.it</item>
     /// </list>
     /// </summary>
+    /// <param name="device">The audio device to use for this sound.</param>
     /// <param name="path">The path to the sound file.</param>
     /// <param name="loop">Does this sound loop?</param>
     /// <param name="beginLoopPoint">The sample number the loop starts at.</param>
     /// <param name="endLoopPoint">The sample number the loop ends at. Set to -1 for the loop point to be placed at the end of the sound.</param>
     /// <param name="interpolation">If true, linear interpolation will be used. This option is <b>only</b> valid for modules.</param>
+    /// <param name="autoDispose">If true, the sound's native memory will be automatically freed on scene change.</param>
     /// <exception cref="Exception">Thrown if the given file is not an accepted file type, or if the given file is invalid/corrupt.</exception>
     /// <remarks><paramref name="beginLoopPoint"/> and <paramref name="endLoopPoint"/> are only used if <paramref name="loop"/> is set.</remarks>
     public Sound(AudioDevice device, string path, bool loop = false, int beginLoopPoint = 0, int endLoopPoint = -1, bool interpolation = true, bool autoDispose = true)
@@ -147,13 +150,20 @@ public partial class Sound : IDisposable
             SceneManager.Active.CreatedResources.Add(this);
     }
 
+    /// <summary>
+    /// Get the audio format from the given number of channels and bits.
+    /// </summary>
+    /// <param name="channels">The number of channels (accepted: 1, 2)</param>
+    /// <param name="bits">The number of bits per sample (accepted: 8, 16)</param>
+    /// <returns>The audio format.</returns>
+    /// <exception cref="CubicException">Thrown if an unsupported audio format is provided.</exception>
     public static AudioFormat GetFormat(int channels, int bits)
     {
         return channels switch
         {
             1 => bits == 8 ? AudioFormat.Mono8 : AudioFormat.Mono16,
             2 => bits == 8 ? AudioFormat.Stereo8 : AudioFormat.Stereo16,
-            _ => throw new Exception("Unsupported audio format provided.")
+            _ => throw new CubicException("Unsupported audio format provided.")
         };
     }
 
@@ -244,6 +254,14 @@ public partial class Sound : IDisposable
             _currentBuffer = 0;
     }
 
+    /// <summary>
+    /// Play this sound.
+    /// </summary>
+    /// <param name="channel">The channel this sound should be played in. If none is provided (-1), then one will be allocated.</param>
+    /// <param name="pitch">The pitch to play this sound at (1 = normal pitch)</param>
+    /// <param name="volume">The volume to play this sound at (1 = normal volume)</param>
+    /// <param name="persistent">If true, this sound cannot be overwritten by new sounds that are allocated.</param>
+    /// <returns>The channel this sound is played on.</returns>
     public int Play(int channel = -1, float pitch = 1, float volume = 1, bool persistent = false)
     {
         switch (_type)
@@ -294,6 +312,9 @@ public partial class Sound : IDisposable
     }
 }
 
+/// <summary>
+/// 
+/// </summary>
 public enum SoundType
 {
     PCM,

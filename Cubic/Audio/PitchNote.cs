@@ -2,6 +2,10 @@ using System;
 
 namespace Cubic.Audio;
 
+/// <summary>
+/// Calculate pitch (where a value of 1 is middle c) from a given piano key and octave.
+/// </summary>
+[Obsolete("Produces inaccurate results, use Sound.CalculateSampleRate() instead.", false)]
 public ref struct PitchNote
 {
     #region Constants

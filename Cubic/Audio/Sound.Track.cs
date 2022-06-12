@@ -646,7 +646,7 @@ public partial class Sound
         return (int) (2.5f / tempo * SampleRate);
     }
 
-    private float CalculateSampleRate(PianoKey key, Octave octave, float actualRate, float sampleMultiplier)
+    public static float CalculateSampleRate(PianoKey key, Octave octave, float actualRate, float sampleMultiplier)
     {
         int note = 40 + (int) (key - 2) + (int) (octave - 4) * 12;
         float powNote = MathF.Pow(2, (note - 49f) / 12f);
