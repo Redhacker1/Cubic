@@ -177,7 +177,7 @@ public class TextBox : UIElement
         graphics.SpriteRenderer.End();
 
         Rectangle scissor = graphics.Scissor;
-        graphics.Scissor = rect with { Y = scissor.Y };
+        graphics.Scissor = rect;
         graphics.SpriteRenderer.Begin();
         
         if (!string.IsNullOrEmpty(Placeholder) && Text.Length == 0)
