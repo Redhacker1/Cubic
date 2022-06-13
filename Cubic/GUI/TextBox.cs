@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Numerics;
 using Cubic.Render;
@@ -12,6 +13,9 @@ public class TextBox : UIElement
     
     public string Text;
     public string Placeholder;
+
+    private List<UndoState> _undoStates;
+    private int _undoIndex;
 
     private uint _textSize;
 
@@ -46,6 +50,8 @@ public class TextBox : UIElement
         _blinkTimer = BlinkTime;
         MaxLength = int.MaxValue;
         _lastCursorPos = -1;
+        _undoStates = new List<UndoState>();
+        _undoIndex = 0;
     }
 
     private void InputOnTextInput(char character)
@@ -211,7 +217,8 @@ public class TextBox : UIElement
 
             if (Input.KeyPressed(Keys.V))
             {
-                AdjustForSelection();
+                if (!AdjustForSelection())
+                    AddUndo();
                 ResetSelection();
                 string clipboard = Input.Clipboard.Replace("\n", "");
                 Text = Text.Insert(_cursorPos, clipboard);
@@ -232,6 +239,36 @@ public class TextBox : UIElement
                     AdjustForSelection();
                     ResetSelection();
                 }
+            }
+
+            if (Input.KeyPressed(Keys.Z))
+            {
+                _undoIndex--;
+                if (_undoIndex >= 0)
+                {
+                    UndoState state = _undoStates[_undoIndex];
+                    Text = state.Text;
+                    _cursorPos = state.CursorPos;
+                    _selectionRectBegin = state.BeginSelectionRect;
+                    _selectionRectEnd = state.EndSelectionRect;
+                }
+                else
+                    _undoIndex = 0;
+            }
+
+            if (Input.KeyPressed(Keys.Y))
+            {
+                _undoIndex++;
+                if (_undoIndex < _undoStates.Count)
+                {
+                    UndoState state = _undoStates[_undoIndex];
+                    Text = state.Text;
+                    _cursorPos = state.CursorPos;
+                    _selectionRectBegin = state.BeginSelectionRect;
+                    _selectionRectEnd = state.EndSelectionRect;
+                }
+                else
+                    _undoIndex = _undoStates.Count;
             }
         }
 
@@ -325,6 +362,7 @@ public class TextBox : UIElement
     {
         if (_selectionRectEnd - _selectionRectBegin > 0)
         {
+            AddUndo();
             Text = Text.Remove(_selectionRectBegin, _selectionRectEnd - _selectionRectBegin);
             if (_cursorPos == _selectionRectEnd)
                 _cursorPos -= _selectionRectEnd - _selectionRectBegin;
@@ -333,6 +371,30 @@ public class TextBox : UIElement
 
         return false;
     }
+
+    public void AddUndo()
+    {
+        if (_undoIndex < _undoStates.Count)
+            _undoStates.RemoveRange(_undoIndex, _undoStates.Count - _undoIndex);
+        _undoStates.Add(new UndoState(Text, _cursorPos, _selectionRectBegin, _selectionRectEnd));
+        _undoIndex++;
+    }
     
     public delegate void OnTextChanged(string text);
+
+    private struct UndoState
+    {
+        public readonly string Text;
+        public readonly int CursorPos;
+        public readonly int BeginSelectionRect;
+        public readonly int EndSelectionRect;
+
+        public UndoState(string text, int cursorPos, int beginSelectionRect, int endSelectionRect)
+        {
+            Text = text;
+            CursorPos = cursorPos;
+            BeginSelectionRect = beginSelectionRect;
+            EndSelectionRect = endSelectionRect;
+        }
+    }
 }

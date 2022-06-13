@@ -116,15 +116,20 @@ public abstract class UIElement
                 ClickPoint = new Point((int) Input.MousePosition.X - rect.X, (int) Input.MousePosition.Y - rect.Y);
                 Focused = true;
             }
+            else if (Clicked)
+            {
+                Clicked = false;
+                Click?.Invoke();
+                Pressed = true;
+            }
         }
-        else if (Input.MouseButtonDown(MouseButtons.Left))
-                Focused = false;
-
-        if (Clicked && Input.MouseButtonReleased(MouseButtons.Left))
+        else
         {
+            if (Input.MouseButtonDown(MouseButtons.Left))
+                Focused = false;
+            
             Clicked = false;
-            Click?.Invoke();
-            Pressed = true;
+            Pressed = false;
         }
     }
 
